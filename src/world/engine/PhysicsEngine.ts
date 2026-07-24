@@ -415,7 +415,7 @@ export class PhysicsEngine {
         );
 
         const frame = contact.frame;
-        const normal: [number, number, number] = [frame.get(0), frame.get(1), frame.get(2)];
+        const normal: [number, number, number] = [frame[0], frame[1], frame[2]];
 
         const updateState = (geomId: number, normalDirectionMultiplier: number) => {
           const mappedNormal: [number, number, number] = [

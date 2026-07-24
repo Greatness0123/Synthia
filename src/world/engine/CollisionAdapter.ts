@@ -76,9 +76,8 @@ export class CollisionAdapter {
         const name2 = module.mj_id2name(model, module.mjtObj.mjOBJ_GEOM.value, geom2) || `geom_${geom2}`;
 
         const frame = contact.frame;
-        // In Emscripten bindings, use frame.get(index) or direct array index to retrieve values
-        const contactNormal: [number, number, number] = [frame.get(0), frame.get(1), frame.get(2)];
-        const contactPos: [number, number, number] = [contact.pos.get(0), contact.pos.get(1), contact.pos.get(2)];
+        const contactNormal: [number, number, number] = [frame[0], frame[1], frame[2]];
+        const contactPos: [number, number, number] = [contact.pos[0], contact.pos[1], contact.pos[2]];
 
         pairs.push({
           geom1Id: geom1,
