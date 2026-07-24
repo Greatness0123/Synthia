@@ -11,6 +11,12 @@ export interface BoneSyncConfig {
   rootOffsetY?: number;
 }
 
+/**
+ * AvatarSynchronizer synchronizes MuJoCo rigid body orientations and translations
+ * back to THREE.js skinned mesh bones.
+ * Solves parent-child update lag by immediately updating matrices in sorted hierarchical order,
+ * eliminating high-frequency oscillations and twitching.
+ */
 export class AvatarSynchronizer {
   private rootOffsetHeight: number = 0.04; 
   private boneNameMap: Map<string, string> = new Map(); 
@@ -78,6 +84,10 @@ export class AvatarSynchronizer {
     this.sortedDirty = false;
   }
 
+  /**
+   * Propagates world rotations and translations hierarchically to visual bones.
+   * Immediately updates parent matrices to prevent stale world matrix calculation lag on child segments.
+   */
   public synchronize(
     bonesMap: Map<string, { bone: THREE.Bone; worldPosition: THREE.Vector3 }>,
     rigidBodies: Map<string, any>,
@@ -132,6 +142,10 @@ export class AvatarSynchronizer {
           pos.z
         );
       }
+
+      // Immediate matrix update to prevent stale world-transform lookups on child joints (kills foot twitching/jitter)
+      bone.updateMatrix();
+      bone.updateMatrixWorld(true);
     }
   }
 
