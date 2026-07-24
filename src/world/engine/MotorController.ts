@@ -153,7 +153,9 @@ export class MotorController {
         if (boneMatch) {
           const boneName = boneMatch[1];
           const axis = boneMatch[2];
-          const parsedTarget = currentTargets.get(boneName);
+          // Casing-safe lookup using lowercase canonical keys
+          const canonicalBoneName = boneName.toLowerCase().replace(/:/g, '');
+          const parsedTarget = currentTargets.get(canonicalBoneName);
           if (parsedTarget) {
             if (parsedTarget.isScalar && typeof parsedTarget.scalar === 'number' && axis === 'pitch') {
               deviation = parsedTarget.scalar;
@@ -172,7 +174,8 @@ export class MotorController {
 
   public setTargetAngle(boneName: string, angle: number): void {
     if (!this.model || !this.data || this.limpModeActive) return;
-    const actuatorIds = this.actuatorMap.get(boneName);
+    const canonical = boneName.toLowerCase().replace(/:/g, '');
+    const actuatorIds = this.actuatorMap.get(canonical);
     if (!actuatorIds || actuatorIds.length === 0) return;
 
     const rampFactor = this.simulationStepCount === 0 ? 1.0 : Math.min(1.0, this.simulationStepCount / 20);

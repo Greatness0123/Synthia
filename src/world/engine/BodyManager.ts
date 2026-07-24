@@ -5,7 +5,7 @@ import { logger as Logger } from '../../utils/logger';
 
 /**
  * BodyManager maps visual THREE.js bones to MuJoCo physics bodies, geoms, and actuators.
- * Ensures that all queries strip namespaces/colons and use standardized camelCase keys.
+ * Exposes canonical lowercase colon-stripped keys to consumers for 100% case safety.
  */
 export class BodyManager {
   private physicsEngine: PhysicsEngine;
@@ -90,24 +90,26 @@ export class BodyManager {
         this.geomMap.set('root_capsule', rootGeomId);
       }
 
-      // Map tracked bones using camelCase normalized names (Correction #15)
+      // Map tracked bones using canonical bone name (lowercase and colon-stripped) (Correction #15)
       for (const boneName of boneInfoMap.keys()) {
+        const canonical = boneName.toLowerCase().replace(/:/g, '');
         const normalized = normalizeBoneName(boneName);
 
         const bodyId = module.mj_name2id(model, module.mjtObj.mjOBJ_BODY.value, normalized);
         if (bodyId >= 0) {
-          this.bodyMap.set(normalized, bodyId);
+          this.bodyMap.set(canonical, bodyId);
         }
 
         const geomId = module.mj_name2id(model, module.mjtObj.mjOBJ_GEOM.value, normalized + '_geom');
         if (geomId >= 0) {
-          this.geomMap.set(normalized, geomId);
+          this.geomMap.set(canonical, geomId);
         }
       }
 
-      // Map actuator IDs
+      // Map actuator IDs using canonical names
       this.actuatorMap.clear();
       for (const boneName of boneInfoMap.keys()) {
+        const canonical = boneName.toLowerCase().replace(/:/g, '');
         const normalized = normalizeBoneName(boneName);
         const ids: number[] = [];
         const suffixes = ['_yaw', '_pitch', '_roll'];
@@ -119,7 +121,7 @@ export class BodyManager {
           }
         }
         if (ids.length > 0) {
-          this.actuatorMap.set(normalized, ids);
+          this.actuatorMap.set(canonical, ids);
         }
       }
 
@@ -165,8 +167,8 @@ export class BodyManager {
   }
 
   public getBoneColliderHandle(boneName: string): number | null {
-    const normalized = normalizeBoneName(boneName);
-    return this.geomMap.get(normalized) ?? null;
+    const canonical = boneName.toLowerCase().replace(/:/g, '');
+    return this.geomMap.get(canonical) ?? null;
   }
 
   /**
