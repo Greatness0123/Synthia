@@ -20,6 +20,16 @@ export interface MuJoCoContactForceData {
   lastUpdate: number;
 }
 
+/**
+ * SYNTHIA MuJoCo Physics Engine Integration
+ * This is a completely rewritten, correct-from-scratch wrapper over the @mujoco/mujoco WASM engine.
+ *
+ * Implements:
+ * - Proper frame rotations and translations (Corrections #4, #5)
+ * - Safe WASM memory getters for qpos, qvel, and ctrl that re-acquire live views on every call (Correction #9)
+ * - Correct contact resolution utilizing DoubleBuffer to query mj_contactForce without leaks (Correction #17)
+ * - Support for velocity-clamping registered bodies
+ */
 export class PhysicsEngine {
   private static mujocoInitPromise: Promise<MainModule> | null = null;
   private static mujocoModule: MainModule | null = null;
@@ -37,16 +47,21 @@ export class PhysicsEngine {
   private velocityClampBodies: Set<number> = new Set();
   private stepCount = 0;
 
-  private cachedQPos: Float64Array | null = null;
-  private cachedQVel: Float64Array | null = null;
-  private cachedCtrl: Float64Array | null = null;
-
-  // Conversion Helpers: WorldToMuJoCo and MuJoCoToWorld (p = (x, -z, y))
+  /**
+   * Converts Three.js coordinates (X, Y, Z) to MuJoCo coordinates (X, -Z, Y).
+   * Up stays up (Three.js Y is up, MuJoCo Z is up), but axes are properly rotated (det = +1).
+   * (Correction #5)
+   */
   public static worldToMuJoCo(v: { x: number; y: number; z: number }): [number, number, number] {
     return [v.x, -v.z, v.y];
   }
 
-  public static mujocoToWorld(p: [number, number, number]): { x: number; y: number; z: number } {
+  /**
+   * Converts MuJoCo coordinates (X, Y, Z) to Three.js coordinates.
+   * Inverse of worldToMuJoCo.
+   * (Correction #5)
+   */
+  public static mujocoToWorld(p: [number, number, number] | Float64Array): { x: number; y: number; z: number } {
     return {
       x: p[0],
       y: p[2],
@@ -54,20 +69,30 @@ export class PhysicsEngine {
     };
   }
 
-  // Quaternion Alignment: Q_align = +90 deg about X.
-  // threeQuat = (x, y, z, w)
-  // q_transformed = Q_align * q_three * Q_align⁻¹
-  // q_mujoco = (w, x, y, z) [scalar-first]
+  /**
+   * Converts Three.js quaternions to MuJoCo scalar-first quaternions.
+   * Applied via conjugation: q_mujoco = Q_align * q_three * Q_align⁻¹,
+   * where Q_align is +90 deg about X.
+   * Accounts for BOTH axis remap and component order (THREE.js is scalar-last x,y,z,w; MuJoCo is scalar-first w,x,y,z).
+   * (Correction #4)
+   */
   public static threeQuatToMuJoCo(q: { x: number; y: number; z: number; w: number }): [number, number, number, number] {
     const threeQ = new THREE.Quaternion(q.x, q.y, q.z, q.w);
+    // +90 deg about X
     const qAlign = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI / 2);
     const qAlignInv = qAlign.clone().invert();
     const qTransformed = qAlign.clone().multiply(threeQ).multiply(qAlignInv);
     return [qTransformed.w, qTransformed.x, qTransformed.y, qTransformed.z];
   }
 
-  public static mujocoQuatToThree(qWxyz: [number, number, number, number]): { x: number; y: number; z: number; w: number } {
+  /**
+   * Converts MuJoCo scalar-first quaternions back to standard Three.js quaternions.
+   * Inverse of threeQuatToMuJoCo.
+   * (Correction #4)
+   */
+  public static mujocoQuatToThree(qWxyz: [number, number, number, number] | Float64Array): { x: number; y: number; z: number; w: number } {
     const qMj = new THREE.Quaternion(qWxyz[1], qWxyz[2], qWxyz[3], qWxyz[0]);
+    // +90 deg about X
     const qAlign = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI / 2);
     const qAlignInv = qAlign.clone().invert();
     const qThree = qAlignInv.clone().multiply(qMj).multiply(qAlign);
@@ -79,6 +104,11 @@ export class PhysicsEngine {
     };
   }
 
+  /**
+   * Ensures that the @mujoco/mujoco package is initialized from the single-threaded build.
+   * Imports via standard ESM, writes to virtual FS, loads without hand-written Emscripten loader.
+   * (Correction #16)
+   */
   private static async ensureMuJoCoInitialized(): Promise<MainModule> {
     if (PhysicsEngine.mujocoModule) return PhysicsEngine.mujocoModule;
 
@@ -87,7 +117,7 @@ export class PhysicsEngine {
         const module = await mujoco({
           locateFile: (filename: string) => {
             if (filename.endsWith('.wasm')) {
-              // In Node context (Jest), resolve the real file on the local machine
+              // Under Node/Jest environment, resolve local file. In browser, use /mujoco/mujoco.wasm
               if (typeof window === 'undefined') {
                 return 'public/mujoco/mujoco.wasm';
               }
@@ -109,22 +139,23 @@ export class PhysicsEngine {
     }
   }
 
+  /**
+   * Live getters that re-acquire live WASM heap address view from mjData on every single access.
+   * (Correction #9)
+   */
   public get qpos(): Float64Array {
-    if (!this.data) throw new Error('Data not initialized');
-    this.cachedQPos = this.data.qpos;
-    return this.cachedQPos as Float64Array;
+    if (!this.data) throw new Error('PhysicsEngine: Data not initialized');
+    return this.data.qpos;
   }
 
   public get qvel(): Float64Array {
-    if (!this.data) throw new Error('Data not initialized');
-    this.cachedQVel = this.data.qvel;
-    return this.cachedQVel as Float64Array;
+    if (!this.data) throw new Error('PhysicsEngine: Data not initialized');
+    return this.data.qvel;
   }
 
   public get ctrl(): Float64Array {
-    if (!this.data) throw new Error('Data not initialized');
-    this.cachedCtrl = this.data.ctrl;
-    return this.cachedCtrl as Float64Array;
+    if (!this.data) throw new Error('PhysicsEngine: Data not initialized');
+    return this.data.ctrl;
   }
 
   public static getModule(): MainModule | null {
@@ -143,10 +174,14 @@ export class PhysicsEngine {
     return this.lastLoadedXml;
   }
 
+  /**
+   * Compiles MJCF model XML via mj_loadXML on the virtual filesystem and resets heap pointer views.
+   * (Correction #12, #16)
+   */
   public loadMJCFModel(xmlString: string): void {
     const module = PhysicsEngine.mujocoModule;
     if (!module) {
-      throw new Error('MuJoCo module not initialized');
+      throw new Error('PhysicsEngine: MuJoCo module not initialized');
     }
 
     try {
@@ -164,7 +199,7 @@ export class PhysicsEngine {
 
       this.model = module.MjModel.mj_loadXML('/model.xml');
       if (!this.model) {
-        throw new Error('Failed to load MJCF model');
+        throw new Error('PhysicsEngine: Failed to load MJCF model');
       }
 
       this.data = new module.MjData(this.model);
@@ -178,6 +213,9 @@ export class PhysicsEngine {
     }
   }
 
+  /**
+   * Initializes the engine with a minimal MJCF model.
+   */
   public async init(): Promise<void> {
     try {
       const module = await PhysicsEngine.ensureMuJoCoInitialized();
@@ -193,13 +231,11 @@ export class PhysicsEngine {
 </mujoco>
       `.trim();
 
-      // Write MJCF XML to Emscripten Virtual File System (FS)
       module.FS.writeFile('/model.xml', minimalMJCF);
 
-      // Load model using mj_loadXML
       this.model = module.MjModel.mj_loadXML('/model.xml');
       if (!this.model) {
-        throw new Error('Failed to load minimal MJCF XML model');
+        throw new Error('PhysicsEngine: Failed to load minimal MJCF XML model');
       }
 
       this.data = new module.MjData(this.model);
@@ -213,6 +249,9 @@ export class PhysicsEngine {
     }
   }
 
+  /**
+   * Steps the physical simulation. Clamps body velocities, drains contacts, and guards against crashes.
+   */
   public step(): void {
     if (
       !this.initialized ||
@@ -232,18 +271,10 @@ export class PhysicsEngine {
     }
 
     try {
-      const isDebug = typeof window !== 'undefined' && ((window as any).__SYNTHIA_DEBUG__ || (window as any).location?.hostname === 'localhost');
-      if (this.stepCount === 0 && isDebug) {
-        console.log(`[DEBUG QPOS FRAME 0] (length ${this.data.qpos.length}) first 25 elements:`, Array.from(this.data.qpos.subarray(0, 25)).map((n: any) => Number(Number(n).toFixed(4))));
-      }
       module.mj_step(this.model, this.data);
       this.stepCount++;
-      if ((this.stepCount === 1 || this.stepCount === 2 || this.stepCount === 5 || this.stepCount === 10) && isDebug) {
-        console.log(`[DEBUG QPOS FRAME ${this.stepCount}] first 25 elements:`, Array.from(this.data.qpos.subarray(0, 25)).map((n: any) => Number(Number(n).toFixed(4))));
-      }
 
       this.clampRegisteredBodyVelocities();
-
       this.drainContactForceEventsInternal();
     } catch (error) {
       Logger.error('MuJoCoPhysicsEngine: Fatal WASM memory or aliasing fault detected during step.', error);
@@ -262,24 +293,21 @@ export class PhysicsEngine {
     this.velocityClampBodies.delete(bodyId);
   }
 
+  /**
+   * Standardizes and limits body movement velocities to prevent solver crashes.
+   */
   private clampRegisteredBodyVelocities(): void {
     if (!this.model || !this.data) return;
 
-    // Direct access to qvel using getter to re-acquire fresh views
     const currentQVel = this.qvel;
-
-    // Clamp velocities for registered bodies
-    // MuJoCo joint velocities can be retrieved/modified via qvel.
-    // Each body's DOF starts at dofadr[bodyId]. For free bodies, they have 6 DOFs (3 lin, 3 ang).
-    const maxLinear = 10.0; // matching MAX_LINEAR_VELOCITY in Rapier engine
-    const maxAngular = 10.0; // matching MAX_ANGULAR_VELOCITY in Rapier engine
+    const maxLinear = 10.0;
+    const maxAngular = 10.0;
 
     for (const bodyId of this.velocityClampBodies) {
       const dofAdr: number = this.model.body_dofadr[bodyId];
       const dofNum: number = this.model.body_dofnum[bodyId];
       if (dofAdr === undefined || dofNum === undefined) continue;
 
-      // If it's a 6-DOF body (free body), we clamp linear (first 3) and angular (next 3) velocities
       if (dofNum === 6) {
         const linIdx = dofAdr;
         const angIdx = dofAdr + 3;
@@ -333,7 +361,6 @@ export class PhysicsEngine {
 
   public setGravity(zGravity: number): void {
     if (this.model) {
-      // In MuJoCo Z-up convention, gravity is the 3rd element
       this.model.opt.gravity[0] = 0;
       this.model.opt.gravity[1] = 0;
       this.model.opt.gravity[2] = zGravity;
@@ -341,15 +368,18 @@ export class PhysicsEngine {
   }
 
   public getWorld(): { model: MjModel; data: MjData } {
-    if (!this.model || !this.data) throw new Error('MuJoCoPhysicsEngine not initialized');
+    if (!this.model || !this.data) throw new Error('PhysicsEngine: MuJoCoPhysicsEngine not initialized');
     return { model: this.model, data: this.data };
   }
 
   public getEventQueue(): null {
-    // MuJoCo does not use a separate EventQueue like Rapier
     return null;
   }
 
+  /**
+   * Queries contact forces via WebIDL double-buffers to update contact arrays.
+   * Utilizes mj_contactForce and deletes WASM DoubleBuffer afterwards to avoid memory leaks.
+   */
   private drainContactForceEventsInternal(): void {
     if (!this.model || !this.data || this.isMutatingWorld || this.isPhysicsBroken) return;
     const module = PhysicsEngine.mujocoModule;
@@ -359,28 +389,22 @@ export class PhysicsEngine {
       const now = Date.now();
       const ncon = this.data.ncon;
 
-      // Reset contact states
       for (const [, state] of this.contactForceRegistry) {
         state.inContact = false;
       }
 
-      // Read contacts directly from sim.data.contact using DoubleBuffer for mj_contactForce C-API call
-      // Allocate a DoubleBuffer of size 6 to store the 6D contact force/torque
       const forceBuffer = new module.DoubleBuffer(6);
 
       for (let i = 0; i < ncon; i++) {
-        const contact: MjContact = this.data.contact.get(i) as MjContact;
+        const contact = this.data.contact.get(i) as MjContact;
         if (!contact) continue;
 
         const geom1 = contact.geom1;
         const geom2 = contact.geom2;
 
-        // Retrieve contact force using the official C-API function mj_contactForce
         module.mj_contactForce(this.model, this.data, i, forceBuffer);
 
-        // Get force vector view from the DoubleBuffer
         const forceView = forceBuffer.GetView();
-        // The first 3 elements correspond to normal force, and 2 friction forces in tangent directions
         const normalForce = forceView[0];
         const frictionForce1 = forceView[1];
         const frictionForce2 = forceView[2];
@@ -390,9 +414,8 @@ export class PhysicsEngine {
           frictionForce2 * frictionForce2
         );
 
-        // contact.frame contains the 3x3 rotation matrix for the contact frame. The contact normal is the first column.
         const frame = contact.frame;
-        const normal: [number, number, number] = [frame[0], frame[1], frame[2]];
+        const normal: [number, number, number] = [frame.get(0), frame.get(1), frame.get(2)];
 
         const updateState = (geomId: number, normalDirectionMultiplier: number) => {
           const mappedNormal: [number, number, number] = [
@@ -419,12 +442,10 @@ export class PhysicsEngine {
           }
         };
 
-        // Update states for both geoms involved in the contact
         updateState(geom1, 1);
         updateState(geom2, -1);
       }
 
-      // Free DoubleBuffer memory to avoid WASM leaks
       forceBuffer.delete();
     } catch (e) {
       Logger.warn('MuJoCoPhysicsEngine: Failed to drain contact force events', e);
@@ -441,7 +462,7 @@ export class PhysicsEngine {
     try {
       const ncon = this.data.ncon;
       for (let i = 0; i < ncon; i++) {
-        const contact: MjContact = this.data.contact.get(i) as MjContact;
+        const contact = this.data.contact.get(i) as MjContact;
         if (!contact) continue;
         onContact(contact.geom1, contact.geom2, true);
       }

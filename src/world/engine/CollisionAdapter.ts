@@ -12,9 +12,13 @@ export interface ContactPair {
   force: number;
 }
 
+/**
+ * CollisionAdapter maps user custom presets/objects to MuJoCo representation,
+ * and extracts precise contact pairs and active overlapping geoms from active WASM heap arrays.
+ */
 export class CollisionAdapter {
   /**
-   * Helper to map Rapier preset shape properties to MuJoCo XML geoms
+   * Helper to map Rapier-style preset shape properties to MuJoCo XML geoms.
    */
   public static objectPresetToMJCFGeom(preset: ObjectPreset): { geomType: string; size: string } {
     switch (preset.id) {
@@ -25,7 +29,6 @@ export class CollisionAdapter {
       case 'wedge':
       case 'slope':
       case 'ramp':
-        // Rotated box represented as wedge/slope/ramp
         return { geomType: 'box', size: '0.5 0.5 0.5' };
       case 'cube':
       default:
@@ -34,7 +37,8 @@ export class CollisionAdapter {
   }
 
   /**
-   * Reads the MuJoCo contact array and parses active contact pairs.
+   * Reads active MuJoCo contact structures and compiles current contact pairs.
+   * Leverages Emscripten WASM double buffer arrays and frees memory immediately to prevent memory leaks.
    */
   public static getCollisionPairs(
     module: MainModule,
@@ -45,7 +49,6 @@ export class CollisionAdapter {
     const ncon = data.ncon;
     if (ncon <= 0) return pairs;
 
-    // Use a DoubleBuffer of size 6 to store the 6D contact force/torque
     const forceBuffer = new module.DoubleBuffer(6);
 
     for (let i = 0; i < ncon; i++) {
@@ -57,7 +60,6 @@ export class CollisionAdapter {
         const geom2 = contact.geom2;
         const dist = contact.dist;
 
-        // Retrieve contact force using the official C-API function mj_contactForce
         module.mj_contactForce(model, data, i, forceBuffer);
 
         const forceView = forceBuffer.GetView();
@@ -74,6 +76,7 @@ export class CollisionAdapter {
         const name2 = module.mj_id2name(model, module.mjtObj.mjOBJ_GEOM.value, geom2) || `geom_${geom2}`;
 
         const frame = contact.frame;
+        // In Emscripten bindings, use frame.get(index) or direct array index to retrieve values
         const contactNormal: [number, number, number] = [frame.get(0), frame.get(1), frame.get(2)];
         const contactPos: [number, number, number] = [contact.pos.get(0), contact.pos.get(1), contact.pos.get(2)];
 
@@ -88,7 +91,7 @@ export class CollisionAdapter {
           force: forceMagnitude,
         });
       } catch (err) {
-        // safe recovery on contact index error
+        // Safe recover
       }
     }
 
@@ -97,7 +100,7 @@ export class CollisionAdapter {
   }
 
   /**
-   * Check if a specific geom ID is currently in contact with anything in the simulation.
+   * Queries if a specific geom identifier is active in any current contact point.
    */
   public static isGeomInContact(data: MjData, geomId: number): boolean {
     const ncon = data.ncon;

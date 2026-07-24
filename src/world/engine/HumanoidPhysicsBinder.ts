@@ -2,7 +2,8 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { PhysicsEngine } from './PhysicsEngine';
 import { BodyManager } from './BodyManager';
-import { MotorController } from './MotorController';
+import { MotorController, getStanceAngleForJoint } from './MotorController';
+import { normalizeBoneName } from './MJCFHumanoidTemplate';
 import type { TimelineSequence, ValidateResult } from '../../types/joint';
 import { clampAngle, isScalarPayload, normalizeBoneKey } from '../../types/joint';
 import SYNTHIA_RIG_CONSTRAINTS from '../../constants/rigConstraints';
@@ -1140,6 +1141,12 @@ export class HumanoidPhysicsBinder {
       qpos[qposadr + 1] = capsulePosMj[1];
       qpos[qposadr + 2] = capsulePosMj[2];
 
+      // Explicitly reset the orientation of the freejoint to identity quaternion (1, 0, 0, 0)
+      qpos[qposadr + 3] = 1.0;
+      qpos[qposadr + 4] = 0.0;
+      qpos[qposadr + 5] = 0.0;
+      qpos[qposadr + 6] = 0.0;
+
       for (let i = 0; i < 6; i++) {
         qvel[qveladr + i] = 0;
       }
@@ -1530,33 +1537,59 @@ export class HumanoidPhysicsBinder {
     const module = PhysicsEngine.getModule();
     if (!module) return;
 
-    // Reset all hinge qpos values to 0 (which maps perfectly to bind pose in our template!)
+    // Reset all joint qpos coordinates to their matching DEFAULT_STANCE_POSE angles (Correction #3, #13)
     const joints = this.bodyManager.getRigidBodiesMap();
     for (const [boneName] of joints) {
-      const hasYaw = module.mj_name2id(model, module.mjtObj.mjOBJ_JOINT.value, boneName + '_yaw') >= 0;
-      const hasPitch = module.mj_name2id(model, module.mjtObj.mjOBJ_JOINT.value, boneName + '_pitch') >= 0;
-      const hasRoll = module.mj_name2id(model, module.mjtObj.mjOBJ_JOINT.value, boneName + '_roll') >= 0;
+      if (boneName === 'root_capsule') continue;
+
+      const normalized = normalizeBoneName(boneName);
+
+      const hasYaw = module.mj_name2id(model, module.mjtObj.mjOBJ_JOINT.value, normalized + '_yaw') >= 0;
+      const hasPitch = module.mj_name2id(model, module.mjtObj.mjOBJ_JOINT.value, normalized + '_pitch') >= 0;
+      const hasRoll = module.mj_name2id(model, module.mjtObj.mjOBJ_JOINT.value, normalized + '_roll') >= 0;
 
       if (hasYaw) {
-        const jntId = module.mj_name2id(model, module.mjtObj.mjOBJ_JOINT.value, boneName + '_yaw');
-        qpos[model.jnt_qposadr[jntId]] = 0;
-        qvel[model.jnt_dofadr[jntId]] = 0;
+        const jntId = module.mj_name2id(model, module.mjtObj.mjOBJ_JOINT.value, normalized + '_yaw');
+        const qposadr = model.jnt_qposadr[jntId];
+        const dofadr = model.jnt_dofadr[jntId];
+        qpos[qposadr] = getStanceAngleForJoint(normalized + '_yaw');
+        qvel[dofadr] = 0;
       }
       if (hasPitch) {
-        const jntId = module.mj_name2id(model, module.mjtObj.mjOBJ_JOINT.value, boneName + '_pitch');
-        qpos[model.jnt_qposadr[jntId]] = 0;
-        qvel[model.jnt_dofadr[jntId]] = 0;
+        const jntId = module.mj_name2id(model, module.mjtObj.mjOBJ_JOINT.value, normalized + '_pitch');
+        const qposadr = model.jnt_qposadr[jntId];
+        const dofadr = model.jnt_dofadr[jntId];
+        qpos[qposadr] = getStanceAngleForJoint(normalized + '_pitch');
+        qvel[dofadr] = 0;
       }
       if (hasRoll) {
-        const jntId = module.mj_name2id(model, module.mjtObj.mjOBJ_JOINT.value, boneName + '_roll');
-        qpos[model.jnt_qposadr[jntId]] = 0;
-        qvel[model.jnt_dofadr[jntId]] = 0;
+        const jntId = module.mj_name2id(model, module.mjtObj.mjOBJ_JOINT.value, normalized + '_roll');
+        const qposadr = model.jnt_qposadr[jntId];
+        const dofadr = model.jnt_dofadr[jntId];
+        qpos[qposadr] = getStanceAngleForJoint(normalized + '_roll');
+        qvel[dofadr] = 0;
       }
     }
 
-    const armsDownAngle = this.restArmAngleDeg * (Math.PI / 180);
-    this.currentTargets.set('mixamorigrightarm', { x: armsDownAngle, y: 0, z: 0, isQuaternion: false });
-    this.currentTargets.set('mixamorigleftarm', { x: armsDownAngle, y: 0, z: 0, isQuaternion: false });
+    // Zero out all velocities completely
+    for (let i = 0; i < model.nv; i++) {
+      qvel[i] = 0.0;
+    }
+
+    // Zero out all applied external force vectors on reset
+    const xfrc = data.xfrc_applied;
+    for (let i = 0; i < model.nbody * 6; i++) {
+      xfrc[i] = 0.0;
+    }
+
+    // Sync ctrl setpoints directly in the same call (Correction #3)
+    this.motorController.setTargets(new Map());
+
+    // Compute forward dynamics to immediately update world coordinates (e.g., xpos, xquat)
+    module.mj_forward(model, data);
+
+    // Flush any pending contact events
+    this.physicsEngine.flushEventQueue();
   }
 
   public async adjustMotors(stiffness: number, damping: number): Promise<boolean> {
