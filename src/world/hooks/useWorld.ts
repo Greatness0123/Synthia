@@ -152,6 +152,11 @@ export const useWorld = (containerRef: React.RefObject<HTMLDivElement>) => {
         // Expose humanoid binder to window for step-by-step testing
         (window as any).__SYNTHIA_HUMANOID_BINDER__ = humanoidPhysicsBinder;
         (window as any).__SYNTHIA_PHYSICS_ENGINE__ = physicsEngine;
+        (window as any).__SYNTHIA_MUJOCO_MODULE__ = PhysicsEngine.getModule();
+        (window as any).__SYNTHIA_CAMERA__ = worldEngineRef.current.getCamera();
+        (window as any).__SYNTHIA_RENDERER__ = worldEngineRef.current.getRenderer();
+        (window as any).__SYNTHIA_SCENE__ = worldEngineRef.current.getScene();
+        (window as any).THREE = THREE;
 
         Logger.info("useWorld: Starting animation loop...");
         worldEngineRef.current.start(() => {

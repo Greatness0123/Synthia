@@ -3,6 +3,7 @@ import { ObjectPreset, OBJECT_PRESETS } from '../../constants/objectPresets';
 import { PhysicsEngine } from './PhysicsEngine';
 import { CollisionAdapter } from './CollisionAdapter';
 import { AudioEngine } from './AudioEngine';
+import { NUM_ENV_SLOTS } from './MJCFHumanoidTemplate';
 import { logger as Logger } from '../../utils/logger';
 
 export interface WorldObject {
@@ -28,8 +29,8 @@ export class ObjectManager {
   // Track dragging state
   private draggingObjectId: string | null = null;
 
-  // Primitive slot pool tracking (20 slots)
-  private slotClaimed: boolean[] = new Array(20).fill(false);
+  // Primitive slot pool tracking
+  private slotClaimed: boolean[] = new Array(NUM_ENV_SLOTS).fill(false);
   private slotToObjectId: Map<number, string> = new Map();
 
   private eventCallback: ((type: string, data: any) => void) | null = null;
@@ -358,7 +359,7 @@ export class ObjectManager {
     // 1. Find an unclaimed pre-allocated pool slot
     const slotIdx = this.slotClaimed.indexOf(false);
     if (slotIdx < 0) {
-      Logger.warn('ObjectManager: Pre-allocated slots exhausted (all 20 slots active!)');
+      Logger.warn(`ObjectManager: Pre-allocated slots exhausted (all ${NUM_ENV_SLOTS} slots active!)`);
       return null;
     }
 

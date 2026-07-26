@@ -4,6 +4,8 @@ import { COMPLETE_MIXAMO_PHYSICS_MATRIX } from '../../constants/physics';
 import SYNTHIA_RIG_CONSTRAINTS from '../../constants/rigConstraints';
 import { getAnatomicalLimitForBone } from '../../constants/anatomicalLimits';
 
+export const NUM_ENV_SLOTS = 20;
+
 // Define BONE_JOINT_TYPE
 type JointType = 'revolute' | 'spherical' | 'fixed';
 const BONE_JOINT_TYPE: Record<string, JointType> = {
@@ -214,18 +216,15 @@ export function generateHumanoidMJCF(
     let geomXML = '';
     const isFoot = boneName.includes('foot');
     if (isFoot) {
-      // Foot box dimensions swap Y and Z
+      // Foot box dimensions swap Y and Z   0.05 0.11 0.01
       const FOOT_COLLIDER_HALF_WIDTH = 0.05;
       const FOOT_COLLIDER_HALF_HEIGHT = 0.01;
-      const FOOT_COLLIDER_HALF_LENGTH = 0.11;
+      const FOOT_COLLIDER_HALF_LENGTH = 0.12;
       // Local sole offset in Three is (0, -0.02, 0). Swapped to MuJoCo: (0, 0, 0.02)
-      geomXML = `<geom name="${boneName}_geom" type="box" size="${FOOT_COLLIDER_HALF_WIDTH} ${FOOT_COLLIDER_HALF_LENGTH} ${FOOT_COLLIDER_HALF_HEIGHT}" pos="0 0 0.02" contype="2" conaffinity="1"/>`;
+      geomXML = `<geom name="${boneName}_geom" type="box" size="${FOOT_COLLIDER_HALF_WIDTH} ${FOOT_COLLIDER_HALF_LENGTH} ${FOOT_COLLIDER_HALF_HEIGHT}" pos="0 -0.1 0" contype="2" conaffinity="1"/>`;
     } else {
-      const boneLength = estimateBoneLength(boneName, boneInfo, boneInfoMap);
       const colRadius = 0.04;
-      const colHalfHeight = Math.max(0.02, boneLength / 2 - colRadius);
-      // Capsule aligned with Z-axis
-      geomXML = `<geom name="${boneName}_geom" type="capsule" size="${colRadius} ${colHalfHeight}" pos="0 0 0" contype="2" conaffinity="1"/>`;
+      geomXML = `<geom name="${boneName}_geom" type="sphere" size="${colRadius}" pos="0 0 0" contype="2" conaffinity="1"/>`;
     }
 
     // Joint declarations
@@ -299,9 +298,9 @@ export function generateHumanoidMJCF(
   const leftLegBranch = buildBodyTreeXML('mixamorigleftupleg', capsulePosMj as [number, number, number], capsuleQuatMj as [number, number, number, number]);
   const rightLegBranch = buildBodyTreeXML('mixamorigrightupleg', capsulePosMj as [number, number, number], capsuleQuatMj as [number, number, number, number]);
 
-  // Generate pre-allocated slot bodies (env_slot_0 to env_slot_19)
+  // Generate pre-allocated slot bodies (env_slot_0 to env_slot_N)
   const slotBodies: string[] = [];
-  for (let i = 0; i < 20; i++) {
+  for (let i = 0; i < NUM_ENV_SLOTS; i++) {
     slotBodies.push(`
     <body name="env_slot_${i}" pos="0 0 -10">
       <freejoint name="env_slot_${i}_joint"/>
