@@ -1,7 +1,45 @@
-import * as THREE from 'three';
 import { PhysicsEngine } from './PhysicsEngine';
 import { logger as Logger } from '../../utils/logger';
 
+/**
+ * Biomechanically stable, neutral standing stance DEFAULT_STANCE_POSE.
+ * Slightly flexed hips and knees, slightly dorsiflexed ankles for stable standing.
+ * Arms are relaxed at sides (75 deg / 1.309 rad).
+ * (Correction #13)
+ */
+export const DEFAULT_STANCE_POSE: Record<string, { yaw?: number; pitch?: number; roll?: number }> = {
+  'mixamorigLeftUpLeg': { yaw: 0.0, pitch: -0.10, roll: 0.0 },
+  'mixamorigRightUpLeg': { yaw: 0.0, pitch: -0.10, roll: 0.0 },
+  'mixamorigLeftLeg': { pitch: -0.12 },
+  'mixamorigRightLeg': { pitch: -0.12 },
+  'mixamorigLeftFoot': { yaw: 0.0, pitch: 0.10, roll: 0.0 },
+  'mixamorigRightFoot': { yaw: 0.0, pitch: 0.10, roll: 0.0 },
+  'mixamorigLeftArm': { yaw: 0.0, pitch: 1.309, roll: 0.0 },
+  'mixamorigRightArm': { yaw: 0.0, pitch: 1.309, roll: 0.0 },
+};
+
+/**
+ * Returns the stable stance angle for any given joint/actuator name.
+ * (Correction #3, #11, #13)
+ */
+export function getStanceAngleForJoint(jointName: string): number {
+  const match = jointName.match(/^(.+?)_(pitch|yaw|roll)$/);
+  if (!match) return 0.0;
+
+  const bone = match[1];
+  const axis = match[2] as 'pitch' | 'yaw' | 'roll';
+
+  const pose = DEFAULT_STANCE_POSE[bone];
+  if (pose && pose[axis] !== undefined) {
+    return pose[axis]!;
+  }
+  return 0.0;
+}
+
+/**
+ * MotorController manages PD target setpoints, idle stances,
+ * gain scaling, limp mode, and root capsule balance torques.
+ */
 export class MotorController {
   private model: any = null;
   private data: any = null;
@@ -13,8 +51,15 @@ export class MotorController {
   private limpModeActive = false;
   private simulationStepCount = 0;
 
+  private idleModeActive = false;
+  private lastAiCommandStep = -9999;
+  private readonly IDLE_TIMEOUT_STEPS = 120;
+
   constructor() {}
 
+  /**
+   * Initializes the motor controller, parses joint gains, and registers WASM pointers.
+   */
   public init(actuatorMap: Map<string, number[]>, model: any, data: any): void {
     this.model = model;
     this.data = data;
@@ -22,7 +67,6 @@ export class MotorController {
 
     this.baseGains.clear();
     for (let i = 0; i < model.nu; i++) {
-      // position actuators store kp in actuator_gainprm[i*3] and -kv in actuator_biasprm[i*3+2]
       const kp = model.actuator_gainprm[i * 3];
       const kv = -model.actuator_biasprm[i * 3 + 2];
       this.baseGains.set(i, { kp, kv });
@@ -32,6 +76,8 @@ export class MotorController {
     this.globalDampingScale = 1.0;
     this.limpModeActive = false;
     this.simulationStepCount = 0;
+    this.idleModeActive = false;
+    this.lastAiCommandStep = -9999;
 
     Logger.info(`MotorController: Initialized with ${model.nu} actuators.`);
   }
@@ -40,63 +86,99 @@ export class MotorController {
     this.simulationStepCount = 0;
   }
 
+  public setIdleMode(active: boolean): void {
+    this.idleModeActive = active;
+    if (active) {
+      Logger.info('MotorController: Idle balance mode activated — holding standing stance.');
+    } else {
+      Logger.info('MotorController: Idle balance mode deactivated.');
+    }
+  }
+
+  public setAiCommand(): void {
+    this.lastAiCommandStep = this.simulationStepCount;
+    if (this.idleModeActive) {
+      this.idleModeActive = false;
+    }
+  }
+
+  private isIdleTimeout(): boolean {
+    return (this.simulationStepCount - this.lastAiCommandStep) > this.IDLE_TIMEOUT_STEPS;
+  }
+
+  /**
+   * Translates joint setpoints (DEFAULT_STANCE_POSE + deviations) to ctrl memory.
+   * Leverages a 20-frame linear soft-start transition ramp for joint corrections/AI inputs,
+   * but never limits Frame-0, which is already fully synced.
+   * (Correction #3, #11)
+   */
   public setTargets(currentTargets: Map<string, any>): void {
     if (!this.model || !this.data) return;
 
     const ctrl = this.data.ctrl;
 
-    // Reset all controls to 0 by default
+    // Reset all controls to zero initially
     for (let i = 0; i < this.model.nu; i++) {
-      ctrl[i] = 0;
+      ctrl[i] = 0.0;
     }
 
     if (this.limpModeActive) return;
 
-    const rampFactor = Math.min(1.0, this.simulationStepCount / 20);
+    if (this.idleModeActive && this.isIdleTimeout()) {
+      // maintain idle mode
+    } else if (!this.idleModeActive && this.isIdleTimeout() && this.lastAiCommandStep >= 0) {
+      this.idleModeActive = true;
+    }
+
+    // soft-start linear ramp for post-spawn pose transitions
+    const rampFactor = this.simulationStepCount === 0 ? 1.0 : Math.min(1.0, this.simulationStepCount / 20);
     this.simulationStepCount++;
 
-    currentTargets.forEach((parsedTarget, boneName) => {
-      const actuatorIds = this.actuatorMap.get(boneName);
-      if (!actuatorIds || actuatorIds.length === 0) return;
+    const module = PhysicsEngine.getModule();
+    if (!module) return;
 
-      if (actuatorIds.length === 1) {
-        // Revolute joint (e.g. knees, elbows) -> Single pitch actuator
-        let targetAngle = 0;
-        if (parsedTarget.isScalar && typeof parsedTarget.scalar === 'number') {
-          targetAngle = parsedTarget.scalar;
-        } else if (parsedTarget.x !== undefined && typeof parsedTarget.x === 'number') {
-          targetAngle = parsedTarget.x;
+    // Additive pattern: ctrl[joint] = DEFAULT_STANCE_POSE[joint] + rampFactor * deviation
+    for (let i = 0; i < this.model.nu; i++) {
+      const jointId = this.model.actuator_trnid[i * 2]; // target joint ID
+      const jointName = module.mj_id2name(this.model, module.mjtObj.mjOBJ_JOINT.value, jointId);
+      if (!jointName) continue;
+
+      const baseStanceVal = getStanceAngleForJoint(jointName);
+      let deviation = 0.0;
+
+      // Extract active AI command deviation if not in idle mode
+      if (!this.idleModeActive) {
+        // Find if this joint's bone has an active deviation target
+        const boneMatch = jointName.match(/^(.+?)_(pitch|yaw|roll)$/);
+        if (boneMatch) {
+          const boneName = boneMatch[1];
+          const axis = boneMatch[2];
+          // Casing-safe lookup using lowercase canonical keys
+          const canonicalBoneName = boneName.toLowerCase().replace(/:/g, '');
+          const parsedTarget = currentTargets.get(canonicalBoneName);
+          if (parsedTarget) {
+            if (parsedTarget.isScalar && typeof parsedTarget.scalar === 'number' && axis === 'pitch') {
+              deviation = parsedTarget.scalar;
+            } else if (parsedTarget.x !== undefined) {
+              if (axis === 'yaw') deviation = parsedTarget.z || 0;
+              if (axis === 'pitch') deviation = parsedTarget.x || 0;
+              if (axis === 'roll') deviation = parsedTarget.y || 0;
+            }
+          }
         }
-        ctrl[actuatorIds[0]] = targetAngle * rampFactor;
-      } else if (actuatorIds.length === 3) {
-        // Spherical joint decomposed into yaw, pitch, roll
-        // Index 0: yaw, Index 1: pitch, Index 2: roll
-        let yaw = 0;
-        let pitch = 0;
-        let roll = 0;
-
-        if (parsedTarget.isScalar && typeof parsedTarget.scalar === 'number') {
-          pitch = parsedTarget.scalar;
-        } else if (parsedTarget.x !== undefined) {
-          yaw = parsedTarget.z || 0;
-          pitch = parsedTarget.x || 0;
-          roll = parsedTarget.y || 0;
-        }
-
-        ctrl[actuatorIds[0]] = yaw * rampFactor;
-        ctrl[actuatorIds[1]] = pitch * rampFactor;
-        ctrl[actuatorIds[2]] = roll * rampFactor;
       }
-    });
+
+      ctrl[i] = baseStanceVal + rampFactor * deviation;
+    }
   }
 
   public setTargetAngle(boneName: string, angle: number): void {
     if (!this.model || !this.data || this.limpModeActive) return;
-    const actuatorIds = this.actuatorMap.get(boneName);
+    const canonical = boneName.toLowerCase().replace(/:/g, '');
+    const actuatorIds = this.actuatorMap.get(canonical);
     if (!actuatorIds || actuatorIds.length === 0) return;
 
-    const rampFactor = Math.min(1.0, this.simulationStepCount / 20);
-    // Direct assignment to pitch or first actuator
+    const rampFactor = this.simulationStepCount === 0 ? 1.0 : Math.min(1.0, this.simulationStepCount / 20);
     this.data.ctrl[actuatorIds[0]] = angle * rampFactor;
   }
 
@@ -115,16 +197,15 @@ export class MotorController {
     if (!this.model || !this.data) return;
 
     if (active) {
-      // Zero out all actuator gains for passive ragdoll
       for (let i = 0; i < this.model.nu; i++) {
         this.model.actuator_gainprm[i * 3] = 0;
         this.model.actuator_biasprm[i * 3 + 1] = 0;
         this.model.actuator_biasprm[i * 3 + 2] = 0;
         this.data.ctrl[i] = 0;
       }
+      this.idleModeActive = false;
       Logger.info('MotorController: Limp mode activated. All gains zeroed.');
     } else {
-      // Restore standard scaled gains
       this.applyGainsToModel();
       Logger.info('MotorController: Limp mode deactivated. Gains restored.');
     }
@@ -150,6 +231,12 @@ export class MotorController {
     return this.actuatorMap.size;
   }
 
+  /**
+   * Calculates stabilizing corrective torques on the root capsule based on
+   * world tilt orientation and angular velocities.
+   * Capped and applies directly to xfrc_applied, with zero contact-state dependency.
+   * (Correction #10)
+   */
   public applyCapsuleBalance(capsuleBodyId: number): void {
     if (!this.model || !this.data || capsuleBodyId < 0) return;
 
@@ -159,58 +246,52 @@ export class MotorController {
     const qY = xquat[capsuleBodyId * 4 + 2];
     const qZ = xquat[capsuleBodyId * 4 + 3];
 
-    // Convert MuJoCo scalar-first orientation of capsule to Three.js coordinates
-    const threeQuatObj = PhysicsEngine.mujocoQuatToThree([qW, qX, qY, qZ]);
-    const q = new THREE.Quaternion(threeQuatObj.x, threeQuatObj.y, threeQuatObj.z, threeQuatObj.w);
+    // Rotated Z world vector
+    const rx = 2 * (qX * qZ + qW * qY);
+    const ry = 2 * (qY * qZ - qW * qX);
+    const rz = qW * qW - qX * qX - qY * qY + qZ * qZ;
 
-    // Compute upright balance error relative to world vertical axis (0, 1, 0)
-    const capsuleUp = new THREE.Vector3(0, 1, 0).applyQuaternion(q);
-    const tiltAngle = Math.acos(Math.min(1, Math.max(-1, capsuleUp.y)));
+    const dot = Math.min(1.0, Math.max(-1.0, rz));
+    const tiltAngle = Math.acos(dot);
 
-    const tiltAxis = new THREE.Vector3();
+    let tiltAxisX = 0;
+    let tiltAxisY = 0;
     if (tiltAngle > 1e-5) {
-      tiltAxis.set(-capsuleUp.z, 0, capsuleUp.x).normalize();
+      const sinTilt = Math.sin(tiltAngle);
+      tiltAxisX = ry / sinTilt;
+      tiltAxisY = -rx / sinTilt;
     }
 
-    // Get angular velocity in Three.js/world frame
     const dofAdr = this.model.body_dofadr[capsuleBodyId];
     const qvel = this.data.qvel;
-    const angVelMj: [number, number, number] = [
-      qvel[dofAdr + 3],
-      qvel[dofAdr + 4],
-      qvel[dofAdr + 5]
-    ];
-    const angVelWorld = PhysicsEngine.mujocoToWorld(angVelMj);
+    const wx = qvel[dofAdr + 3];
+    const wy = qvel[dofAdr + 4];
+    const wz = qvel[dofAdr + 5];
 
-    // Scale balancing gains dynamically
-    const BALANCE_KP = 100.0 * this.globalStiffnessScale;
-    const BALANCE_KD = 40.0 * this.globalDampingScale;
+    // Balanced PD coefficients scaled to 70kg target
+    const BALANCE_KP = 250.0 * this.globalStiffnessScale;
+    const BALANCE_KD = 60.0 * this.globalDampingScale;
 
-    // Upright balancing torque in Three.js/world space
-    const torqueWorld = new THREE.Vector3(
-      BALANCE_KP * tiltAxis.x * tiltAngle - BALANCE_KD * angVelWorld.x,
-      BALANCE_KP * tiltAxis.y * tiltAngle - BALANCE_KD * angVelWorld.y,
-      BALANCE_KP * tiltAxis.z * tiltAngle - BALANCE_KD * angVelWorld.z
-    );
+    let tx = BALANCE_KP * tiltAxisX * tiltAngle - BALANCE_KD * wx;
+    let ty = BALANCE_KP * tiltAxisY * tiltAngle - BALANCE_KD * wy;
+    let tz = -BALANCE_KD * wz;
 
-    // Clamp balancing torque at 60.0 (matching Rapier clamp in HumanoidMultiBodyManager.ts)
-    const torqueMag = torqueWorld.length();
-    const MAX_BALANCE_TORQUE = 60.0;
+    const torqueMag = Math.sqrt(tx * tx + ty * ty + tz * tz);
+    const MAX_BALANCE_TORQUE = 100.0;
     if (torqueMag > MAX_BALANCE_TORQUE) {
-      torqueWorld.multiplyScalar(MAX_BALANCE_TORQUE / torqueMag);
+      const scale = MAX_BALANCE_TORQUE / torqueMag;
+      tx *= scale;
+      ty *= scale;
+      tz *= scale;
     }
 
-    // Convert balancing torque back to MuJoCo coordinate system
-    const torqueMj = PhysicsEngine.worldToMuJoCo(torqueWorld);
-
-    // Apply directly into xfrc_applied for the capsule body
     const xfrc = this.data.xfrc_applied;
     const idx = capsuleBodyId * 6;
     xfrc[idx + 0] = 0;
     xfrc[idx + 1] = 0;
     xfrc[idx + 2] = 0;
-    xfrc[idx + 3] = torqueMj[0];
-    xfrc[idx + 4] = torqueMj[1];
-    xfrc[idx + 5] = torqueMj[2];
+    xfrc[idx + 3] = tx;
+    xfrc[idx + 4] = ty;
+    xfrc[idx + 5] = tz;
   }
 }

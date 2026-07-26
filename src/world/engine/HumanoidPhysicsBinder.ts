@@ -2,7 +2,8 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { PhysicsEngine } from './PhysicsEngine';
 import { BodyManager } from './BodyManager';
-import { MotorController } from './MotorController';
+import { MotorController, getStanceAngleForJoint } from './MotorController';
+import { normalizeBoneName } from './MJCFHumanoidTemplate';
 import type { TimelineSequence, ValidateResult } from '../../types/joint';
 import { clampAngle, isScalarPayload, normalizeBoneKey } from '../../types/joint';
 import SYNTHIA_RIG_CONSTRAINTS from '../../constants/rigConstraints';
@@ -21,7 +22,7 @@ export class BodyProxy {
   private model: any;
   private data: any;
 
-  constructor(bodyId: number, model: any, data: any, _module: any) {
+  constructor(bodyId: number, model: any, data: any) {
     this.bodyId = bodyId;
     this.model = model;
     this.data = data;
@@ -94,6 +95,8 @@ export class HumanoidPhysicsBinder {
   private boneInfoMap: Map<string, BoneInfo> = new Map();
   private bindPoseQuaternions: Map<string, THREE.Quaternion> = new Map();
   private debugSpheres: Map<string, THREE.Mesh> = new Map();
+  private capsuleDebugMesh: THREE.Mesh | null = null;
+  private capsuleDebugActive: boolean = false;
   private cameraHelpers: THREE.Group[] = [];
   private isLoaded: boolean = false;
 
@@ -187,7 +190,7 @@ export class HumanoidPhysicsBinder {
 
         const cap = options?.activeGaitPhase && constraint.allowance?.locomotionCap ? constraint.allowance.locomotionCap : undefined;
 
-        let xVal = 0, yVal = 0, zVal = 0;
+        let xVal: number, yVal = 0, zVal = 0;
         if (isScalarPayload(rawVal)) {
           xVal = typeof rawVal === 'number' ? rawVal : rawVal[0];
         } else if (Array.isArray(rawVal) && rawVal.length === 3) {
@@ -652,13 +655,13 @@ export class HumanoidPhysicsBinder {
 
       for (const [boneName, bodyId] of bodyIds) {
         if (boneName === 'root_capsule') continue;
-        const proxy = new BodyProxy(bodyId, world.model, world.data, module);
+        const proxy = new BodyProxy(bodyId, world.model, world.data);
         rigidBodiesMap.set(boneName, proxy);
       }
 
       this.observationBuilder.clear();
       if (capsuleBodyId !== null && capsuleBodyId >= 0) {
-        const capsuleProxy = new BodyProxy(capsuleBodyId, world.model, world.data, module);
+        const capsuleProxy = new BodyProxy(capsuleBodyId, world.model, world.data);
         this.observationBuilder.registerJoint('capsule', capsuleProxy as any, null);
 
         for (const [boneName, proxy] of rigidBodiesMap) {
@@ -681,6 +684,7 @@ export class HumanoidPhysicsBinder {
 
       this.observationBuilder.setGroundHeight(0);
       this.mbActive = true;
+      this.motorController.setIdleMode(true);
       Logger.info('HumanoidPhysicsBinderMuJoCo: Multi-body active');
       return true;
     } catch (error) {
@@ -692,6 +696,7 @@ export class HumanoidPhysicsBinder {
   public deactivateMultiBody(): void {
     this.observationBuilder.clear();
     this.avatarSynchronizer.clear();
+    this.motorController.setIdleMode(false);
     this.mbActive = false;
     Logger.info('HumanoidPhysicsBinderMuJoCo: Multi-body deactivated');
   }
@@ -717,7 +722,7 @@ export class HumanoidPhysicsBinder {
     if (capsuleBodyId === null || capsuleBodyId < 0) return;
 
     // 1. Position and orient the Three.js model root using MuJoCo capsule body
-    const capsuleProxy = new BodyProxy(capsuleBodyId, model, data, module);
+    const capsuleProxy = new BodyProxy(capsuleBodyId, model, data);
     const t = capsuleProxy.translation();
     const r = capsuleProxy.rotation();
 
@@ -729,6 +734,36 @@ export class HumanoidPhysicsBinder {
 
     this.modelRoot.position.copy(capsulePosition).sub(offsetWorld);
     this.modelRoot.quaternion.copy(capsuleQuaternion);
+
+    // Capsule debug visualization (follows MuJoCo capsule body world position/rotation)
+    {
+      const showCapsule = this.capsuleDebugActive;
+      if (showCapsule && !this.capsuleDebugMesh) {
+        const capsuleGeo = new THREE.CapsuleGeometry(this.capsuleRadius, this.capsuleCenterY * 2 - this.capsuleRadius * 2, 8, 16);
+        const capsuleMat = new THREE.MeshBasicMaterial({
+          color: 0xff4444,
+          wireframe: true,
+          transparent: true,
+          opacity: 0.5,
+          depthTest: true,
+        });
+        this.capsuleDebugMesh = new THREE.Mesh(capsuleGeo, capsuleMat);
+        this.capsuleDebugMesh.renderOrder = 999;
+        this.scene.add(this.capsuleDebugMesh);
+      } else if (!showCapsule && this.capsuleDebugMesh) {
+        this.scene.remove(this.capsuleDebugMesh);
+        this.capsuleDebugMesh.geometry.dispose();
+        (this.capsuleDebugMesh.material as THREE.Material).dispose();
+        this.capsuleDebugMesh = null;
+      }
+
+      if (this.capsuleDebugMesh) {
+        // Align the debug mesh to the capsule body's world position/rotation.
+        // capsulePosition and capsuleQuaternion are already computed above.
+        this.capsuleDebugMesh.position.copy(capsulePosition);
+        this.capsuleDebugMesh.quaternion.copy(capsuleQuaternion);
+      }
+    }
 
     // 2. Perform downward ground raycasting using mj_ray (as verified in Step 1)
     const capsulePosMj = [
@@ -793,7 +828,7 @@ export class HumanoidPhysicsBinder {
       const proxiesMap = new Map<string, BodyProxy>();
       for (const [canonical, bodyId] of this.bodyManager.getRigidBodiesMap()) {
         if (canonical === 'root_capsule') continue;
-        proxiesMap.set(canonical, new BodyProxy(bodyId, model, data, module));
+        proxiesMap.set(canonical, new BodyProxy(bodyId, model, data));
       }
 
       this.avatarSynchronizer.synchronize(bonesSyncMap, proxiesMap as any);
@@ -896,10 +931,10 @@ export class HumanoidPhysicsBinder {
     if (this.mbActive) {
       const registry = this.physicsEngine.getContactForceRegistry();
       const footBones = ['mixamorigleftfoot', 'mixamorigrightfoot'];
-      let totalImpulse = new THREE.Vector3(0, 0, 0);
-      let totalTorque = new THREE.Vector3(0, 0, 0);
+      const totalImpulse = new THREE.Vector3(0, 0, 0);
+      const totalTorque = new THREE.Vector3(0, 0, 0);
 
-      const capsuleProxy = new BodyProxy(capsuleBodyId, model, data, null);
+      const capsuleProxy = new BodyProxy(capsuleBodyId, model, data);
       const capsulePos = capsuleProxy.translation();
       const modelQuat = this.modelRoot.quaternion.clone();
       const modelForward = new THREE.Vector3(0, 0, -1).applyQuaternion(modelQuat);
@@ -964,8 +999,8 @@ export class HumanoidPhysicsBinder {
 
     // Kinematic model foot positions reaction forces
     const feetNames = ['mixamoriglefttoebase', 'mixamorigrighttoebase'];
-    let totalImpulse = new THREE.Vector3(0, 0, 0);
-    let totalTorque = new THREE.Vector3(0, 0, 0);
+    const totalImpulse = new THREE.Vector3(0, 0, 0);
+    const totalTorque = new THREE.Vector3(0, 0, 0);
     const modelQuat = this.modelRoot.quaternion.clone();
 
     feetNames.forEach((boneName) => {
@@ -1004,7 +1039,7 @@ export class HumanoidPhysicsBinder {
                 grf.setLength(MAX_GRF_IMPULSE);
               }
 
-              const capsuleProxy = new BodyProxy(capsuleBodyId, model, data, null);
+              const capsuleProxy = new BodyProxy(capsuleBodyId, model, data);
               const capsulePos = capsuleProxy.translation();
               const offsetFromCenter = currentPos.x - capsulePos.x;
               const torqueY = -grf.z * offsetFromCenter * 5.0;
@@ -1106,6 +1141,12 @@ export class HumanoidPhysicsBinder {
       qpos[qposadr + 1] = capsulePosMj[1];
       qpos[qposadr + 2] = capsulePosMj[2];
 
+      // Explicitly reset the orientation of the freejoint to identity quaternion (1, 0, 0, 0)
+      qpos[qposadr + 3] = 1.0;
+      qpos[qposadr + 4] = 0.0;
+      qpos[qposadr + 5] = 0.0;
+      qpos[qposadr + 6] = 0.0;
+
       for (let i = 0; i < 6; i++) {
         qvel[qveladr + i] = 0;
       }
@@ -1118,7 +1159,7 @@ export class HumanoidPhysicsBinder {
     const capsuleBodyId = this.bodyManager.getCapsuleBody();
     if (capsuleBodyId !== null && capsuleBodyId >= 0) {
       const world = this.physicsEngine.getWorld();
-      const capsuleProxy = new BodyProxy(capsuleBodyId, world.model, world.data, null);
+      const capsuleProxy = new BodyProxy(capsuleBodyId, world.model, world.data);
       const pos = capsuleProxy.translation();
       const rot = capsuleProxy.rotation();
 
@@ -1191,7 +1232,7 @@ export class HumanoidPhysicsBinder {
     const state = registry.get(capsuleGeomId);
 
     if (state && state.inContact && state.impulse_magnitude > 0.01) {
-      let touching = 'unknown';
+      let touching: string;
       const ny = state.contact_normal[1];
       if (ny > 0.7) {
         touching = 'floor';
@@ -1349,6 +1390,9 @@ export class HumanoidPhysicsBinder {
       return { applied, rejected };
     }
 
+    // Signal idle mode that AI is commanding — overrides idle stance
+    this.motorController.setAiCommand();
+
     for (const [boneName, target] of Object.entries(targets)) {
       const aliasedName = this.resolveJointAlias(boneName.toLowerCase().replace(/:/g, ''));
       const canonical = aliasedName;
@@ -1388,7 +1432,7 @@ export class HumanoidPhysicsBinder {
           const parsedNumber = parseFloat(target);
           parsedTarget = { scalar: isNaN(parsedNumber) ? 0 : parsedNumber, isScalar: true };
         }
-      } catch (err) {
+      } catch {
         parsedTarget = { scalar: 0, isScalar: true };
       }
 
@@ -1493,33 +1537,59 @@ export class HumanoidPhysicsBinder {
     const module = PhysicsEngine.getModule();
     if (!module) return;
 
-    // Reset all hinge qpos values to 0 (which maps perfectly to bind pose in our template!)
+    // Reset all joint qpos coordinates to their matching DEFAULT_STANCE_POSE angles (Correction #3, #13)
     const joints = this.bodyManager.getRigidBodiesMap();
     for (const [boneName] of joints) {
-      const hasYaw = module.mj_name2id(model, module.mjtObj.mjOBJ_JOINT.value, boneName + '_yaw') >= 0;
-      const hasPitch = module.mj_name2id(model, module.mjtObj.mjOBJ_JOINT.value, boneName + '_pitch') >= 0;
-      const hasRoll = module.mj_name2id(model, module.mjtObj.mjOBJ_JOINT.value, boneName + '_roll') >= 0;
+      if (boneName === 'root_capsule') continue;
+
+      const normalized = normalizeBoneName(boneName);
+
+      const hasYaw = module.mj_name2id(model, module.mjtObj.mjOBJ_JOINT.value, normalized + '_yaw') >= 0;
+      const hasPitch = module.mj_name2id(model, module.mjtObj.mjOBJ_JOINT.value, normalized + '_pitch') >= 0;
+      const hasRoll = module.mj_name2id(model, module.mjtObj.mjOBJ_JOINT.value, normalized + '_roll') >= 0;
 
       if (hasYaw) {
-        const jntId = module.mj_name2id(model, module.mjtObj.mjOBJ_JOINT.value, boneName + '_yaw');
-        qpos[model.jnt_qposadr[jntId]] = 0;
-        qvel[model.jnt_dofadr[jntId]] = 0;
+        const jntId = module.mj_name2id(model, module.mjtObj.mjOBJ_JOINT.value, normalized + '_yaw');
+        const qposadr = model.jnt_qposadr[jntId];
+        const dofadr = model.jnt_dofadr[jntId];
+        qpos[qposadr] = getStanceAngleForJoint(normalized + '_yaw');
+        qvel[dofadr] = 0;
       }
       if (hasPitch) {
-        const jntId = module.mj_name2id(model, module.mjtObj.mjOBJ_JOINT.value, boneName + '_pitch');
-        qpos[model.jnt_qposadr[jntId]] = 0;
-        qvel[model.jnt_dofadr[jntId]] = 0;
+        const jntId = module.mj_name2id(model, module.mjtObj.mjOBJ_JOINT.value, normalized + '_pitch');
+        const qposadr = model.jnt_qposadr[jntId];
+        const dofadr = model.jnt_dofadr[jntId];
+        qpos[qposadr] = getStanceAngleForJoint(normalized + '_pitch');
+        qvel[dofadr] = 0;
       }
       if (hasRoll) {
-        const jntId = module.mj_name2id(model, module.mjtObj.mjOBJ_JOINT.value, boneName + '_roll');
-        qpos[model.jnt_qposadr[jntId]] = 0;
-        qvel[model.jnt_dofadr[jntId]] = 0;
+        const jntId = module.mj_name2id(model, module.mjtObj.mjOBJ_JOINT.value, normalized + '_roll');
+        const qposadr = model.jnt_qposadr[jntId];
+        const dofadr = model.jnt_dofadr[jntId];
+        qpos[qposadr] = getStanceAngleForJoint(normalized + '_roll');
+        qvel[dofadr] = 0;
       }
     }
 
-    const armsDownAngle = this.restArmAngleDeg * (Math.PI / 180);
-    this.currentTargets.set('mixamorigrightarm', { x: armsDownAngle, y: 0, z: 0, isQuaternion: false });
-    this.currentTargets.set('mixamorigleftarm', { x: armsDownAngle, y: 0, z: 0, isQuaternion: false });
+    // Zero out all velocities completely
+    for (let i = 0; i < model.nv; i++) {
+      qvel[i] = 0.0;
+    }
+
+    // Zero out all applied external force vectors on reset
+    const xfrc = data.xfrc_applied;
+    for (let i = 0; i < model.nbody * 6; i++) {
+      xfrc[i] = 0.0;
+    }
+
+    // Sync ctrl setpoints directly in the same call (Correction #3)
+    this.motorController.setTargets(new Map());
+
+    // Compute forward dynamics to immediately update world coordinates (e.g., xpos, xquat)
+    module.mj_forward(model, data);
+
+    // Flush any pending contact events
+    this.physicsEngine.flushEventQueue();
   }
 
   public async adjustMotors(stiffness: number, damping: number): Promise<boolean> {
@@ -1536,7 +1606,7 @@ export class HumanoidPhysicsBinder {
     const capsuleBodyId = this.bodyManager.getCapsuleBody();
     if (capsuleBodyId === null || capsuleBodyId < 0) return null;
     const world = this.physicsEngine.getWorld();
-    return new BodyProxy(capsuleBodyId, world.model, world.data, PhysicsEngine.getModule());
+    return new BodyProxy(capsuleBodyId, world.model, world.data);
   }
 
   public getDiagnostics(): Record<string, any> {
@@ -1544,7 +1614,7 @@ export class HumanoidPhysicsBinder {
     let capsulePos = null;
     if (capsuleBodyId !== null && capsuleBodyId >= 0) {
       const world = this.physicsEngine.getWorld();
-      const proxy = new BodyProxy(capsuleBodyId, world.model, world.data, null);
+      const proxy = new BodyProxy(capsuleBodyId, world.model, world.data);
       const t = proxy.translation();
       capsulePos = [t.x.toFixed(3), t.y.toFixed(3), t.z.toFixed(3)];
     }
