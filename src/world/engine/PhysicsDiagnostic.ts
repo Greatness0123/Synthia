@@ -22,6 +22,7 @@
 
 import { PhysicsEngine } from './PhysicsEngine';
 import type { HumanoidPhysicsBinder } from './HumanoidPhysicsBinder';
+import * as THREE from 'three';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -60,6 +61,7 @@ interface BoneSummary {
 interface DiagnosticReport {
   durationFrames: number;
   durationMs: number;
+  phase: string;
   capsule: {
     avgLinVelY: number;
     maxLinVelY: number;
@@ -73,6 +75,27 @@ interface DiagnosticReport {
   bones: Record<string, BoneSummary>;
   topJitterers: Array<{ bone: string; avgAngularSpeed: number; oscillationsPerSec: number }>;
   worstTorqueClamp: Array<{ bone: string; clampedFrames: number; clampedPct: number }>;
+  balanceTrace: Array<BalanceTraceSample>;
+}
+
+interface BalanceTraceSample {
+  frame: number;
+  comX: number;
+  comY: number;
+  comZ: number;
+  leftFootX: number;
+  leftFootZ: number;
+  rightFootX: number;
+  rightFootZ: number;
+  footCenterX: number;
+  footCenterZ: number;
+  comFootOffsetMag: number;
+  comFootOffsetX: number;
+  comFootOffsetZ: number;
+  capsuleTiltRad: number;
+  capsulePdTorqueMag: number;
+  rootLinSpeed: number;
+  rootAngSpeed: number;
 }
 
 interface JointDofCache {
@@ -130,6 +153,9 @@ export class PhysicsDiagnostic {
   private animFrameId: number | null = null;
   private mute = createConsoleMute();
   private capsuleSamples: any[] = [];
+  private balanceTrace: BalanceTraceSample[] = [];
+  private traceSampleInterval = 1;
+  private currentPhase: string = 'unknown';
 
   private _log = (...args: unknown[]) => console.log(DIAG_PREFIX, ...args);
   private _warn = (...args: unknown[]) => console.warn(DIAG_PREFIX, ...args);
@@ -139,6 +165,10 @@ export class PhysicsDiagnostic {
   }
 
   // ─── Public API ──────────────────────────────────────────────────────────────
+
+  public setPhase(phase: string): void {
+    this.currentPhase = phase;
+  }
 
   public start(durationFrames = 300): void {
     if (this.running) {
@@ -151,6 +181,7 @@ export class PhysicsDiagnostic {
     this.accumulator.clear();
     this.jointDofCache.clear();
     this.capsuleSamples = [];
+    this.balanceTrace = [];
     this.mute.install();
     this._log(`Starting — sampling for ${durationFrames} frames...`);
 
@@ -260,13 +291,51 @@ export class PhysicsDiagnostic {
       const lv = PhysicsEngine.mujocoToWorld(lMj as any);
       const av = PhysicsEngine.mujocoToWorld(aMj as any);
 
+      const rootLinSpeed = Math.sqrt(lv.x * lv.x + lv.y * lv.y + lv.z * lv.z);
+      const rootAngSpeed = Math.sqrt(av.x * av.x + av.y * av.y + av.z * av.z);
+
       this.capsuleSamples.push({
         frame: this.frameCount,
         y: pos.y,
-        linSpeed: Math.sqrt(lv.x * lv.x + lv.y * lv.y + lv.z * lv.z),
+        linSpeed: rootLinSpeed,
         linVelY: lv.y,
-        angSpeed: Math.sqrt(av.x * av.x + av.y * av.y + av.z * av.z)
+        angSpeed: rootAngSpeed
       });
+
+      if (this.frameCount % this.traceSampleInterval === 0) {
+        const boneInfoMap = (this.binder as any).boneInfoMap as Map<string, any> | undefined;
+        const leftInfo = boneInfoMap?.get('mixamorigleftfoot');
+        const rightInfo = boneInfoMap?.get('mixamorigrightfoot');
+        const leftFoot = new THREE.Vector3();
+        const rightFoot = new THREE.Vector3();
+        if (leftInfo && leftInfo.bone) leftInfo.bone.getWorldPosition(leftFoot);
+        if (rightInfo && rightInfo.bone) rightInfo.bone.getWorldPosition(rightFoot);
+
+        const footCenterX = (leftFoot.x + rightFoot.x) * 0.5;
+        const footCenterZ = (leftFoot.z + rightFoot.z) * 0.5;
+        const offX = pos.x - footCenterX;
+        const offZ = pos.z - footCenterZ;
+        const offMag = Math.sqrt(offX * offX + offZ * offZ);
+
+        const motorController = (this.binder as any).motorController;
+        const tiltRad = motorController?.lastBalanceTiltRad ?? 0;
+        const torqueMag = motorController?.lastBalanceTorqueMag ?? 0;
+
+        this.balanceTrace.push({
+          frame: this.frameCount,
+          comX: pos.x, comY: pos.y, comZ: pos.z,
+          leftFootX: leftFoot.x, leftFootZ: leftFoot.z,
+          rightFootX: rightFoot.x, rightFootZ: rightFoot.z,
+          footCenterX, footCenterZ,
+          comFootOffsetMag: offMag,
+          comFootOffsetX: offX,
+          comFootOffsetZ: offZ,
+          capsuleTiltRad: tiltRad,
+          capsulePdTorqueMag: torqueMag,
+          rootLinSpeed,
+          rootAngSpeed,
+        });
+      }
     }
 
     const currentTargets = (this.binder as any).currentTargets;
@@ -474,10 +543,12 @@ export class PhysicsDiagnostic {
     return {
       durationFrames: this.frameCount,
       durationMs: ms,
+      phase: this.currentPhase,
       capsule: capsuleSummary,
       bones,
       topJitterers: sortedByOmega.slice(0, 15),
       worstTorqueClamp: sortedByClamp.slice(0, 10),
+      balanceTrace: this.balanceTrace,
     };
   }
 
@@ -502,6 +573,7 @@ declare global {
       start: (frames?: number) => void;
       stop: () => void;
       report: () => void;
+      setPhase: (phase: string) => void;
       _instance?: PhysicsDiagnostic;
     };
   }
@@ -513,9 +585,11 @@ export function installDiagnostic(binder: HumanoidPhysicsBinder): void {
     start: (frames) => diag.start(frames),
     stop: () => diag.stop(),
     report: () => diag.report(),
+    setPhase: (phase) => diag.setPhase(phase),
     _instance: diag,
   };
   console.log('[DIAG] MuJoCo Diagnostic ready. Commands:');
+  console.log('[DIAG]   window.__SYNTHIA_DIAG__.setPhase("phase0_baseline")');
   console.log('[DIAG]   window.__SYNTHIA_DIAG__.start(300)  — sample 300 frames');
   console.log('[DIAG]   window.__SYNTHIA_DIAG__.stop()      — stop & export JSON');
   console.log('[DIAG]   window.__SYNTHIA_DIAG__.report()    — print live table');

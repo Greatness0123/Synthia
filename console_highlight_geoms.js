@@ -1,19 +1,21 @@
 /**
  * console_highlight_geoms.js
  *
- * 3D edge wireframes in the Three.js scene at each MuJoCo geom's real position.
- * Labels appear only on mouse hover over a geom wireframe.
+ * 3D edge wireframes in the Three.js scene at each MuJoCo geom's real position
+ * and rotation. Labels appear only on mouse hover over a geom wireframe.
  *
  * Correct for @mujoco/mujoco v3.10+ (reordered mjtGeom enum).
  *
  * Usage:
- *   highlight_all_geoms()          — add 3D edge wireframes
- *   highlight_geoms_live(10)       — live update positions at 10fps
+ *   highlight_all_geoms()          — add 3D edge wireframes (pos + rot)
+ *   highlight_embed()              — embed highlights into render loop (persistent live tracking)
+ *   highlight_geoms_live(10)       — live update at 10fps (interval-based)
  *   stop_highlight_geoms()         — stop live mode
  *   clear_highlights()             — remove everything
  *   list()                         — print table + export JSON
  *   highlight_filter('foot')       — only highlight geoms matching a substring
  *   highlight_filter(null)         — show all geoms again
+ *   check_floors()                 — compare visual vs collision floor alignment
  */
 
 (function () {
@@ -70,6 +72,33 @@
   // ─── Coord conversion ────────────────────────────────
   function mujocoToWorld(x, y, z) {
     return new THREE.Vector3(x, z, -y);
+  }
+
+  // ─── Rotation conversion: MuJoCo geom_xmat → Three.js quaternion ──
+  // geom_xmat is 9 doubles per geom (row-major 3x3 rotation matrix) in MuJoCo Z-up coords.
+  // Transform: R_three = T * R_mj * T^T where T swaps Z-up → Y-up.
+  var _mat4 = new THREE.Matrix4();
+  var _quat = new THREE.Quaternion();
+  function mujocoMatToQuat(xmat, idx) {
+    // Extract 3x3 from geom_xmat (row-major: m00 m01 m02 m10 m11 m12 m20 m21 m22)
+    var i0 = idx * 9;
+    var r00 = xmat[i0], r01 = xmat[i0+1], r02 = xmat[i0+2];
+    var r10 = xmat[i0+3], r11 = xmat[i0+4], r12 = xmat[i0+5];
+    var r20 = xmat[i0+6], r21 = xmat[i0+7], r22 = xmat[i0+8];
+    // Apply axis swap: R_three = T * R_mj * T^T
+    // T = [1 0 0; 0 0 1; 0 -1 0], T^T = [1 0 0; 0 0 -1; 0 1 0]
+    // Result row-major:
+    //   [ r00, -r02,  r01]
+    //   [ r20, -r22,  r21]
+    //   [-r10,  r12, -r11]
+    _mat4.set(
+      r00, -r02,  r01, 0,
+      r20, -r22,  r21, 0,
+     -r10,  r12, -r11, 0,
+      0,    0,    0,   1
+    );
+    _quat.setFromRotationMatrix(_mat4);
+    return _quat.clone();
   }
 
   // ─── 3D -> 2D projection ─────────────────────────────
@@ -293,6 +322,11 @@
       hitMesh.name = 'debug_' + i;
       hitMesh.userData = { geomIndex: i, geomName: name };
 
+      // Apply rotation from geom_xmat if available
+      if (data.geom_xmat) {
+        hitMesh.quaternion.copy(mujocoMatToQuat(data.geom_xmat, i));
+      }
+
       // Edge wireframe lines (visible, clean edges)
       var edges = new THREE.EdgesGeometry(geo, 15);
       var lineMat = new THREE.LineBasicMaterial({ color: color, transparent: true, opacity: 0.85, depthTest: true, depthWrite: false });
@@ -331,22 +365,202 @@
     var data = engine.getData();
     if (!model || !data) return;
 
+    var hasXmat = !!data.geom_xmat;
+
     debugGroup.children.forEach(function (child) {
       if (!child.userData || child.userData.geomIndex === undefined) return;
       var idx = child.userData.geomIndex;
       var posIdx = idx * 3;
       child.position.copy(mujocoToWorld(data.geom_xpos[posIdx], data.geom_xpos[posIdx+1], data.geom_xpos[posIdx+2]));
+      if (hasXmat) {
+        child.quaternion.copy(mujocoMatToQuat(data.geom_xmat, idx));
+      }
     });
   }
 
   function stop_highlight_geoms() {
     if (liveIntervalId) { clearInterval(liveIntervalId); liveIntervalId = null; }
+    if (embedRafId) { cancelAnimationFrame(embedRafId); embedRafId = null; }
     console.log('[HIGHLIGHT] Live mode stopped');
+  }
+
+  // ─── Embedded live mode (requestAnimationFrame) ───────
+  var embedRafId = null;
+  var embedActive = false;
+
+  function highlight_embed() {
+    stop_highlight_geoms();
+    highlight_all_geoms();
+    embedActive = true;
+
+    function embedLoop() {
+      if (!embedActive || !debugGroup) return;
+      updatePositions();
+      checkHover();
+      embedRafId = requestAnimationFrame(embedLoop);
+    }
+    embedRafId = requestAnimationFrame(embedLoop);
+    console.log('[HIGHLIGHT] Embedded live mode active (requestAnimationFrame)');
+    console.log('  Highlights will track geom position + rotation every frame.');
+    console.log('  Call stop_highlight_geoms() to disable.');
+  }
+
+  // ─── Floor diagnostic ─────────────────────────────────
+  function check_floors() {
+    var engine = getEngine();
+    var model = engine.getModel();
+    var data = engine.getData();
+    var module = getModule();
+    var scene = getScene();
+    if (!model || !data) { console.error('[FLOOR CHECK] Model/data not available'); return; }
+
+    // --- 1. Find MuJoCo collision floor geom ---
+    var mjFloor = null;
+    for (var i = 0; i < model.ngeom; i++) {
+      var name = getGeomName(module, model, i);
+      if (name === 'floor') {
+        mjFloor = {
+          index: i,
+          name: name,
+          type: model.geom_type[i],
+          typeName: MJ_GEOM_TYPES[model.geom_type[i]] || 'type_' + model.geom_type[i],
+          size: [model.geom_size[i*3], model.geom_size[i*3+1], model.geom_size[i*3+2]],
+          pos_mujoco: [data.geom_xpos[i*3], data.geom_xpos[i*3+1], data.geom_xpos[i*3+2]],
+          pos_world: mujocoToWorld(data.geom_xpos[i*3], data.geom_xpos[i*3+1], data.geom_xpos[i*3+2]),
+          contype: model.geom_contype[i],
+          conaffinity: model.geom_conaffinity[i],
+        };
+        break;
+      }
+    }
+
+    // --- 2. Find Three.js visual floor ---
+    // Prefer the authoritative reference from WorldEngine
+    var threeFloor = null;
+    var floorMesh = window.__SYNTHIA_FLOOR_MESH__;
+    if (floorMesh && floorMesh.geometry) {
+      var worldPos = new THREE.Vector3();
+      var worldQuat = new THREE.Quaternion();
+      floorMesh.getWorldPosition(worldPos);
+      floorMesh.getWorldQuaternion(worldQuat);
+      threeFloor = {
+        name: floorMesh.name || '(worldEngine floor)',
+        visible: floorMesh.visible,
+        position: { x: floorMesh.position.x, y: floorMesh.position.y, z: floorMesh.position.z },
+        rotation: { x: floorMesh.rotation.x, y: floorMesh.rotation.y, z: floorMesh.rotation.z },
+        scale: { x: floorMesh.scale.x, y: floorMesh.scale.y, z: floorMesh.scale.z },
+        geoSize: floorMesh.geometry.parameters ? {
+          width: floorMesh.geometry.parameters.width,
+          height: floorMesh.geometry.parameters.height,
+        } : null,
+        worldPos: worldPos,
+        worldQuat: worldQuat,
+      };
+    } else {
+      // Fallback: scan scene for a large PlaneGeometry at origin (likely the floor)
+      scene.traverse(function (obj) {
+        if (threeFloor) return;
+        if (obj.isMesh && obj.geometry && obj.geometry.type === 'PlaneGeometry') {
+          var params = obj.geometry.parameters;
+          if (params && params.width >= 500 && params.height >= 500) {
+            var wp = new THREE.Vector3();
+            var wq = new THREE.Quaternion();
+            obj.getWorldPosition(wp);
+            obj.getWorldQuaternion(wq);
+            threeFloor = {
+              name: obj.name || '(scene PlaneGeometry)',
+              visible: obj.visible,
+              position: { x: obj.position.x, y: obj.position.y, z: obj.position.z },
+              rotation: { x: obj.rotation.x, y: obj.rotation.y, z: obj.rotation.z },
+              scale: { x: obj.scale.x, y: obj.scale.y, z: obj.scale.z },
+              geoSize: { width: params.width, height: params.height },
+              worldPos: wp,
+              worldQuat: wq,
+            };
+          }
+        }
+      });
+    }
+
+    // --- 3. Report ---
+    console.log('');
+    console.log('══════════════════════════════════════════════════');
+    console.log('  FLOOR ALIGNMENT CHECK');
+    console.log('══════════════════════════════════════════════════');
+
+    if (!mjFloor) {
+      console.warn('[FLOOR CHECK] No MuJoCo geom named "floor" found!');
+    } else {
+      console.log('');
+      console.log('▸ MuJoCo Collision Floor (physics):');
+      console.log('  Type:', mjFloor.typeName, '(' + mjFloor.type + ')');
+      console.log('  Size (half-extents):', mjFloor.size.map(function(v){return v.toFixed(3)}).join(' × '));
+      console.log('  Pos (MuJoCo):', mjFloor.pos_mujoco.map(function(v){return v.toFixed(4)}).join(', '));
+      console.log('  Pos (Three.js):', '(' + mjFloor.pos_world.x.toFixed(4) + ', ' + mjFloor.pos_world.y.toFixed(4) + ', ' + mjFloor.pos_world.z.toFixed(4) + ')');
+      console.log('  contype:', mjFloor.contype, '  conaffinity:', mjFloor.conaffinity);
+    }
+
+    if (!threeFloor) {
+      console.warn('[FLOOR CHECK] No Three.js floor found! (checked __SYNTHIA_FLOOR_MESH__ and scene scan)');
+    } else {
+      console.log('');
+      console.log('▸ Three.js Visual Floor (rendering):');
+      console.log('  Source:', floorMesh ? '__SYNTHIA_FLOOR_MESH__ (authoritative)' : 'scene scan (fallback)');
+      console.log('  Name:', threeFloor.name);
+      console.log('  Visible:', threeFloor.visible);
+      console.log('  Geo size:', threeFloor.geoSize ? (threeFloor.geoSize.width + ' × ' + threeFloor.geoSize.height) : '(unknown)');
+      console.log('  Position:', '(' + threeFloor.position.x.toFixed(4) + ', ' + threeFloor.position.y.toFixed(4) + ', ' + threeFloor.position.z.toFixed(4) + ')');
+      console.log('  Rotation (euler):', '(' + (threeFloor.rotation.x * 180 / Math.PI).toFixed(2) + '°, ' + (threeFloor.rotation.y * 180 / Math.PI).toFixed(2) + '°, ' + (threeFloor.rotation.z * 180 / Math.PI).toFixed(2) + '°)');
+    }
+
+    // --- 4. Alignment comparison ---
+    if (mjFloor && threeFloor) {
+      console.log('');
+      console.log('▸ Alignment:');
+
+      var mjY = mjFloor.pos_world.y;
+      var visY = threeFloor.position.y;
+      var heightDiff = Math.abs(mjY - visY);
+      var heightOk = heightDiff < 0.001;
+
+      console.log('  Height:  MuJoCo=' + mjY.toFixed(4) + '  Three.js=' + visY.toFixed(4) +
+        '  Δ=' + heightDiff.toFixed(6) + (heightOk ? '  ✓ ALIGNED' : '  ✗ MISMATCH'));
+
+      var mjRotOk = Math.abs(threeFloor.rotation.x - (-Math.PI/2)) < 0.001;
+      console.log('  Rotation: Three.js PlaneGeometry rot.x=' + (threeFloor.rotation.x * 180 / Math.PI).toFixed(2) + '°' +
+        (mjRotOk ? '  ✓ (horizontal plane)' : '  ? (non-standard rotation)'));
+
+      var mjWidth = mjFloor.size[0] * 2;
+      var mjHeight = mjFloor.size[1] * 2;
+      var visWidth = threeFloor.geoSize ? threeFloor.geoSize.width : 0;
+      var visHeight = threeFloor.geoSize ? threeFloor.geoSize.height : 0;
+      console.log('  Size:    MuJoCo=' + mjWidth.toFixed(0) + '×' + mjHeight.toFixed(0) +
+        '  Three.js=' + visWidth + '×' + visHeight +
+        (visWidth >= mjWidth && visHeight >= mjHeight ? '  ✓ (visual covers collision)' : '  ⚠ visual smaller than collision'));
+
+      console.log('');
+      if (heightOk) {
+        console.log('  RESULT: Floors are on the same level ✓');
+      } else {
+        console.log('  RESULT: Floors are at DIFFERENT heights ✗ (Δ=' + heightDiff.toFixed(4) + ')');
+      }
+    } else {
+      console.log('');
+      console.log('  RESULT: Cannot compare — ' +
+        (!mjFloor ? 'missing MuJoCo floor' : '') +
+        (!threeFloor ? 'missing Three.js floor' : ''));
+    }
+    console.log('══════════════════════════════════════════════════');
+    console.log('');
+
+    return { mujocoFloor: mjFloor, threeFloor: threeFloor };
   }
 
   // ─── Clear ───────────────────────────────────────────
   function clear_highlights() {
     if (liveIntervalId) { clearInterval(liveIntervalId); liveIntervalId = null; }
+    if (embedRafId) { cancelAnimationFrame(embedRafId); embedRafId = null; }
+    embedActive = false;
     if (mouseMoveHandler) {
       document.removeEventListener('mousemove', mouseMoveHandler);
       mouseMoveHandler = null;
@@ -420,18 +634,22 @@
 
   // ─── Expose ──────────────────────────────────────────
   window.highlight_all_geoms = highlight_all_geoms;
+  window.highlight_embed = highlight_embed;
   window.highlight_geoms_live = highlight_geoms_live;
   window.stop_highlight_geoms = stop_highlight_geoms;
   window.clear_highlights = clear_highlights;
   window.highlight_filter = highlight_filter;
+  window.check_floors = check_floors;
   window.list = list;
 
-  console.log('[HIGHLIGHT] Edge wireframes + hover labels loaded (v3.10+ enum)');
-  console.log('  highlight_all_geoms()          — add 3D edge wireframes');
-  console.log('  highlight_geoms_live(10)       — live update at 10fps');
+  console.log('[HIGHLIGHT] Edge wireframes + hover labels loaded (v3.10+ enum, live rotation)');
+  console.log('  highlight_all_geoms()          — add 3D edge wireframes (pos + rot)');
+  console.log('  highlight_embed()              — persistent live tracking via rAF');
+  console.log('  highlight_geoms_live(10)       — live update at 10fps (interval)');
   console.log('  stop_highlight_geoms()         — stop live mode');
   console.log('  clear_highlights()             — remove all');
   console.log('  highlight_filter("foot")       — only show geoms matching "foot"');
   console.log('  highlight_filter(null)         — show all');
+  console.log('  check_floors()                 — compare visual vs collision floor');
   console.log('  list()                         — table + JSON export');
 })();

@@ -9,6 +9,7 @@ export const NUM_ENV_SLOTS = 20;
 // Define BONE_JOINT_TYPE
 type JointType = 'revolute' | 'spherical' | 'fixed';
 const BONE_JOINT_TYPE: Record<string, JointType> = {
+  'mixamorighips': 'fixed',
   'mixamorigspine': 'spherical',
   'mixamorigspine1': 'spherical',
   'mixamorigspine2': 'spherical',
@@ -47,7 +48,7 @@ const BONE_JOINT_TYPE: Record<string, JointType> = {
 }
 
 const CAPSULE_ATTACH_BONES = new Set([
-  'mixamorigspine', 'mixamorigleftupleg', 'mixamorigrightupleg',
+  'mixamorighips',
 ]);
 
 function getPhysicsParentName(bone: THREE.Bone, trackedBones: Set<string>): string | null {
@@ -70,14 +71,24 @@ function getMuJoCoBoneGains(boneName: string): { kp: number; kv: number } {
   if (name.includes('hand') && (name.includes('index') || name.includes('middle') || name.includes('ring') || name.includes('pinky') || name.includes('thumb'))) {
     return { kp: 5, kv: 1 };
   }
-  if (name.includes('upleg') || name.includes('leg')) {
-    return { kp: 400, kv: 80 };
+  // Ankles (foot): critical for balance — must push toes down to prevent backward fall
+  if (name.includes('foot')) {
+    return { kp: 600, kv: 100 };
+  }
+  // Knees (lower leg): prevent continuous squatting under body weight
+  if (name === 'mixamorigleftleg' || name === 'mixamorigrightleg' || name.includes('mixamorigleftleg') || name.includes('mixamorigrightleg')) {
+    return { kp: 1000, kv: 180 };
+  }
+  // Hips (upper leg): upright trunk stabilization
+  if (name.includes('upleg')) {
+    return { kp: 900, kv: 150 };
   }
   if (name.includes('arm') || name.includes('forearm')) {
     return { kp: 200, kv: 40 };
   }
+  // Spine: resist upper body gravitational sag
   if (name.includes('spine')) {
-    return { kp: 300, kv: 60 };
+    return { kp: 700, kv: 130 };
   }
   if (name.includes('neck') || name.includes('head')) {
     return { kp: 150, kv: 30 };
@@ -216,15 +227,23 @@ export function generateHumanoidMJCF(
     let geomXML = '';
     const isFoot = boneName.includes('foot');
     if (isFoot) {
-      // Foot box dimensions swap Y and Z   0.05 0.11 0.01
-      const FOOT_COLLIDER_HALF_WIDTH = 0.05;
-      const FOOT_COLLIDER_HALF_HEIGHT = 0.01;
-      const FOOT_COLLIDER_HALF_LENGTH = 0.12;
-      // Local sole offset in Three is (0, -0.02, 0). Swapped to MuJoCo: (0, 0, 0.02)
-      geomXML = `<geom name="${boneName}_geom" type="box" size="${FOOT_COLLIDER_HALF_WIDTH} ${FOOT_COLLIDER_HALF_LENGTH} ${FOOT_COLLIDER_HALF_HEIGHT}" pos="0 -0.1 0" contype="2" conaffinity="1"/>`;
+      // Compute inverse of foot body rotation so geom aligns perfectly with world ground plane
+      const qBody = new THREE.Quaternion(childQuatMj[1], childQuatMj[2], childQuatMj[3], childQuatMj[0]);
+      const qBodyInv = qBody.clone().invert();
+      const qGeomLocalStr = `${qBodyInv.w} ${qBodyInv.x} ${qBodyInv.y} ${qBodyInv.z}`;
+
+      // Offset from ankle joint to foot sole center in world space: 4cm forward (+Y), 4.5cm down (-Z)
+      const pWorldOffset = new THREE.Vector3(0, 0.04, -0.045);
+      const pGeomLocal = pWorldOffset.clone().applyQuaternion(qBodyInv);
+      const pGeomLocalStr = `${pGeomLocal.x} ${pGeomLocal.y} ${pGeomLocal.z}`;
+
+      const FOOT_HALF_WIDTH = 0.05;   // 10cm lateral (side-to-side)
+      const FOOT_HALF_LENGTH = 0.10;  // 20cm forward-backward (Y)
+      const FOOT_HALF_HEIGHT = 0.015; // 3cm vertical thickness (Z)
+      geomXML = `<geom name="${boneName}_geom" type="box" size="${FOOT_HALF_WIDTH} ${FOOT_HALF_LENGTH} ${FOOT_HALF_HEIGHT}" pos="${pGeomLocalStr}" quat="${qGeomLocalStr}" contype="2" conaffinity="1" solref="0.004 1" solimp="0.95 0.99 0.001 0.5 2"/>`;
     } else {
       const colRadius = 0.04;
-      geomXML = `<geom name="${boneName}_geom" type="sphere" size="${colRadius}" pos="0 0 0" contype="2" conaffinity="1"/>`;
+      geomXML = `<geom name="${boneName}_geom" type="sphere" size="${colRadius}" pos="0 0 0" contype="2" conaffinity="1" solref="0.004 1" solimp="0.95 0.99 0.001 0.5 2"/>`;
     }
 
     // Joint declarations
@@ -245,7 +264,9 @@ export function generateHumanoidMJCF(
     const kp = gains.kp;
     const kv = gains.kv;
 
-    if (jointType === 'revolute' || (constraint && constraint.dof === 1)) {
+    if (jointType === 'fixed') {
+      jointsXML = '';
+    } else if (jointType === 'revolute' || (constraint && constraint.dof === 1)) {
       // Single Hinge Joint (Pitch: axis 1 0 0)
       const min = constraint?.x?.[0] ?? limits?.min ?? -2.618;
       const max = constraint?.x?.[1] ?? limits?.max ?? 0;
@@ -293,10 +314,8 @@ export function generateHumanoidMJCF(
     `.trim();
   };
 
-  // Build the spine, left leg, and right leg branches under the root capsule
-  const spineBranch = buildBodyTreeXML('mixamorigspine', capsulePosMj as [number, number, number], capsuleQuatMj as [number, number, number, number]);
-  const leftLegBranch = buildBodyTreeXML('mixamorigleftupleg', capsulePosMj as [number, number, number], capsuleQuatMj as [number, number, number, number]);
-  const rightLegBranch = buildBodyTreeXML('mixamorigrightupleg', capsulePosMj as [number, number, number], capsuleQuatMj as [number, number, number, number]);
+  // Build the humanoid skeleton tree anchored at mixamorighips under the root capsule
+  const hipsBranch = buildBodyTreeXML('mixamorighips', capsulePosMj as [number, number, number], capsuleQuatMj as [number, number, number, number]);
 
   // Generate pre-allocated slot bodies (env_slot_0 to env_slot_N)
   const slotBodies: string[] = [];
@@ -345,19 +364,18 @@ ${pianoGeoms.join('\n')}
   const xml = `
 <mujoco model="synthia_humanoid">
   <compiler angle="radian" coordinate="local"/>
-  <option gravity="0 0 -9.81" timestep="0.01667" iterations="100" integrator="implicitfast"/>
+  <option gravity="0 0 -9.81" timestep="0.002" iterations="100" integrator="implicitfast"/>
   <worldbody>
     <light directional="true" pos="0 0 5" dir="0 0 -1"/>
-    <geom name="floor" type="plane" size="100 100 0.1" rgba="0.8 0.9 0.8 1" contype="1" conaffinity="2"/>
+    <geom name="floor" type="plane" size="100 100 0.1" rgba="0.8 0.9 0.8 1" contype="1" conaffinity="2" solref="0.004 1" solimp="0.95 0.99 0.001 0.5 2"/>
 
     <body name="root_capsule" pos="${rootCapsulePosStr}" quat="${rootCapsuleQuatStr}">
       <freejoint name="root_freejoint"/>
-      <geom name="root_capsule_geom" type="capsule" size="${capsuleRadius} ${capsuleHalfHeight}" pos="0 0 0" contype="2" conaffinity="1"/>
-      <inertial pos="0 0 0" mass="70" diaginertia="10.0 10.0 10.0"/>
+      <geom name="root_capsule_geom" type="capsule" size="${capsuleRadius} ${capsuleHalfHeight}" pos="0 0 0" contype="0" conaffinity="0"/>
+      <inertial pos="0 0 0" mass="0.001" diaginertia="5.0 3.0 5.0"/>
 
-      ${spineBranch}
-      ${leftLegBranch}
-      ${rightLegBranch}
+      ${hipsBranch}
+      <geom name="torso_collider" type="sphere" size="0.12" pos="0 0 0" contype="2" conaffinity="1" solref="0.004 1" solimp="0.95 0.99 0.001 0.5 2"/>
     </body>
 
     ${slotBodies.join('\n')}

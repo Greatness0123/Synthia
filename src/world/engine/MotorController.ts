@@ -200,6 +200,9 @@ export class MotorController {
       torqueWorld.multiplyScalar(MAX_BALANCE_TORQUE / torqueMag);
     }
 
+    this.lastBalanceTorqueMag = torqueWorld.length();
+    this.lastBalanceTiltRad = tiltAngle;
+
     // Convert balancing torque back to MuJoCo coordinate system
     const torqueMj = PhysicsEngine.worldToMuJoCo(torqueWorld);
 

@@ -18,8 +18,8 @@ export class WorldEngine {
   private lastPhysicsTime: number = 0;
   private physicsAccumulator: number = 0;
   private wasReady: boolean = false;
-  private readonly FIXED_TIMESTEP: number = 1 / 60;
-  private readonly MAX_ACCUMULATOR: number = 0.25;
+  private readonly FIXED_TIMESTEP: number = 0.002;
+  private readonly MAX_ACCUMULATOR: number = 0.05;
 
   private ambientLight!: THREE.AmbientLight;
   private directionalLight!: THREE.DirectionalLight;
@@ -100,7 +100,7 @@ export class WorldEngine {
     });
     this.floorMesh = new THREE.Mesh(floorGeometry, floorMaterial);
     this.floorMesh.rotation.x = -Math.PI / 2; 
-    this.floorMesh.position.y = -0.01; 
+    this.floorMesh.position.y = 0; 
     this.floorMesh.receiveShadow = true;
     this.scene.add(this.floorMesh);
   }
@@ -206,7 +206,7 @@ export class WorldEngine {
     }
   };
 
-  public start(onStep?: () => void): void {
+  public start(onStep?: () => void, onFrame?: () => void): void {
     this.lastPhysicsTime = performance.now();
     this.physicsAccumulator = 0;
 
@@ -235,6 +235,10 @@ export class WorldEngine {
             onStep();
           }
           this.physicsAccumulator -= this.FIXED_TIMESTEP;
+        }
+
+        if (!this.physicsEngine.isBroken && onFrame) {
+          onFrame();
         }
       }
 
@@ -303,6 +307,10 @@ export class WorldEngine {
 
   public getRenderer(): THREE.WebGLRenderer {
     return this.renderer;
+  }
+
+  public getFloorMesh(): THREE.Mesh {
+    return this.floorMesh;
   }
 
   public getLastAIFrame(): string {

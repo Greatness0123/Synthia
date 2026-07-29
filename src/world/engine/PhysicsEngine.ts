@@ -168,6 +168,7 @@ export class PhysicsEngine {
       }
 
       this.data = new module.MjData(this.model);
+      module.mj_forward(this.model, this.data);
       this.initialized = true;
       this.isPhysicsBroken = false;
       Logger.info('MuJoCoPhysicsEngine: MJCF model loaded successfully');
@@ -252,6 +253,16 @@ export class PhysicsEngine {
     } finally {
       this.isStepping = false;
     }
+  }
+
+  public forward(): void {
+    const module = PhysicsEngine.mujocoModule;
+    if (!module || !this.model || !this.data) return;
+    module.mj_forward(this.model, this.data);
+  }
+
+  public getStepCount(): number {
+    return this.stepCount;
   }
 
   public registerVelocityClampBody(bodyId: number): void {

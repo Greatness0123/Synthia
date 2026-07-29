@@ -36,7 +36,7 @@ export const useWorld = (containerRef: React.RefObject<HTMLDivElement>) => {
   const BOUNDARY_RESET_FRAMES = 5;
 
   // ─── Fall diagnostics ring buffer ────────────────────
-  const DIAG_RING_SIZE = 300; // ~5 seconds at 60fps
+  const DIAG_RING_SIZE = 300; // ~5 seconds at 60fps (throttled from 500Hz physics)
   const diagRingRef = useRef<any[]>([]);
   const diagRingIdx = useRef(0);
   const diagRingFull = useRef(false);
@@ -168,6 +168,12 @@ export const useWorld = (containerRef: React.RefObject<HTMLDivElement>) => {
         (window as any).__SYNTHIA_RENDERER__ = worldEngineRef.current.getRenderer();
         (window as any).__SYNTHIA_SCENE__ = worldEngineRef.current.getScene();
         (window as any).THREE = THREE;
+        (window as any).__SYNTHIA_FLOOR_MESH__ = worldEngineRef.current.getFloorMesh();
+
+        // Auto-load console highlight geoms (provides highlight_embed, check_floors, etc.)
+        const hlScript = document.createElement('script');
+        hlScript.src = '/console_highlight_geoms.js';
+        document.head.appendChild(hlScript);
 
         // ── Fall diagnostics: expose to window ────────────
         const getDiagRingFrames = () => {
@@ -434,6 +440,8 @@ export const useWorld = (containerRef: React.RefObject<HTMLDivElement>) => {
               for (let bi = 0; bi < mdl.nbody; bi++) {
                 const m = mdl.body_mass[bi];
                 if (m <= 0) continue;
+                const bname = mujocoModule ? mujocoModule.mj_id2name(mdl, 1, bi) : '';
+                if (bname.startsWith('env_slot_') || bname.startsWith('piano_') || bname === 'floor' || bname === 'world') continue;
                 comX += m * d.xpos[bi * 3];
                 comY += m * d.xpos[bi * 3 + 1];
                 comZ += m * d.xpos[bi * 3 + 2];
@@ -542,269 +550,266 @@ export const useWorld = (containerRef: React.RefObject<HTMLDivElement>) => {
         if (diagRingRef.current.length >= DIAG_RING_SIZE) diagCaptureDone.current = true;
 
         Logger.info("useWorld: Starting animation loop...");
-        worldEngineRef.current.start(() => {
-          const physics = physicsEngineRef.current;
-          const humanoidBinder = humanoidPhysicsBinderRef.current;
+        worldEngineRef.current.start(
+          () => {
+            // ── Per-step (500Hz): Diagnostics ring-buffer capture (throttled to 1/frame) ──
+            const physics = physicsEngineRef.current;
+            const humanoidBinder = humanoidPhysicsBinderRef.current;
 
-          // ABORT IMMEDIATELY IF RAGDOLL IS BUILDING/REBUILDING
-          if (!physics || physics.isStepping || physics.isMutating) {
-            return;
-          }
-
-          // ── Fall diagnostics: capture ring buffer frame ──
-          // Captures per-frame snapshot for fall diagnosis.
-          // All positions/velocities in MuJoCo world frame: X=forward, Y=left, Z=up.
-          // xfrc_applied is world-frame torque on root body (after mj_step).
-          // Joint qpos: spherical joints store quaternion [w,x,y,z] (4 vals),
-          //             revolute joints store angle (1 val).
-          // Joint qvel: spherical joints store angular velocity [x,y,z] (3 vals),
-          //             revolute joints store angular velocity (1 val).
-          try {
-            const physEng = physicsEngineRef.current;
-            const humBinder = humanoidPhysicsBinderRef.current;
-            if (physEng && physEng.isReady && humBinder) {
-              const capId = humBinder.getMultiBodyManager().getCapsuleBody();
-              if (capId !== null && capId >= 0) {
-                const w = physEng.getWorld();
-                const mdl = w.model;
-                const d = w.data;
-
-                // ── Build caches (once): joints, bodies, geoms ──
-                const mujocoModule = PhysicsEngine.getModule();
-                if (mujocoModule) {
-                  if (!diagJointCacheRef.current) {
-                    const cache = new Map<string, { bodyId: number; qposAdr: number; dofAdr: number; dofCount: number; qposCount: number; name: string }>();
-                    for (let ji = 0; ji < mdl.njnt; ji++) {
-                      const bodyId = mdl.jnt_bodyid[ji];
-                      const bodyName = mujocoModule.mj_id2name(mdl, 1, bodyId);
-                      if (!bodyName || bodyName === 'root_capsule') continue;
-                      const jntType = mdl.jnt_type[ji];
-                      if (jntType === 0) continue;
-                      const qp = jntType === 1 ? 4 : 1;
-                      const dc = jntType === 1 ? 3 : 1;
-                      const jointName = mujocoModule.mj_id2name(mdl, 3, ji) || bodyName;
-                      cache.set(jointName, {
-                        bodyId,
-                        qposAdr: mdl.jnt_qposadr[ji],
-                        dofAdr: mdl.jnt_dofadr[ji],
-                        dofCount: dc,
-                        qposCount: qp,
-                        name: jointName,
-                      });
-                    }
-                    diagJointCacheRef.current = cache;
-                    console.log(`[DIAG] Joint cache: ${cache.size} joints mapped`);
-                  }
-
-                  if (!diagGeomCacheRef.current) {
-                    const geomCache = new Map<string, { geomId: number; bodyName: string; type: number }>();
-                    for (let gi = 0; gi < mdl.ngeom; gi++) {
-                      const geomName = mujocoModule.mj_id2name(mdl, 5, gi);
-                      if (!geomName || geomName.startsWith('env_slot_') || geomName.startsWith('piano_') || geomName === 'floor') continue;
-                      const bodyId = mdl.geom_bodyid[gi];
-                      const bodyName = mujocoModule.mj_id2name(mdl, 1, bodyId) || '';
-                      geomCache.set(geomName, { geomId: gi, bodyName, type: mdl.geom_type[gi] });
-                    }
-                    diagGeomCacheRef.current = geomCache;
-                    console.log(`[DIAG] Geom cache: ${geomCache.size} geoms mapped`);
-                  }
-
-                  if (!diagBodyCacheRef.current) {
-                    const bodyCache = new Map<string, { bodyId: number; mass: number; parentBodyId: number; geomIds: number[] }>();
-                    for (let bi = 0; bi < mdl.nbody; bi++) {
-                      const bodyName = mujocoModule.mj_id2name(mdl, 1, bi);
-                      if (!bodyName || bodyName.startsWith('env_slot_') || bodyName.startsWith('piano_') || bodyName === 'floor' || bodyName === 'world') continue;
-                      const geomIds: number[] = [];
-                      const gadr = mdl.body_geomadr[bi];
-                      const gnum = mdl.body_geomnum[bi];
-                      for (let gi = 0; gi < gnum; gi++) geomIds.push(gadr + gi);
-                      bodyCache.set(bodyName, {
-                        bodyId: bi,
-                        mass: mdl.body_mass[bi],
-                        parentBodyId: mdl.body_parentid[bi],
-                        geomIds,
-                      });
-                    }
-                    diagBodyCacheRef.current = bodyCache;
-                    console.log(`[DIAG] Body cache: ${bodyCache.size} bodies mapped`);
-                  }
-                }
-
-                // ── Root body data ──
-                const rootDof = mdl.body_dofadr[capId];
-                let totalM = 0, comX = 0, comY = 0, comZ = 0;
-                for (let bi = 0; bi < mdl.nbody; bi++) {
-                  const m = mdl.body_mass[bi];
-                  if (m <= 0) continue;
-                  comX += m * d.xpos[bi * 3];
-                  comY += m * d.xpos[bi * 3 + 1];
-                  comZ += m * d.xpos[bi * 3 + 2];
-                  totalM += m;
-                }
-                if (totalM > 0) { comX /= totalM; comY /= totalM; comZ /= totalM; }
-                const qw = d.xquat[capId * 4], qx = d.xquat[capId * 4 + 1], qy = d.xquat[capId * 4 + 2], qz = d.xquat[capId * 4 + 3];
-                const upZ = 1 - 2 * (qx * qx + qy * qy);
-                const tiltDeg = Math.acos(Math.min(1, Math.max(-1, upZ))) * 180 / Math.PI;
-                const feetMap = humBinder.getMultiBodyManager().getRigidBodiesMap();
-                const lFootId = feetMap.get('mixamorigleftfoot');
-                const rFootId = feetMap.get('mixamorigrightfoot');
-                const lFootH = lFootId !== undefined ? d.xpos[lFootId * 3 + 2] : 0;
-                const rFootH = rFootId !== undefined ? d.xpos[rFootId * 3 + 2] : 0;
-
-                // ── Joint state (qpos + qvel for all joints) ──
-                const jointCache = diagJointCacheRef.current;
-                const joints: Record<string, { qpos: number[]; qvel: number[]; bodyId: number; bodyName: string }> = {};
-                if (jointCache) {
-                  for (const [, info] of jointCache) {
-                    const qpos: number[] = [];
-                    for (let k = 0; k < info.qposCount; k++) qpos.push(d.qpos[info.qposAdr + k]);
-                    const qvel: number[] = [];
-                    for (let k = 0; k < info.dofCount; k++) qvel.push(d.qvel[info.dofAdr + k]);
-                    joints[info.name] = { qpos, qvel, bodyId: info.bodyId, bodyName: info.name };
-                  }
-                }
-
-                // ── Body state: pos, quat, linVel, angVel, cfrc for every tracked body ──
-                const bodyCache = diagBodyCacheRef.current;
-                const bodies: Record<string, { pos: number[]; quat: number[]; linVel: number[]; angVel: number[]; cfrc: number[]; mass: number }> = {};
-                if (bodyCache) {
-                  for (const [name, info] of bodyCache) {
-                    const bi = info.bodyId;
-                    const pos = [d.xpos[bi * 3], d.xpos[bi * 3 + 1], d.xpos[bi * 3 + 2]];
-                    const quat = [d.xquat[bi * 4], d.xquat[bi * 4 + 1], d.xquat[bi * 4 + 2], d.xquat[bi * 4 + 3]];
-                    const cv = bi * 6;
-                    const linVel = [d.cvel[cv], d.cvel[cv + 1], d.cvel[cv + 2]];
-                    const angVel = [d.cvel[cv + 3], d.cvel[cv + 4], d.cvel[cv + 5]];
-                    const cfrc = [d.cfrc_ext[cv], d.cfrc_ext[cv + 1], d.cfrc_ext[cv + 2], d.cfrc_ext[cv + 3], d.cfrc_ext[cv + 4], d.cfrc_ext[cv + 5]];
-                    bodies[name] = { pos, quat, linVel, angVel, cfrc, mass: info.mass };
-                  }
-                }
-
-                // ── Geom state: position for every tracked geom ──
-                const geomCache = diagGeomCacheRef.current;
-                const geoms: Record<string, { pos: number[]; bodyName: string }> = {};
-                if (geomCache) {
-                  for (const [name, info] of geomCache) {
-                    const gi = info.geomId;
-                    geoms[name] = {
-                      pos: [d.geom_xpos[gi * 3], d.geom_xpos[gi * 3 + 1], d.geom_xpos[gi * 3 + 2]],
-                      bodyName: info.bodyName,
-                    };
-                  }
-                }
-
-                // ── Contact list: every active contact with force data ──
-                const contacts: Array<{ geom1: string; geom2: string; pos: number[]; dist: number; normal: number[]; force: number[] }> = [];
-                if (mujocoModule && geomCache) {
-                  const forceBuffer = new mujocoModule.DoubleBuffer(6);
-                  for (let ci = 0; ci < d.ncon; ci++) {
-                    try {
-                      const contact = d.contact.get(ci);
-                      if (!contact) continue;
-                      const g1 = mujocoModule.mj_id2name(mdl, 5, contact.geom1) || `geom_${contact.geom1}`;
-                      const g2 = mujocoModule.mj_id2name(mdl, 5, contact.geom2) || `geom_${contact.geom2}`;
-                      mujocoModule.mj_contactForce(mdl, d, ci, forceBuffer);
-                      const fv = forceBuffer.GetView();
-                      contacts.push({
-                        geom1: g1, geom2: g2,
-                        pos: [contact.pos[0], contact.pos[1], contact.pos[2]],
-                        dist: contact.dist,
-                        normal: [contact.frame[0], contact.frame[1], contact.frame[2]],
-                        force: [fv[0], fv[1], fv[2]],
-                      });
-                    } catch (_) {}
-                  }
-                  forceBuffer.delete();
-                }
-
-                const snapshot = {
-                  f: diagRingFrameCount.current++,
-                  t: Date.now(),
-                  rootH: d.xpos[capId * 3 + 2],
-                  rootX: d.xpos[capId * 3],
-                  rootY: d.xpos[capId * 3 + 1],
-                  tilt: tiltDeg,
-                  comZ, comX, comY,
-                  rootVy: d.qvel[rootDof + 1],
-                  rootLinVz: d.qvel[rootDof + 2],
-                  lFootH, rFootH,
-                  ncon: d.ncon,
-                  grounded: humBinder.getIsGrounded(),
-                  xfrc: [d.xfrc_applied[capId * 6 + 3], d.xfrc_applied[capId * 6 + 4], d.xfrc_applied[capId * 6 + 5]],
-                  joints,
-                  bodies,
-                  geoms,
-                  contacts,
-                };
-                if (!diagCaptureDone.current) {
-                  const ring = diagRingRef.current;
-                  ring.push(snapshot);
-                  diagRingIdx.current = ring.length;
-                  if (ring.length >= DIAG_RING_SIZE) {
-                    diagCaptureDone.current = true;
-                    console.log(`[DIAG] Captured ${DIAG_RING_SIZE} frames. Ring buffer full.`);
-                  }
-                }
-              }
+            if (!physics || physics.isStepping || physics.isMutating) {
+              return;
             }
-          } catch (diagErr) { if (diagRingFrameCount.current < 3) console.warn('[DIAG CAPTURE ERROR]', diagErr); }
 
-          try {
-            objectManagerRef.current?.update();
-            objectManagerRef.current?.syncVisuals();
-          } catch (error) {
-            Logger.warn("ObjectManager update error caught safely", error);
-          }
+            // Throttle: capture snapshot once per ~8 steps (= once per frame at 500Hz/60fps)
+            const stepCount = physics.getStepCount();
+            if (stepCount % 8 !== 0) return;
 
-          if (worldStore.bodyType === 'humanoid' && humanoidBinder) {
             try {
-              humanoidBinder.updateMotorTargets();
-              humanoidBinder.syncVisuals();
+              const physEng = physicsEngineRef.current;
+              const humBinder = humanoidPhysicsBinderRef.current;
+              if (physEng && physEng.isReady && humBinder) {
+                const capId = humBinder.getMultiBodyManager().getCapsuleBody();
+                if (capId !== null && capId >= 0) {
+                  const w = physEng.getWorld();
+                  const mdl = w.model;
+                  const d = w.data;
 
-              humanoidBinder.renderAICameraHelper(
-                useWorldStore.getState().showAICameraHelper,
-                worldEngineRef.current?.getCameraManager().getCameraData()
-              );
-              const state = humanoidBinder.getJointState();
-              lastJointStateRef.current = state;
+                  const mujocoModule = PhysicsEngine.getModule();
+                  if (mujocoModule) {
+                    if (!diagJointCacheRef.current) {
+                      const cache = new Map<string, { bodyId: number; qposAdr: number; dofAdr: number; dofCount: number; qposCount: number; name: string }>();
+                      for (let ji = 0; ji < mdl.njnt; ji++) {
+                        const bodyId = mdl.jnt_bodyid[ji];
+                        const bodyName = mujocoModule.mj_id2name(mdl, 1, bodyId);
+                        if (!bodyName || bodyName === 'root_capsule') continue;
+                        const jntType = mdl.jnt_type[ji];
+                        if (jntType === 0) continue;
+                        const qp = jntType === 1 ? 4 : 1;
+                        const dc = jntType === 1 ? 3 : 1;
+                        const jointName = mujocoModule.mj_id2name(mdl, 3, ji) || bodyName;
+                        cache.set(jointName, {
+                          bodyId,
+                          qposAdr: mdl.jnt_qposadr[ji],
+                          dofAdr: mdl.jnt_dofadr[ji],
+                          dofCount: dc,
+                          qposCount: qp,
+                          name: jointName,
+                        });
+                      }
+                      diagJointCacheRef.current = cache;
+                      console.log(`[DIAG] Joint cache: ${cache.size} joints mapped`);
+                    }
 
-              const headTransform = humanoidBinder.getHeadTransform();
-              if (headTransform) {
-                const headMatrix = new THREE.Matrix4().compose(
-                  headTransform.position,
-                  headTransform.quaternion,
-                  new THREE.Vector3(1, 1, 1)
+                    if (!diagGeomCacheRef.current) {
+                      const geomCache = new Map<string, { geomId: number; bodyName: string; type: number }>();
+                      for (let gi = 0; gi < mdl.ngeom; gi++) {
+                        const geomName = mujocoModule.mj_id2name(mdl, 5, gi);
+                        if (!geomName || geomName.startsWith('env_slot_') || geomName.startsWith('piano_') || geomName === 'floor') continue;
+                        const bodyId = mdl.geom_bodyid[gi];
+                        const bodyName = mujocoModule.mj_id2name(mdl, 1, bodyId) || '';
+                        geomCache.set(geomName, { geomId: gi, bodyName, type: mdl.geom_type[gi] });
+                      }
+                      diagGeomCacheRef.current = geomCache;
+                      console.log(`[DIAG] Geom cache: ${geomCache.size} geoms mapped`);
+                    }
+
+                    if (!diagBodyCacheRef.current) {
+                      const bodyCache = new Map<string, { bodyId: number; mass: number; parentBodyId: number; geomIds: number[] }>();
+                      for (let bi = 0; bi < mdl.nbody; bi++) {
+                        const bodyName = mujocoModule.mj_id2name(mdl, 1, bi);
+                        if (!bodyName || bodyName.startsWith('env_slot_') || bodyName.startsWith('piano_') || bodyName === 'floor' || bodyName === 'world') continue;
+                        const geomIds: number[] = [];
+                        const gadr = mdl.body_geomadr[bi];
+                        const gnum = mdl.body_geomnum[bi];
+                        for (let gi = 0; gi < gnum; gi++) geomIds.push(gadr + gi);
+                        bodyCache.set(bodyName, {
+                          bodyId: bi,
+                          mass: mdl.body_mass[bi],
+                          parentBodyId: mdl.body_parentid[bi],
+                          geomIds,
+                        });
+                      }
+                      diagBodyCacheRef.current = bodyCache;
+                      console.log(`[DIAG] Body cache: ${bodyCache.size} bodies mapped`);
+                    }
+                  }
+
+                  const rootDof = mdl.body_dofadr[capId];
+                  let totalM = 0, comX = 0, comY = 0, comZ = 0;
+                  for (let bi = 0; bi < mdl.nbody; bi++) {
+                    const m = mdl.body_mass[bi];
+                    if (m <= 0) continue;
+                    const bname = mujocoModule ? mujocoModule.mj_id2name(mdl, 1, bi) : '';
+                    if (bname.startsWith('env_slot_') || bname.startsWith('piano_') || bname === 'floor' || bname === 'world') continue;
+                    comX += m * d.xpos[bi * 3];
+                    comY += m * d.xpos[bi * 3 + 1];
+                    comZ += m * d.xpos[bi * 3 + 2];
+                    totalM += m;
+                  }
+                  if (totalM > 0) { comX /= totalM; comY /= totalM; comZ /= totalM; }
+                  const qw = d.xquat[capId * 4], qx = d.xquat[capId * 4 + 1], qy = d.xquat[capId * 4 + 2], qz = d.xquat[capId * 4 + 3];
+                  const upZ = 1 - 2 * (qx * qx + qy * qy);
+                  const tiltDeg = Math.acos(Math.min(1, Math.max(-1, upZ))) * 180 / Math.PI;
+                  const feetMap = humBinder.getMultiBodyManager().getRigidBodiesMap();
+                  const lFootId = feetMap.get('mixamorigleftfoot');
+                  const rFootId = feetMap.get('mixamorigrightfoot');
+                  const lFootH = lFootId !== undefined ? d.xpos[lFootId * 3 + 2] : 0;
+                  const rFootH = rFootId !== undefined ? d.xpos[rFootId * 3 + 2] : 0;
+
+                  const jointCache = diagJointCacheRef.current;
+                  const joints: Record<string, { qpos: number[]; qvel: number[]; bodyId: number; bodyName: string }> = {};
+                  if (jointCache) {
+                    for (const [, info] of jointCache) {
+                      const qpos: number[] = [];
+                      for (let k = 0; k < info.qposCount; k++) qpos.push(d.qpos[info.qposAdr + k]);
+                      const qvel: number[] = [];
+                      for (let k = 0; k < info.dofCount; k++) qvel.push(d.qvel[info.dofAdr + k]);
+                      joints[info.name] = { qpos, qvel, bodyId: info.bodyId, bodyName: info.name };
+                    }
+                  }
+
+                  const bodyCache = diagBodyCacheRef.current;
+                  const bodies: Record<string, { pos: number[]; quat: number[]; linVel: number[]; angVel: number[]; cfrc: number[]; mass: number }> = {};
+                  if (bodyCache) {
+                    for (const [name, info] of bodyCache) {
+                      const bi = info.bodyId;
+                      const pos = [d.xpos[bi * 3], d.xpos[bi * 3 + 1], d.xpos[bi * 3 + 2]];
+                      const quat = [d.xquat[bi * 4], d.xquat[bi * 4 + 1], d.xquat[bi * 4 + 2], d.xquat[bi * 4 + 3]];
+                      const cv = bi * 6;
+                      const linVel = [d.cvel[cv], d.cvel[cv + 1], d.cvel[cv + 2]];
+                      const angVel = [d.cvel[cv + 3], d.cvel[cv + 4], d.cvel[cv + 5]];
+                      const cfrc = [d.cfrc_ext[cv], d.cfrc_ext[cv + 1], d.cfrc_ext[cv + 2], d.cfrc_ext[cv + 3], d.cfrc_ext[cv + 4], d.cfrc_ext[cv + 5]];
+                      bodies[name] = { pos, quat, linVel, angVel, cfrc, mass: info.mass };
+                    }
+                  }
+
+                  const geomCache = diagGeomCacheRef.current;
+                  const geoms: Record<string, { pos: number[]; bodyName: string }> = {};
+                  if (geomCache) {
+                    for (const [name, info] of geomCache) {
+                      const gi = info.geomId;
+                      geoms[name] = {
+                        pos: [d.geom_xpos[gi * 3], d.geom_xpos[gi * 3 + 1], d.geom_xpos[gi * 3 + 2]],
+                        bodyName: info.bodyName,
+                      };
+                    }
+                  }
+
+                  const contacts: Array<{ geom1: string; geom2: string; pos: number[]; dist: number; normal: number[]; force: number[] }> = [];
+                  if (mujocoModule && geomCache) {
+                    const forceBuffer = new mujocoModule.DoubleBuffer(6);
+                    for (let ci = 0; ci < d.ncon; ci++) {
+                      try {
+                        const contact = d.contact.get(ci);
+                        if (!contact) continue;
+                        const g1 = mujocoModule.mj_id2name(mdl, 5, contact.geom1) || `geom_${contact.geom1}`;
+                        const g2 = mujocoModule.mj_id2name(mdl, 5, contact.geom2) || `geom_${contact.geom2}`;
+                        mujocoModule.mj_contactForce(mdl, d, ci, forceBuffer);
+                        const fv = forceBuffer.GetView();
+                        contacts.push({
+                          geom1: g1, geom2: g2,
+                          pos: [contact.pos[0], contact.pos[1], contact.pos[2]],
+                          dist: contact.dist,
+                          normal: [contact.frame[0], contact.frame[1], contact.frame[2]],
+                          force: [fv[0], fv[1], fv[2]],
+                        });
+                      } catch (_) {}
+                    }
+                    forceBuffer.delete();
+                  }
+
+                  const snapshot = {
+                    f: diagRingFrameCount.current++,
+                    t: Date.now(),
+                    rootH: d.xpos[capId * 3 + 2],
+                    rootX: d.xpos[capId * 3],
+                    rootY: d.xpos[capId * 3 + 1],
+                    tilt: tiltDeg,
+                    comZ, comX, comY,
+                    rootVy: d.qvel[rootDof + 1],
+                    rootLinVz: d.qvel[rootDof + 2],
+                    lFootH, rFootH,
+                    ncon: d.ncon,
+                    grounded: humBinder.getIsGrounded(),
+                    xfrc: [d.xfrc_applied[capId * 6 + 3], d.xfrc_applied[capId * 6 + 4], d.xfrc_applied[capId * 6 + 5]],
+                    joints,
+                    bodies,
+                    geoms,
+                    contacts,
+                  };
+                  if (!diagCaptureDone.current) {
+                    const ring = diagRingRef.current;
+                    ring.push(snapshot);
+                    diagRingIdx.current = ring.length;
+                    if (ring.length >= DIAG_RING_SIZE) {
+                      diagCaptureDone.current = true;
+                      console.log(`[DIAG] Captured ${DIAG_RING_SIZE} frames. Ring buffer full.`);
+                    }
+                  }
+                }
+              }
+            } catch (diagErr) { if (diagRingFrameCount.current < 3) console.warn('[DIAG CAPTURE ERROR]', diagErr); }
+          },
+          () => {
+            // ── Per-frame (60Hz): Object sync, motor updates, camera, boundary ──
+            const humanoidBinder = humanoidPhysicsBinderRef.current;
+
+            try {
+              objectManagerRef.current?.update();
+              objectManagerRef.current?.syncVisuals();
+            } catch (error) {
+              Logger.warn("ObjectManager update error caught safely", error);
+            }
+
+            if (worldStore.bodyType === 'humanoid' && humanoidBinder) {
+              try {
+                humanoidBinder.updateMotorTargets();
+                humanoidBinder.syncVisuals();
+
+                humanoidBinder.renderAICameraHelper(
+                  useWorldStore.getState().showAICameraHelper,
+                  worldEngineRef.current?.getCameraManager().getCameraData()
                 );
+                const state = humanoidBinder.getJointState();
+                lastJointStateRef.current = state;
 
-                // Get capsule position/quat for stable chase cam tracking
-                let capsuleQuat: THREE.Quaternion | undefined;
-                let capsulePos: THREE.Vector3 | undefined;
-                const capsuleBody = humanoidBinder.getCapsuleBody();
-                if (capsuleBody?.isValid()) {
-                  const t = capsuleBody.translation();
-                  const r = capsuleBody.rotation();
-                  capsulePos = new THREE.Vector3(t.x, t.y, t.z);
-                  capsuleQuat = new THREE.Quaternion(r.x, r.y, r.z, r.w);
+                const headTransform = humanoidBinder.getHeadTransform();
+                if (headTransform) {
+                  const headMatrix = new THREE.Matrix4().compose(
+                    headTransform.position,
+                    headTransform.quaternion,
+                    new THREE.Vector3(1, 1, 1)
+                  );
+
+                  let capsuleQuat: THREE.Quaternion | undefined;
+                  let capsulePos: THREE.Vector3 | undefined;
+                  const capsuleBody = humanoidBinder.getCapsuleBody();
+                  if (capsuleBody?.isValid()) {
+                    const t = capsuleBody.translation();
+                    const r = capsuleBody.rotation();
+                    capsulePos = new THREE.Vector3(t.x, t.y, t.z);
+                    capsuleQuat = new THREE.Quaternion(r.x, r.y, r.z, r.w);
+                  }
+
+                  worldEngineRef.current?.getCameraManager().update(headMatrix, headTransform.position, capsuleQuat, capsulePos);
                 }
 
-                worldEngineRef.current?.getCameraManager().update(headMatrix, headTransform.position, capsuleQuat, capsulePos);
-              }
-
-              if (humanoidBinder.isOutOfWorldBounds()) {
-                boundaryViolationCountRef.current += 1;
-                if (boundaryViolationCountRef.current >= BOUNDARY_RESET_FRAMES) {
-                  Logger.warn('useWorld: humanoid exceeded world boundary — auto reset');
-                  humanoidBinder.resetPose(useWorldStore.getState().spawnPoint);
+                if (humanoidBinder.isOutOfWorldBounds()) {
+                  boundaryViolationCountRef.current += 1;
+                  if (boundaryViolationCountRef.current >= BOUNDARY_RESET_FRAMES) {
+                    Logger.warn('useWorld: humanoid exceeded world boundary — auto reset');
+                    humanoidBinder.resetPose(useWorldStore.getState().spawnPoint);
+                    boundaryViolationCountRef.current = 0;
+                  }
+                } else {
                   boundaryViolationCountRef.current = 0;
                 }
-              } else {
-                boundaryViolationCountRef.current = 0;
+              } catch (error) {
+                Logger.warn('HumanoidPhysicsBinder sync failed:', error);
               }
-            } catch (error) {
-              Logger.warn('HumanoidPhysicsBinder sync failed:', error);
             }
           }
-        });
+        );
 
         setIsReady(true);
         // Mark rehydration/loading as complete so the startup modal will close.
@@ -1167,6 +1172,9 @@ export const useWorld = (containerRef: React.RefObject<HTMLDivElement>) => {
         }
 
         binder.setMode(worldStore.bodyMode);
+
+        // Warm-up: pre-compute forces/contacts at initial pose before first render
+        physicsEngineRef.current?.forward();
       }
     };
 

@@ -85,6 +85,8 @@ interface BoneInfo {
   name: string;
 }
 
+const ENABLE_KINEMATIC_GRF_INJECTOR = false;
+
 export class HumanoidPhysicsBinder {
   private physicsEngine: PhysicsEngine;
   private scene: THREE.Scene;
@@ -894,6 +896,7 @@ export class HumanoidPhysicsBinder {
     const qvel = data.qvel;
 
     if (this.mbActive) {
+      if (!ENABLE_KINEMATIC_GRF_INJECTOR) return;
       const registry = this.physicsEngine.getContactForceRegistry();
       const footBones = ['mixamorigleftfoot', 'mixamorigrightfoot'];
       let totalImpulse = new THREE.Vector3(0, 0, 0);
@@ -911,8 +914,8 @@ export class HumanoidPhysicsBinder {
         const state = registry.get(colliderHandle);
         if (!state || !state.inContact || state.impulse_magnitude < 0.5) continue;
 
-        const ny = state.contact_normal[1];
-        if (ny < 0.3) continue;
+        const nz = state.contact_normal[2];
+        if (nz < 0.3) continue;
 
         const boneInfo = this.boneInfoMap.get(boneName);
         if (!boneInfo) continue;
@@ -1192,10 +1195,10 @@ export class HumanoidPhysicsBinder {
 
     if (state && state.inContact && state.impulse_magnitude > 0.01) {
       let touching = 'unknown';
-      const ny = state.contact_normal[1];
-      if (ny > 0.7) {
+      const nz = state.contact_normal[2];
+      if (nz > 0.7) {
         touching = 'floor';
-      } else if (ny < -0.7) {
+      } else if (nz < -0.7) {
         touching = 'ceiling';
       } else {
         touching = 'object';
@@ -1520,6 +1523,19 @@ export class HumanoidPhysicsBinder {
     const armsDownAngle = this.restArmAngleDeg * (Math.PI / 180);
     this.currentTargets.set('mixamorigrightarm', { x: armsDownAngle, y: 0, z: 0, isQuaternion: false });
     this.currentTargets.set('mixamorigleftarm', { x: armsDownAngle, y: 0, z: 0, isQuaternion: false });
+    // Spine: neutral target in bind pose
+    this.currentTargets.set('mixamorigspine', { x: 0, y: 0, z: 0, isQuaternion: false });
+    this.currentTargets.set('mixamorigspine1', { x: 0, y: 0, z: 0, isQuaternion: false });
+    this.currentTargets.set('mixamorigspine2', { x: 0, y: 0, z: 0, isQuaternion: false });
+    // Hips: neutral target in bind pose
+    this.currentTargets.set('mixamorigleftupleg', { x: 0, y: 0, z: 0, isQuaternion: false });
+    this.currentTargets.set('mixamorigrightupleg', { x: 0, y: 0, z: 0, isQuaternion: false });
+    // Knees: target = 0 (straight leg)
+    this.currentTargets.set('mixamorigleftleg', { x: 0, y: 0, z: 0, isQuaternion: false });
+    this.currentTargets.set('mixamorigrightleg', { x: 0, y: 0, z: 0, isQuaternion: false });
+    // Ankles: neutral target in bind pose
+    this.currentTargets.set('mixamorigleftfoot', { x: 0, y: 0, z: 0, isQuaternion: false });
+    this.currentTargets.set('mixamorigrightfoot', { x: 0, y: 0, z: 0, isQuaternion: false });
   }
 
   public async adjustMotors(stiffness: number, damping: number): Promise<boolean> {
