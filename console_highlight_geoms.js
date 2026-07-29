@@ -174,7 +174,7 @@
       case 2: return new THREE.SphereGeometry(s0, 16, 12);
       case 3: return new THREE.CapsuleGeometry(s0, s1 * 2, 8, 16);
       case 5: return new THREE.CylinderGeometry(s0, s0, s1 * 2, 16, 1);
-      case 6: return new THREE.BoxGeometry(s0 * 2, s1 * 2, s2 * 2);
+      case 6: return new THREE.BoxGeometry(s0 * 2, s2 * 2, s1 * 2);
       case 0: {
         var w = Math.min(s0, 50), h = Math.min(s1, 50);
         var g = new THREE.PlaneGeometry(w * 2, h * 2);

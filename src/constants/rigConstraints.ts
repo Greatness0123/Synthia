@@ -18,9 +18,9 @@ export const SYNTHIA_RIG_CONSTRAINTS: Record<string, JointLimit> = (() => {
   // FIX 7: Tighten arm X-axis adduction limits to prevent chest clipping.
   // Left arm: bring hand to right shoulder (60° adduction) but not beyond midline.
   // Right arm: mirror.
-  map['mixamorigleftarm'] = { dof: 3, x: [-2.356, 1.047], y: [-1.57, 1.57], z: [-1.57, 1.57], allowance: { scapulohumeralRatio: 2.0 } };
-  map['mixamorigrightarm'] = { dof: 3, x: [-1.047, 2.356], y: [-1.57, 1.57], z: [-1.57, 1.57], allowance: { scapulohumeralRatio: 2.0 } };
-  map['mixamorigleftforearm'] = { dof: 1, x: [0.0, 2.531], y: [0.0, 0.0], z: [0.0, 0.0] };
+  map['mixamorigleftarm']  = { dof: 3, x: [-2.356, 2.356], y: [-1.57, 1.57], z: [-1.57, 1.57], allowance: { scapulohumeralRatio: 2.0 } };
+  map['mixamorigrightarm'] = { dof: 3, x: [-2.356, 2.356], y: [-1.57, 1.57], z: [-1.57, 1.57], allowance: { scapulohumeralRatio: 2.0 } };
+  map['mixamorigleftforearm']  = { dof: 1, x: [0.0, 2.531], y: [0.0, 0.0], z: [0.0, 0.0] };
   map['mixamorigrightforearm'] = { dof: 1, x: [0.0, 2.531], y: [0.0, 0.0], z: [0.0, 0.0] };
 
   // ZONE 3: WRISTS AND DIGITS

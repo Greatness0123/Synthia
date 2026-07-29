@@ -227,20 +227,31 @@ export function generateHumanoidMJCF(
     let geomXML = '';
     const isFoot = boneName.includes('foot');
     if (isFoot) {
-      // Compute inverse of foot body rotation so geom aligns perfectly with world ground plane
+      // Inverse of foot body rotation to guarantee Identity world orientation (100% flat, parallel to floor)
       const qBody = new THREE.Quaternion(childQuatMj[1], childQuatMj[2], childQuatMj[3], childQuatMj[0]);
       const qBodyInv = qBody.clone().invert();
       const qGeomLocalStr = `${qBodyInv.w} ${qBodyInv.x} ${qBodyInv.y} ${qBodyInv.z}`;
 
-      // Offset from ankle joint to foot sole center in world space: 4cm forward (+Y), 4.5cm down (-Z)
-      const pWorldOffset = new THREE.Vector3(0, 0.04, -0.045);
+      const FOOT_HALF_WIDTH = 0.05;   // 10cm lateral (side-to-side)
+      const FOOT_HALF_LENGTH = 0.13;  // 26cm forward-backward (Y)
+      const FOOT_HALF_HEIGHT = 0.015; // 3cm vertical thickness (Z)
+
+      // Ankle position in MuJoCo space
+      const ankleMj = childPosMj;
+
+      // Position box sole center in world space:
+      // X = same as ankle, Y = 6cm forward (-Y in MuJoCo space), Z = 1.5cm (so bottom sits flush at Z = 0 floor level)
+      const pWorldOffset = new THREE.Vector3(
+        0,
+        -0.06,
+        FOOT_HALF_HEIGHT - ankleMj[2]
+      );
+
       const pGeomLocal = pWorldOffset.clone().applyQuaternion(qBodyInv);
       const pGeomLocalStr = `${pGeomLocal.x} ${pGeomLocal.y} ${pGeomLocal.z}`;
 
-      const FOOT_HALF_WIDTH = 0.05;   // 10cm lateral (side-to-side)
-      const FOOT_HALF_LENGTH = 0.10;  // 20cm forward-backward (Y)
-      const FOOT_HALF_HEIGHT = 0.015; // 3cm vertical thickness (Z)
-      geomXML = `<geom name="${boneName}_geom" type="box" size="${FOOT_HALF_WIDTH} ${FOOT_HALF_LENGTH} ${FOOT_HALF_HEIGHT}" pos="${pGeomLocalStr}" quat="${qGeomLocalStr}" contype="2" conaffinity="1" solref="0.004 1" solimp="0.95 0.99 0.001 0.5 2"/>`;
+      // High friction on foot soles: sliding=1.5 torsional=0.1 rolling=0.05 prevents ice-cube drift
+      geomXML = `<geom name="${boneName}_geom" type="box" size="${FOOT_HALF_WIDTH} ${FOOT_HALF_LENGTH} ${FOOT_HALF_HEIGHT}" pos="${pGeomLocalStr}" quat="${qGeomLocalStr}" friction="1.5 0.1 0.05" contype="2" conaffinity="1" solref="0.004 1" solimp="0.95 0.99 0.001 0.5 2"/>`;
     } else {
       const colRadius = 0.04;
       geomXML = `<geom name="${boneName}_geom" type="sphere" size="${colRadius}" pos="0 0 0" contype="2" conaffinity="1" solref="0.004 1" solimp="0.95 0.99 0.001 0.5 2"/>`;
@@ -365,9 +376,12 @@ ${pianoGeoms.join('\n')}
 <mujoco model="synthia_humanoid">
   <compiler angle="radian" coordinate="local"/>
   <option gravity="0 0 -9.81" timestep="0.002" iterations="100" integrator="implicitfast"/>
+  <default>
+    <geom friction="1.0 0.05 0.01"/>
+  </default>
   <worldbody>
     <light directional="true" pos="0 0 5" dir="0 0 -1"/>
-    <geom name="floor" type="plane" size="100 100 0.1" rgba="0.8 0.9 0.8 1" contype="1" conaffinity="2" solref="0.004 1" solimp="0.95 0.99 0.001 0.5 2"/>
+    <geom name="floor" type="plane" size="100 100 0.1" rgba="0.8 0.9 0.8 1" friction="1.0 0.05 0.01" contype="1" conaffinity="2" solref="0.004 1" solimp="0.95 0.99 0.001 0.5 2"/>
 
     <body name="root_capsule" pos="${rootCapsulePosStr}" quat="${rootCapsuleQuatStr}">
       <freejoint name="root_freejoint"/>
