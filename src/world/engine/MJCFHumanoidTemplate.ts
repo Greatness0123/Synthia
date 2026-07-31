@@ -90,13 +90,15 @@ function getMuJoCoBoneGains(boneName: string): { kp: number; kv: number } {
   if (name.includes('spine')) {
     return { kp: 700, kv: 130 };
   }
+  // Head/neck: small inertia — high kp causes bobblehead oscillation; use soft gains
   if (name.includes('neck') || name.includes('head')) {
-    return { kp: 150, kv: 30 };
+    return { kp: 80, kv: 25 };
   }
   return { kp: 150, kv: 30 };
 }
 
-function estimateBoneLength(
+// Reserved for future bone-length-aware physics tuning
+export function _estimateBoneLength(
   boneName: string,
   boneInfo: { bone: THREE.Bone; worldPosition: THREE.Vector3 },
   allBones: Map<string, { bone: THREE.Bone; worldPosition: THREE.Vector3 }>
@@ -194,9 +196,7 @@ export function generateHumanoidMJCF(
     const threeQuat = new THREE.Quaternion();
     bone.getWorldQuaternion(threeQuat);
 
-    if (boneName === 'mixamorigspine' || boneName === 'mixamorigleftupleg') {
-      console.log(`[DEBUG BONE POSITION] ${boneName}: pos = ${threePos.x.toFixed(4)}, ${threePos.y.toFixed(4)}, ${threePos.z.toFixed(4)}, quat = ${threeQuat.x.toFixed(4)}, ${threeQuat.y.toFixed(4)}, ${threeQuat.z.toFixed(4)}, ${threeQuat.w.toFixed(4)}`);
-    }
+
 
     // Convert child absolute position/rotation to MuJoCo space
     const childPosMj = PhysicsEngine.worldToMuJoCo(threePos);
@@ -224,7 +224,7 @@ export function generateHumanoidMJCF(
     const iyy = phys.principalInertia.z;
     const izz = phys.principalInertia.y;
 
-    let geomXML = '';
+    let geomXML: string;
     const isFoot = boneName.includes('foot');
     if (isFoot) {
       // Inverse of foot body rotation to guarantee Identity world orientation (100% flat, parallel to floor)
@@ -258,7 +258,7 @@ export function generateHumanoidMJCF(
     }
 
     // Joint declarations
-    let jointsXML = '';
+    let jointsXML: string;
     const jointType = BONE_JOINT_TYPE[boneName] || 'spherical';
 
     // Retrieve constraints and limits
@@ -294,17 +294,28 @@ export function generateHumanoidMJCF(
       actuators.push(`<position name="act_${boneName}_pitch" joint="${boneName}_pitch" kp="${kp}" kv="${kv}" ctrlrange="${getSafeRangeStr(minX, maxX)}"/>`);
       actuators.push(`<position name="act_${boneName}_roll" joint="${boneName}_roll" kp="${kp}" kv="${kv}" ctrlrange="${getSafeRangeStr(minZ, maxZ)}"/>`);
     } else {
-      // 3-DOF Joint Decomposed into Yaw (0 0 1) -> Pitch (1 0 0) -> Roll (0 1 0)
       const minX = constraint?.x?.[0] ?? limits?.min ?? -0.785;
       const maxX = constraint?.x?.[1] ?? limits?.max ?? 0.785;
       const minY = constraint?.y?.[0] ?? -0.785;
       const maxY = constraint?.y?.[1] ?? 0.785;
       const minZ = constraint?.z?.[0] ?? -0.785;
       const maxZ = constraint?.z?.[1] ?? 0.785;
+
+      // Head/neck: the Mixamo T-pose bind-pose quaternion bakes a ~90° rotation into the
+      // body frame, which physically flips what axis="0 0 1" (yaw) and axis="0 1 0" (roll)
+      // actually do in world space. Swapping them here restores the correct semantics:
+      //   _yaw  → axis 0 1 0  (body-local Y → world vertical after transform → left/right turn)
+      //   _pitch → axis 1 0 0 (body-local X → forward/back tilt, unchanged)
+      //   _roll  → axis 0 0 1  (body-local Z → lateral side-tilt)
+      const isHeadNeck = boneName.includes('neck') || boneName.includes('head');
+      const yawAxis   = isHeadNeck ? '0 1 0' : '0 0 1';
+      const rollAxis  = isHeadNeck ? '0 0 1' : '0 1 0';
+
+      // 3-DOF Joint: Yaw -> Pitch -> Roll
       jointsXML = `
-        <joint name="${boneName}_yaw" type="hinge" axis="0 0 1" range="${getSafeRangeStr(minY, maxY)}" limited="true"/>
+        <joint name="${boneName}_yaw" type="hinge" axis="${yawAxis}" range="${getSafeRangeStr(minY, maxY)}" limited="true"/>
         <joint name="${boneName}_pitch" type="hinge" axis="1 0 0" range="${getSafeRangeStr(minX, maxX)}" limited="true"/>
-        <joint name="${boneName}_roll" type="hinge" axis="0 1 0" range="${getSafeRangeStr(minZ, maxZ)}" limited="true"/>
+        <joint name="${boneName}_roll" type="hinge" axis="${rollAxis}" range="${getSafeRangeStr(minZ, maxZ)}" limited="true"/>
       `;
       actuators.push(`<position name="act_${boneName}_yaw" joint="${boneName}_yaw" kp="${kp}" kv="${kv}" ctrlrange="${getSafeRangeStr(minY, maxY)}"/>`);
       actuators.push(`<position name="act_${boneName}_pitch" joint="${boneName}_pitch" kp="${kp}" kv="${kv}" ctrlrange="${getSafeRangeStr(minX, maxX)}"/>`);

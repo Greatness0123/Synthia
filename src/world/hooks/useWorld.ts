@@ -448,7 +448,7 @@ export const useWorld = (containerRef: React.RefObject<HTMLDivElement>) => {
                 totalM += m;
               }
               if (totalM > 0) { comX /= totalM; comY /= totalM; comZ /= totalM; }
-              const qw = d.xquat[capId * 4], qx = d.xquat[capId * 4 + 1], qy = d.xquat[capId * 4 + 2], qz = d.xquat[capId * 4 + 3];
+              const qx = d.xquat[capId * 4 + 1], qy = d.xquat[capId * 4 + 2];
               const upZ = 1 - 2 * (qx * qx + qy * qy);
               const tiltDeg = Math.acos(Math.min(1, Math.max(-1, upZ))) * 180 / Math.PI;
               const feetMap = humBinder.getMultiBodyManager().getRigidBodiesMap();
@@ -502,26 +502,29 @@ export const useWorld = (containerRef: React.RefObject<HTMLDivElement>) => {
 
               // Build contact data for initial frame
               const contactsInit: Array<{ geom1: string; geom2: string; pos: number[]; dist: number; normal: number[]; force: number[] }> = [];
-              if (mujocoModule) {
+              if (mujocoModule && d.ncon > 0 && d.ncon <= 200) {
                 const forceBuffer = new mujocoModule.DoubleBuffer(6);
-                for (let ci = 0; ci < d.ncon; ci++) {
-                  try {
-                    const contact = d.contact.get(ci);
-                    if (!contact) continue;
-                    const g1 = mujocoModule.mj_id2name(mdl, 5, contact.geom1) || `geom_${contact.geom1}`;
-                    const g2 = mujocoModule.mj_id2name(mdl, 5, contact.geom2) || `geom_${contact.geom2}`;
-                    mujocoModule.mj_contactForce(mdl, d, ci, forceBuffer);
-                    const fv = forceBuffer.GetView();
-                    contactsInit.push({
-                      geom1: g1, geom2: g2,
-                      pos: [contact.pos[0], contact.pos[1], contact.pos[2]],
-                      dist: contact.dist,
-                      normal: [contact.frame[0], contact.frame[1], contact.frame[2]],
-                      force: [fv[0], fv[1], fv[2]],
-                    });
-                  } catch (_) {}
+                try {
+                  for (let ci = 0; ci < d.ncon; ci++) {
+                    try {
+                      const contact = d.contact.get(ci);
+                      if (!contact) continue;
+                      const g1 = mujocoModule.mj_id2name(mdl, 5, contact.geom1) || `geom_${contact.geom1}`;
+                      const g2 = mujocoModule.mj_id2name(mdl, 5, contact.geom2) || `geom_${contact.geom2}`;
+                      mujocoModule.mj_contactForce(mdl, d, ci, forceBuffer);
+                      const fv = forceBuffer.GetView();
+                      contactsInit.push({
+                        geom1: g1, geom2: g2,
+                        pos: [contact.pos[0], contact.pos[1], contact.pos[2]],
+                        dist: contact.dist,
+                        normal: [contact.frame[0], contact.frame[1], contact.frame[2]],
+                        force: [fv[0], fv[1], fv[2]],
+                      });
+                    } catch { /* ignore */ }
+                  }
+                } finally {
+                  forceBuffer.delete();
                 }
-                forceBuffer.delete();
               }
 
               diagRingRef.current.push({
@@ -546,7 +549,7 @@ export const useWorld = (containerRef: React.RefObject<HTMLDivElement>) => {
               console.log(`[DIAG] Initial state captured: tilt=${tiltDeg.toFixed(1)}° rootH=${(d.xpos[capId * 3 + 2]).toFixed(3)} joints=${Object.keys(jointsInit).length} bodies=${Object.keys(bodiesInit).length} geoms=${Object.keys(geomsInit).length} contacts=${contactsInit.length}`);
             }
           }
-        } catch (_) {}
+        } catch { /* ignore */ }
         if (diagRingRef.current.length >= DIAG_RING_SIZE) diagCaptureDone.current = true;
 
         Logger.info("useWorld: Starting animation loop...");
@@ -554,7 +557,6 @@ export const useWorld = (containerRef: React.RefObject<HTMLDivElement>) => {
           () => {
             // ── Per-step (500Hz): Diagnostics ring-buffer capture (throttled to 1/frame) ──
             const physics = physicsEngineRef.current;
-            const humanoidBinder = humanoidPhysicsBinderRef.current;
 
             if (!physics || physics.isStepping || physics.isMutating) {
               return;
@@ -647,7 +649,7 @@ export const useWorld = (containerRef: React.RefObject<HTMLDivElement>) => {
                     totalM += m;
                   }
                   if (totalM > 0) { comX /= totalM; comY /= totalM; comZ /= totalM; }
-                  const qw = d.xquat[capId * 4], qx = d.xquat[capId * 4 + 1], qy = d.xquat[capId * 4 + 2], qz = d.xquat[capId * 4 + 3];
+                  const qx = d.xquat[capId * 4 + 1], qy = d.xquat[capId * 4 + 2];
                   const upZ = 1 - 2 * (qx * qx + qy * qy);
                   const tiltDeg = Math.acos(Math.min(1, Math.max(-1, upZ))) * 180 / Math.PI;
                   const feetMap = humBinder.getMultiBodyManager().getRigidBodiesMap();
@@ -696,26 +698,29 @@ export const useWorld = (containerRef: React.RefObject<HTMLDivElement>) => {
                   }
 
                   const contacts: Array<{ geom1: string; geom2: string; pos: number[]; dist: number; normal: number[]; force: number[] }> = [];
-                  if (mujocoModule && geomCache) {
+                  if (mujocoModule && geomCache && d.ncon > 0 && d.ncon <= 200) {
                     const forceBuffer = new mujocoModule.DoubleBuffer(6);
-                    for (let ci = 0; ci < d.ncon; ci++) {
-                      try {
-                        const contact = d.contact.get(ci);
-                        if (!contact) continue;
-                        const g1 = mujocoModule.mj_id2name(mdl, 5, contact.geom1) || `geom_${contact.geom1}`;
-                        const g2 = mujocoModule.mj_id2name(mdl, 5, contact.geom2) || `geom_${contact.geom2}`;
-                        mujocoModule.mj_contactForce(mdl, d, ci, forceBuffer);
-                        const fv = forceBuffer.GetView();
-                        contacts.push({
-                          geom1: g1, geom2: g2,
-                          pos: [contact.pos[0], contact.pos[1], contact.pos[2]],
-                          dist: contact.dist,
-                          normal: [contact.frame[0], contact.frame[1], contact.frame[2]],
-                          force: [fv[0], fv[1], fv[2]],
-                        });
-                      } catch (_) {}
+                    try {
+                      for (let ci = 0; ci < d.ncon; ci++) {
+                        try {
+                          const contact = d.contact.get(ci);
+                          if (!contact) continue;
+                          const g1 = mujocoModule.mj_id2name(mdl, 5, contact.geom1) || `geom_${contact.geom1}`;
+                          const g2 = mujocoModule.mj_id2name(mdl, 5, contact.geom2) || `geom_${contact.geom2}`;
+                          mujocoModule.mj_contactForce(mdl, d, ci, forceBuffer);
+                          const fv = forceBuffer.GetView();
+                          contacts.push({
+                            geom1: g1, geom2: g2,
+                            pos: [contact.pos[0], contact.pos[1], contact.pos[2]],
+                            dist: contact.dist,
+                            normal: [contact.frame[0], contact.frame[1], contact.frame[2]],
+                            force: [fv[0], fv[1], fv[2]],
+                          });
+                        } catch { /* ignore */ }
+                      }
+                    } finally {
+                      forceBuffer.delete();
                     }
-                    forceBuffer.delete();
                   }
 
                   const snapshot = {
@@ -830,6 +835,7 @@ export const useWorld = (containerRef: React.RefObject<HTMLDivElement>) => {
       worldEngineRef.current?.stop();
       physicsEngineRef.current?.cleanup();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [containerRef]);
 
   useEffect(() => {
@@ -919,7 +925,7 @@ export const useWorld = (containerRef: React.RefObject<HTMLDivElement>) => {
   }, [worldStore.cameraMode]);
 
   const findSpawnPosition = useCallback((skipHumanoidCheck = false): THREE.Vector3 => {
-    let humanoidPos = new THREE.Vector3(0, 0, 5);
+    const humanoidPos = new THREE.Vector3(0, 0, 5);
     const binder = humanoidPhysicsBinderRef.current;
     if (binder) {
       const headTransform = binder.getHeadTransform();
@@ -930,7 +936,7 @@ export const useWorld = (containerRef: React.RefObject<HTMLDivElement>) => {
 
     const activeObjManager = objectManagerRef.current;
     const spawnRadius = 2.2;
-    let spawnPos = new THREE.Vector3();
+    const spawnPos = new THREE.Vector3();
     let placed = false;
 
     for (let attempt = 0; attempt < 8; attempt++) {
@@ -1038,7 +1044,7 @@ export const useWorld = (containerRef: React.RefObject<HTMLDivElement>) => {
       }
 
       const { jointOverrides, programSequence, sequence, activeGaitPhase } = e.detail;
-      Logger.info(`[ACTION_PIPELINE] useWorld handling action: jointOverrides=${Object.keys(jointOverrides || {}).length} keys, sequence=${Array.isArray(sequence) ? sequence.length : 0}, programSequence=${JSON.stringify(programSequence || [])}`);
+      Logger.info(`[ACTION_PIPELINE] useWorld handling action: jointOverrides=${Object.keys(jointOverrides || {}).length} keys [${JSON.stringify(jointOverrides).substring(0, 200)}], sequence=${Array.isArray(sequence) ? sequence.length : 0}, programSequence=${JSON.stringify(programSequence || [])}`);
 
       if (worldStore.bodyType === 'humanoid' && humanoidPhysicsBinderRef.current) {
         try {
@@ -1184,6 +1190,8 @@ export const useWorld = (containerRef: React.RefObject<HTMLDivElement>) => {
     worldStore.bodyType,
     worldStore.spawnPoint,
     worldStore.useMultiBodyPD,
+    worldStore.bodyMode,
+    worldStore.showDebugJoints,
   ]);
 
   useEffect(() => {
@@ -1195,7 +1203,8 @@ export const useWorld = (containerRef: React.RefObject<HTMLDivElement>) => {
     }, worldStore.dayNightCycleMs);
 
     return () => clearInterval(interval);
-  }, [isReady, worldStore.dayNightCycleMs, worldStore.lightState]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isReady, worldStore.dayNightCycleMs, worldStore.lightState, worldStore.setLightState]);
 
   useEffect(() => {
     if (!worldEngineRef.current) return;

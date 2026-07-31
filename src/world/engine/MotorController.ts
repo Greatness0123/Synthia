@@ -13,6 +13,10 @@ export class MotorController {
   private limpModeActive = false;
   private simulationStepCount = 0;
 
+  // Diagnostics (read externally via PhysicsDiagnostic)
+  public lastBalanceTorqueMag: number = 0;
+  public lastBalanceTiltRad: number = 0;
+
   constructor() {}
 
   public init(actuatorMap: Map<string, number[]>, model: any, data: any): void {
@@ -70,7 +74,8 @@ export class MotorController {
         ctrl[actuatorIds[0]] = targetAngle * rampFactor;
       } else if (actuatorIds.length === 3) {
         // Spherical joint decomposed into yaw, pitch, roll
-        // Index 0: yaw, Index 1: pitch, Index 2: roll
+        // MJCF actuator order: [yaw(axis 0 0 1), pitch(axis 1 0 0), roll(axis 0 1 0)]
+        // LLM sends [x=pitch, y=yaw, z=roll] as Array or {x, y, z}
         let yaw = 0;
         let pitch = 0;
         let roll = 0;
@@ -78,14 +83,14 @@ export class MotorController {
         if (parsedTarget.isScalar && typeof parsedTarget.scalar === 'number') {
           pitch = parsedTarget.scalar;
         } else if (parsedTarget.x !== undefined) {
-          yaw = parsedTarget.z || 0;
-          pitch = parsedTarget.x || 0;
-          roll = parsedTarget.y || 0;
+          yaw = parsedTarget.y || 0;   // Y → Yaw (LLM's y = yaw axis)
+          pitch = parsedTarget.x || 0;  // X → Pitch (LLM's x = pitch axis)
+          roll = parsedTarget.z || 0;   // Z → Roll (LLM's z = roll axis)
         }
 
-        ctrl[actuatorIds[0]] = yaw * rampFactor;
-        ctrl[actuatorIds[1]] = pitch * rampFactor;
-        ctrl[actuatorIds[2]] = roll * rampFactor;
+        ctrl[actuatorIds[0]] = Number.isFinite(yaw) ? yaw * rampFactor : 0;
+        ctrl[actuatorIds[1]] = Number.isFinite(pitch) ? pitch * rampFactor : 0;
+        ctrl[actuatorIds[2]] = Number.isFinite(roll) ? roll * rampFactor : 0;
       }
     });
   }
@@ -97,7 +102,8 @@ export class MotorController {
 
     const rampFactor = Math.min(1.0, this.simulationStepCount / 20);
     // Direct assignment to pitch or first actuator
-    this.data.ctrl[actuatorIds[0]] = angle * rampFactor;
+    const val = Number.isFinite(angle) ? angle * rampFactor : 0;
+    this.data.ctrl[actuatorIds[0]] = val;
   }
 
   public setGainScale(stiffnessScale: number, dampingScale: number): void {
@@ -133,16 +139,10 @@ export class MotorController {
   private applyGainsToModel(): void {
     if (!this.model) return;
 
-    for (let i = 0; i < this.model.nu; i++) {
-      const base = this.baseGains.get(i);
-      if (base) {
-        const kp = base.kp * this.globalStiffnessScale;
-        const kv = base.kv * this.globalDampingScale;
-
-        this.model.actuator_gainprm[i * 3] = kp;
-        this.model.actuator_biasprm[i * 3 + 1] = -kp;
-        this.model.actuator_biasprm[i * 3 + 2] = -kv;
-      }
+    for (const [actuatorId, gains] of this.baseGains) {
+      this.model.actuator_gainprm[actuatorId * 3] = gains.kp * this.globalStiffnessScale;
+      this.model.actuator_biasprm[actuatorId * 3 + 1] = -gains.kp * this.globalStiffnessScale;
+      this.model.actuator_biasprm[actuatorId * 3 + 2] = -gains.kv * this.globalDampingScale;
     }
   }
 
@@ -168,8 +168,9 @@ export class MotorController {
     const tiltAngle = Math.acos(Math.min(1, Math.max(-1, capsuleUp.y)));
 
     const tiltAxis = new THREE.Vector3();
-    if (tiltAngle > 1e-5) {
-      tiltAxis.set(-capsuleUp.z, 0, capsuleUp.x).normalize();
+    const axisDir = new THREE.Vector3(-capsuleUp.z, 0, capsuleUp.x);
+    if (tiltAngle > 1e-5 && axisDir.lengthSq() > 1e-8) {
+      tiltAxis.copy(axisDir).normalize();
     }
 
     // Get angular velocity in Three.js/world frame
@@ -206,14 +207,18 @@ export class MotorController {
     // Convert balancing torque back to MuJoCo coordinate system
     const torqueMj = PhysicsEngine.worldToMuJoCo(torqueWorld);
 
-    // Apply directly into xfrc_applied for the capsule body
+    // Apply directly into xfrc_applied for the capsule body with finite safety guards
+    const tx = Number.isFinite(torqueMj[0]) ? torqueMj[0] : 0;
+    const ty = Number.isFinite(torqueMj[1]) ? torqueMj[1] : 0;
+    const tz = Number.isFinite(torqueMj[2]) ? torqueMj[2] : 0;
+
     const xfrc = this.data.xfrc_applied;
     const idx = capsuleBodyId * 6;
     xfrc[idx + 0] = 0;
     xfrc[idx + 1] = 0;
     xfrc[idx + 2] = 0;
-    xfrc[idx + 3] = torqueMj[0];
-    xfrc[idx + 4] = torqueMj[1];
-    xfrc[idx + 5] = torqueMj[2];
+    xfrc[idx + 3] = tx;
+    xfrc[idx + 4] = ty;
+    xfrc[idx + 5] = tz;
   }
 }

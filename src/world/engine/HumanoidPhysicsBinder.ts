@@ -25,6 +25,7 @@ export class BodyProxy {
     this.bodyId = bodyId;
     this.model = model;
     this.data = data;
+    void _module;
   }
 
   public isValid(): boolean {
@@ -189,7 +190,9 @@ export class HumanoidPhysicsBinder {
 
         const cap = options?.activeGaitPhase && constraint.allowance?.locomotionCap ? constraint.allowance.locomotionCap : undefined;
 
-        let xVal = 0, yVal = 0, zVal = 0;
+        let xVal: number;
+        let yVal = 0;
+        let zVal = 0;
         if (isScalarPayload(rawVal)) {
           xVal = typeof rawVal === 'number' ? rawVal : rawVal[0];
         } else if (Array.isArray(rawVal) && rawVal.length === 3) {
@@ -899,8 +902,8 @@ export class HumanoidPhysicsBinder {
       if (!ENABLE_KINEMATIC_GRF_INJECTOR) return;
       const registry = this.physicsEngine.getContactForceRegistry();
       const footBones = ['mixamorigleftfoot', 'mixamorigrightfoot'];
-      let totalImpulse = new THREE.Vector3(0, 0, 0);
-      let totalTorque = new THREE.Vector3(0, 0, 0);
+      const totalImpulse = new THREE.Vector3(0, 0, 0);
+      const totalTorque = new THREE.Vector3(0, 0, 0);
 
       const capsuleProxy = new BodyProxy(capsuleBodyId, model, data, null);
       const capsulePos = capsuleProxy.translation();
@@ -967,8 +970,8 @@ export class HumanoidPhysicsBinder {
 
     // Kinematic model foot positions reaction forces
     const feetNames = ['mixamoriglefttoebase', 'mixamorigrighttoebase'];
-    let totalImpulse = new THREE.Vector3(0, 0, 0);
-    let totalTorque = new THREE.Vector3(0, 0, 0);
+    const totalImpulse = new THREE.Vector3(0, 0, 0);
+    const totalTorque = new THREE.Vector3(0, 0, 0);
     const modelQuat = this.modelRoot.quaternion.clone();
 
     feetNames.forEach((boneName) => {
@@ -1194,7 +1197,7 @@ export class HumanoidPhysicsBinder {
     const state = registry.get(capsuleGeomId);
 
     if (state && state.inContact && state.impulse_magnitude > 0.01) {
-      let touching = 'unknown';
+      let touching: string;
       const nz = state.contact_normal[2];
       if (nz > 0.7) {
         touching = 'floor';
@@ -1391,7 +1394,7 @@ export class HumanoidPhysicsBinder {
           const parsedNumber = parseFloat(target);
           parsedTarget = { scalar: isNaN(parsedNumber) ? 0 : parsedNumber, isScalar: true };
         }
-      } catch (err) {
+      } catch {
         parsedTarget = { scalar: 0, isScalar: true };
       }
 
@@ -1459,6 +1462,8 @@ export class HumanoidPhysicsBinder {
         this.resetToBindPose();
       } else if (name.includes('jump')) {
         this.executeJump(6.0);
+      } else {
+        Logger.warn(`HumanoidPhysicsBinder: Unknown program sequence "${program}" ignored. Use joint_overrides or sequence timeline for movement, or "stand"/"jump" for special actions.`);
       }
     }
   }

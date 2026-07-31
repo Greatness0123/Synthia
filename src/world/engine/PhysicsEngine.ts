@@ -149,6 +149,9 @@ export class PhysicsEngine {
       throw new Error('MuJoCo module not initialized');
     }
 
+    this.isReady = false;
+    this.isMutatingWorld = true;
+
     try {
       if (this.model) {
         this.model.delete();
@@ -176,6 +179,8 @@ export class PhysicsEngine {
       Logger.error('MuJoCoPhysicsEngine: Failed to load MJCF model', error);
       this.isPhysicsBroken = true;
       throw error;
+    } finally {
+      this.isMutatingWorld = false;
     }
   }
 
@@ -233,15 +238,8 @@ export class PhysicsEngine {
     }
 
     try {
-      const isDebug = typeof window !== 'undefined' && ((window as any).__SYNTHIA_DEBUG__ || (window as any).location?.hostname === 'localhost');
-      if (this.stepCount === 0 && isDebug) {
-        console.log(`[DEBUG QPOS FRAME 0] (length ${this.data.qpos.length}) first 25 elements:`, Array.from(this.data.qpos.subarray(0, 25)).map((n: any) => Number(Number(n).toFixed(4))));
-      }
       module.mj_step(this.model, this.data);
       this.stepCount++;
-      if ((this.stepCount === 1 || this.stepCount === 2 || this.stepCount === 5 || this.stepCount === 10) && isDebug) {
-        console.log(`[DEBUG QPOS FRAME ${this.stepCount}] first 25 elements:`, Array.from(this.data.qpos.subarray(0, 25)).map((n: any) => Number(Number(n).toFixed(4))));
-      }
 
       this.clampRegisteredBodyVelocities();
 
@@ -369,6 +367,7 @@ export class PhysicsEngine {
     try {
       const now = Date.now();
       const ncon = this.data.ncon;
+      if (ncon <= 0 || ncon > 200) return;
 
       // Reset contact states
       for (const [, state] of this.contactForceRegistry) {
@@ -379,64 +378,71 @@ export class PhysicsEngine {
       // Allocate a DoubleBuffer of size 6 to store the 6D contact force/torque
       const forceBuffer = new module.DoubleBuffer(6);
 
-      for (let i = 0; i < ncon; i++) {
-        const contact: MjContact = this.data.contact.get(i) as MjContact;
-        if (!contact) continue;
-
-        const geom1 = contact.geom1;
-        const geom2 = contact.geom2;
-
-        // Retrieve contact force using the official C-API function mj_contactForce
-        module.mj_contactForce(this.model, this.data, i, forceBuffer);
-
-        // Get force vector view from the DoubleBuffer
-        const forceView = forceBuffer.GetView();
-        // The first 3 elements correspond to normal force, and 2 friction forces in tangent directions
-        const normalForce = forceView[0];
-        const frictionForce1 = forceView[1];
-        const frictionForce2 = forceView[2];
-        const totalImpulse = Math.sqrt(
-          normalForce * normalForce +
-          frictionForce1 * frictionForce1 +
-          frictionForce2 * frictionForce2
-        );
-
-        // contact.frame contains the 3x3 rotation matrix for the contact frame. The contact normal is the first column.
-        const frame = contact.frame;
-        const normal: [number, number, number] = [frame[0], frame[1], frame[2]];
-
-        const updateState = (geomId: number, normalDirectionMultiplier: number) => {
-          const mappedNormal: [number, number, number] = [
-            normal[0] * normalDirectionMultiplier,
-            normal[1] * normalDirectionMultiplier,
-            normal[2] * normalDirectionMultiplier
-          ];
-
-          const existing = this.contactForceRegistry.get(geomId);
-          if (existing) {
-            existing.inContact = true;
-            existing.impulse_magnitude = totalImpulse;
-            existing.contact_normal = mappedNormal;
-            existing.max_force_magnitude = totalImpulse;
-            existing.lastUpdate = now;
-          } else {
-            this.contactForceRegistry.set(geomId, {
-              inContact: true,
-              impulse_magnitude: totalImpulse,
-              contact_normal: mappedNormal,
-              max_force_magnitude: totalImpulse,
-              lastUpdate: now
-            });
+      try {
+        for (let i = 0; i < ncon; i++) {
+          let contact: MjContact | null = null;
+          try {
+            contact = this.data.contact.get(i) as MjContact;
+          } catch {
+            break;
           }
-        };
+          if (!contact) continue;
 
-        // Update states for both geoms involved in the contact
-        updateState(geom1, 1);
-        updateState(geom2, -1);
+          const geom1 = contact.geom1;
+          const geom2 = contact.geom2;
+
+          // Retrieve contact force using the official C-API function mj_contactForce
+          module.mj_contactForce(this.model, this.data, i, forceBuffer);
+
+          // Get force vector view from the DoubleBuffer
+          const forceView = forceBuffer.GetView();
+          // The first 3 elements correspond to normal force, and 2 friction forces in tangent directions
+          const normalForce = forceView[0];
+          const frictionForce1 = forceView[1];
+          const frictionForce2 = forceView[2];
+          const totalImpulse = Math.sqrt(
+            normalForce * normalForce +
+            frictionForce1 * frictionForce1 +
+            frictionForce2 * frictionForce2
+          );
+
+          // contact.frame contains the 3x3 rotation matrix for the contact frame. The contact normal is the first column.
+          const frame = contact.frame;
+          const normal: [number, number, number] = [frame[0], frame[1], frame[2]];
+
+          const updateState = (geomId: number, normalDirectionMultiplier: number) => {
+            const mappedNormal: [number, number, number] = [
+              normal[0] * normalDirectionMultiplier,
+              normal[1] * normalDirectionMultiplier,
+              normal[2] * normalDirectionMultiplier
+            ];
+
+            const existing = this.contactForceRegistry.get(geomId);
+            if (existing) {
+              existing.inContact = true;
+              existing.impulse_magnitude = totalImpulse;
+              existing.contact_normal = mappedNormal;
+              existing.max_force_magnitude = totalImpulse;
+              existing.lastUpdate = now;
+            } else {
+              this.contactForceRegistry.set(geomId, {
+                inContact: true,
+                impulse_magnitude: totalImpulse,
+                contact_normal: mappedNormal,
+                max_force_magnitude: totalImpulse,
+                lastUpdate: now
+              });
+            }
+          };
+
+          // Update states for both geoms involved in the contact
+          updateState(geom1, 1);
+          updateState(geom2, -1);
+        }
+      } finally {
+        // Free DoubleBuffer memory to avoid WASM leaks
+        forceBuffer.delete();
       }
-
-      // Free DoubleBuffer memory to avoid WASM leaks
-      forceBuffer.delete();
     } catch (e) {
       Logger.warn('MuJoCoPhysicsEngine: Failed to drain contact force events', e);
     }
@@ -451,6 +457,7 @@ export class PhysicsEngine {
 
     try {
       const ncon = this.data.ncon;
+      if (ncon <= 0 || ncon > 200) return;
       for (let i = 0; i < ncon; i++) {
         const contact: MjContact = this.data.contact.get(i) as MjContact;
         if (!contact) continue;

@@ -9,8 +9,10 @@ export const SYNTHIA_RIG_CONSTRAINTS: Record<string, JointLimit> = (() => {
   map['mixamorigspine'] = { dof: 3, x: [-0.26, 0.52], y: [-0.524, 0.524], z: [-0.524, 0.524], allowance: { locomotionCap: 1.0 } };
   map['mixamorigspine1'] = { dof: 3, x: [-0.524, 0.524], y: [-0.524, 0.524], z: [-0.524, 0.524] };
   map['mixamorigspine2'] = { dof: 3, x: [-0.524, 0.524], y: [-0.524, 0.524], z: [-0.524, 0.524] };
-  map['mixamorigneck'] = { dof: 3, x: [-1.047, 1.047], y: [-1.047, 1.047], z: [-1.047, 1.047], allowance: { requiresCervicalCoupling: true } };
-  map['mixamorighead'] = { dof: 3, x: [-0.785, 0.785], y: [-0.785, 0.785], z: [-0.785, 0.785] };
+  // Neck: pitch (fwd/bk) ±45°, yaw (turn L/R) ±70°, roll (side-tilt) ±40°
+  map['mixamorigneck'] = { dof: 3, x: [-0.785, 0.785], y: [-1.222, 1.222], z: [-0.698, 0.698], allowance: { requiresCervicalCoupling: true } };
+  // Head: pitch (fwd/bk) ±30°, yaw (turn L/R) ±50°, roll (side-tilt) ±30°
+  map['mixamorighead'] = { dof: 3, x: [-0.524, 0.524], y: [-0.873, 0.873], z: [-0.524, 0.524] };
 
   // ZONE 2: ARMS AND SHOULDERS
   map['mixamorigleftshoulder'] = { dof: 3, x: [-0.261, 0.261], y: [-0.261, 0.261], z: [-0.261, 0.261] };
