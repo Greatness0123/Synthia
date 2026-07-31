@@ -86,7 +86,7 @@ interface BoneInfo {
   name: string;
 }
 
-const ENABLE_KINEMATIC_GRF_INJECTOR = false;
+const ENABLE_KINEMATIC_GRF_INJECTOR = true;
 
 export class HumanoidPhysicsBinder {
   private physicsEngine: PhysicsEngine;
