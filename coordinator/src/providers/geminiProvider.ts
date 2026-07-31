@@ -74,8 +74,9 @@ OUTPUT: Stream thought, then ---ACTION--- then this exact JSON schema:
     "program_sequence": ["program_name"],
     "joint_overrides": { "actual_joint_name": degrees_value }
   },
-  // Alternatively, you may provide a timeline sequence for continuous motion. When emitting a \`sequence\`, use RADIANS for joint rotation values and canonical joint keys (lowercase, punctuation removed):
-  "sequence": [ { "timeOffsetMs": 0, "overrides": { "mixamorighead": 0.0, "mixamorigleftarm": [0.0, 0.0, 0.0] } } ],
+  // Alternatively, you may provide a timeline sequence for continuous motion.
+  // ALL joint rotation values are in DEGREES regardless of output format. The system auto-converts to radians.
+  "sequence": [ { "timeOffsetMs": 0, "overrides": { "mixamorighead": 0, "mixamorigleftarm": [0, 0, 0] } } ],
   "activeGaitPhase": false,
   "gaze_target": null | { "yaw": degrees, "pitch": degrees },
   "new_motor_program": null | { "name": "program_name_string", "program": [ { "joint_name": value } ] },
@@ -174,7 +175,7 @@ OUTPUT: Stream thought, then ---ACTION--- then this exact JSON schema:
 
       if (!response.ok) {
         let errBody = '';
-        try { errBody = await response.text(); } catch (_) {}
+        try { errBody = await response.text(); } catch { /* ignore */ }
         throw new Error(`Gemini HTTP ${response.status}: ${errBody}`);
       }
 
@@ -222,7 +223,7 @@ OUTPUT: Stream thought, then ---ACTION--- then this exact JSON schema:
             } else {
               actionJson += delta;
             }
-          } catch (_) {}
+          } catch { /* ignore */ }
         }
       }
 

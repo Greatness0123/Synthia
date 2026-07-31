@@ -170,6 +170,11 @@ export class AgentLoop {
       });
       this.lastActionFeedback = [];
 
+      // Clear stale injection from worldState so it doesn't persist across cycles
+      if (this.lastWorldState.injected_thought && !injectedThought) {
+        delete this.lastWorldState.injected_thought;
+      }
+
       let result;
       let retries = 0;
       let actionData: any = null;

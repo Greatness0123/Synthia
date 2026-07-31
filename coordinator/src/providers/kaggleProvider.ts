@@ -40,7 +40,7 @@ export class KaggleProvider implements InferenceProvider {
 
       if (!response.ok) {
         let body = '';
-        try { body = await response.text(); } catch (_) {}
+        try { body = await response.text(); } catch {}
         throw new Error(`Kaggle HTTP ${response.status}: ${body}`);
       }
 

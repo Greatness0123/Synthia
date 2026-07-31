@@ -25,6 +25,11 @@ export interface InferPayload {
   directive_mode: string;
   agent_id: string;
   contact_forces?: Record<string, any>;
+  isGrounded?: boolean;
+  tactile_context?: string;
+  gaze_context?: string;
+  perception_summary?: string;
+  physical_feedback?: string | null;
 }
 
 export interface InferResponse {

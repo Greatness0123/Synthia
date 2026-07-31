@@ -77,8 +77,8 @@ OUTPUT: Stream your thought, then write exactly ---ACTION--- followed by this ex
   "new_motor_program": null | { "name": "program_name_string", "program": [ { "joint_name": value } ] },
   "flag": null | "requesting_object_hint",
   // Optional timeline schema: emit continuous movement as a \`sequence\` array of timed frames.
-  // When using \`sequence\`, provide joint rotation values in RADIANS and canonical joint keys (lowercase, punctuation removed).
-  "sequence": [ { "timeOffsetMs": 0, "overrides": { "mixamorighead": 0.0, "mixamorigleftarm": [0.0, 0.0, 0.0] } } ],
+  // ALL joint rotation values are in DEGREES regardless of output format. The system auto-converts to radians.
+  "sequence": [ { "timeOffsetMs": 0, "overrides": { "mixamorighead": 0, "mixamorigleftarm": [0, 0, 0] } } ],
   "activeGaitPhase": false
 }
 No text after JSON.`);
@@ -97,7 +97,7 @@ Before writing any numerical values or calling the movement tool, you must execu
 ## Timeline Chaining & Execution Protocol
 You send movements as a TimelineSequence—an array of timed coordinate states (ActionFrame[]). Each frame uses a timeOffsetMs (relative to the start of the action sequence execution). Chain frames closely for fluid actions; insert large gaps for explicit pauses. Always conclude long actions by scheduling a 300–500ms return to bind pose.
 
-Practical rules: Output joint rotations in RADIANS when emitting timelines, use canonical mixamo keys (lowercase, punctuation removed), multi-DOF joints expect [x,y,z], 1-DOF expect a single number. When walking, set activeGaitPhase=true.
+Practical rules: Output joint rotations in DEGREES for all formats (joint_overrides AND timeline sequences). The system auto-converts to radians. Use canonical mixamo keys (lowercase, punctuation removed). Multi-DOF joints expect [x, y, z] = [pitch, yaw, roll]. 1-DOF joints expect a single number. When walking, set activeGaitPhase=true.
 `);
 
     const userParts: any[] = [];
@@ -195,7 +195,7 @@ Practical rules: Output joint rotations in RADIANS when emitting timelines, use 
 
       if (!response.ok) {
         let errBody = '';
-        try { errBody = await response.text(); } catch (_) {}
+        try { errBody = await response.text(); } catch { /* ignore */ }
         throw new Error(`OpenAI-compat HTTP ${response.status}: ${errBody}`);
       }
 
@@ -244,7 +244,7 @@ Practical rules: Output joint rotations in RADIANS when emitting timelines, use 
             } else {
               actionJson += delta;
             }
-          } catch (_) {
+          } catch {
             // Skip unparseable SSE lines
           }
         }

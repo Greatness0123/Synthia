@@ -5,7 +5,6 @@
 import { InferPayload } from './types/payload';
 import { embeddingEngine } from './embeddingEngine';
 import { MemoryManager } from './memoryManager';
-import { injectionQueue } from './injectionQueue';
 
 export class PayloadBuilder {
   private memoryManager: MemoryManager;
@@ -71,16 +70,8 @@ export class PayloadBuilder {
     const hips = joints['mixamorighips'] || {};
     const hipPos = hips.position || [0, 1, 0];
     const bodyHeight = Array.isArray(hipPos) ? hipPos[1] : 1;
-    const isFallen = bodyHeight < 0.5;
-    // Determine posture from hip height and contact info
-    const contactForces2 = payload.contact_forces || {};
-    const contactCount = Object.values(contactForces2).filter((c: any) => c.contact).length;
 
-    // isGrounded: authoritative value from HumanoidPhysicsBinder.getIsGrounded()
-    // Falls back to contact-count heuristic if the frontend doesn't send it.
-    const isGrounded: boolean = (payload as any).isGrounded !== undefined
-      ? (payload as any).isGrounded
-      : (contactCount > 0 && bodyHeight < 1.5);
+    // Determine posture from hip height
 
     let postureLabel: string;
     let situationBlock: string;
@@ -148,42 +139,28 @@ CONTACT FORCES (these are FLOOR contacts, not ceiling):
 ${contactText}
 
 LOCOMOTION PHYSICS — HOW TO MOVE:
-• Your body is a single capsule. It moves through Kinematic Ground Reaction Forces (K-GRF).
-• When your foot/toe bones are touching the ground AND you move them (by setting joint rotations),
-  the system detects foot movement against the ground and applies a proportional impulse to your capsule.
-• To move FORWARD: place your toes/feet on the ground, then push them BACKWARD (by rotating
-  your hips and knees to stroke backward). The K-GRF system will convert this into forward capsule movement.
-• To TURN: push one foot backward more than the other (asymmetric foot stroke).
-  The torque system converts this into rotation.
-• To STOP: dig your toes in forward or keep your feet stationary on the ground.
-• K-GRF ONLY works when your foot bones are in contact with the ground surface.
-• Jumping: set both legs to push downward (extend knees) while airborne timer is zero.
-  The system applies a jump impulse. You must be grounded for executeJump() to fire.
+• YOU control every joint directly through joint_overrides or sequence timeline frames.
+• All joint angle values are IN DEGREES. The system converts to radians automatically.
+• Your capsule body moves through the world when foot-to-ground contact produces forces.
+  The more contact your feet/toes have with the ground while moving, the more your capsule will translate.
 
-CONCRETE LOCOMOTION EXAMPLE (degrees; the system converts to radians automatically):
-  FORWARD STEP (right foot):
-    { mixamorigrightupleg: [-10, 0, 0], mixamorigrightleg: -30 }   → lift right foot, knee bends
-    then stroke backward:
-    { mixamorigrightupleg: [20, 0, 0], mixamorigrightleg: -10 }   → foot pushes against ground, capsule moves forward
-    At the same time, the left arm swings forward naturally:
-    { mixamorigleftarm: [0, 0, 30] }
-  FORWARD STEP (left foot):
-    { mixamorigleftupleg: [-10, 0, 0], mixamorigleftleg: -30 }    → lift left foot
-    then stroke backward:
-    { mixamorigleftupleg: [20, 0, 0], mixamorigleftleg: -10 }
-    Right arm swings forward:
-    { mixamorigrightarm: [0, 0, -30] }
-  TURN LEFT:
-    Stroke right foot backward harder than left: { mixamorigrightupleg: [25, 0, 0] }
-    while left foot stays: { mixamorigleftupleg: [0, 0, 0] }
-    The torque from asymmetric foot stroke rotates the capsule.
-  JUMP:
-    { mixamorigrightleg: 0, mixamorigleftleg: 0 }  → Extend knees suddenly while grounded.
-    Must set programSequence: ["jump"] AND be grounded.
+MOVEMENT IS ACHIEVED ENTIRELY THROUGH JOINT ANGLES:
+  To walk forward: alternate lifting each leg (negative hip X = foot lifts forward, knee bends negative)
+  then pushing backward (positive hip X = leg extends back, knee straightens). Swing arms for balance.
+  To turn: use asymmetric leg strokes — push one leg harder than the other, creating capsule rotation.
+  To look around: rotate your head (mixamorighead) using [pitch, yaw, roll] in degrees.
+  To reach for an object: move your arm with mixamorigrightarm or mixamorigleftarm.
 
-IMPORTANT: Use program_sequence: ["upright_preset"] or ["stand"] to return to standing.
-Use program_sequence: ["jump"] to trigger a jump (must be grounded).
-All other program_sequence values are ignored — you must use joint_overrides to move.
+PROGRAM SEQUENCE COMMANDS (use sparingly):
+  program_sequence: ["stand"] → resets body to upright standing pose at origin
+  program_sequence: ["jump"] → applies upward impulse (must be grounded)
+  For ALL other movement, use joint_overrides or sequence timeline — NOT program_sequence.
+
+TIMELINE SEQUENCE (for smooth continuous motion):
+  Output a "sequence" array of timed frames. Each frame has a timeOffsetMs and overrides map.
+  Frame times are relative to sequence start. Use small timesteps (30–100ms) for fluid motion.
+  Always end sequences by returning to a neutral pose.
+  Both joint_overrides and sequence overrides use IDENTICAL format — degrees, canonical joint keys.
 
 NOTE: The image above shows my current first-person view.
 If the view appears blank or shows only one surface, I am likely facing a wall or the floor. My joint rotation data above tells me where I am even when my visual field is empty.
