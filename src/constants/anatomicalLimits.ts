@@ -49,7 +49,7 @@ export function getAnatomicalLimitForBone(boneName: string): AnatomicalLimit | n
 
   // HEAD on neck
   if (n.includes('head') && !n.includes('shoulder')) {
-    return { min: -45 * DEG, max: 45 * DEG };
+    return { min: -60 * DEG, max: 60 * DEG };
   }
 
   // SPINE segments: ±30° per segment to support expressive diagnostic poses
@@ -57,7 +57,7 @@ export function getAnatomicalLimitForBone(boneName: string): AnatomicalLimit | n
     n.includes('spine') || n.includes('lumbar') || n.includes('thoracic') ||
     n.includes('chest') || n.includes('hips')
   ) {
-    return { min: -30 * DEG, max: 30 * DEG };
+    return { min: -45 * DEG, max: 45 * DEG };
   }
 
   // SHOULDER / upper arm (Mixamo names them mixamorigRightArm / LeftArm)

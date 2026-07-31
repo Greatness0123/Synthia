@@ -65,7 +65,7 @@ WRONG: "neck_yaw": 0.26  |  "neck_yaw": [0.1, 0, 0, 1]  |  "head_pitch": { "angl
 RIGHT (Scalar): "mixamorighead": 15  |  "mixamorigrightarm": 45
 RIGHT (3D Array): "mixamorigrightupleg": [45, 0, 15]  |  "mixamorigrightarm": [0, 0, -80]
 Map human-readable intent to these bone names: neck/head → mixamorighead, spine → mixamorigspine, right shoulder → mixamorigrightarm, left shoulder → mixamorigleftarm, right elbow → mixamorigrightforearm, left elbow → mixamorigleftforearm, right hip → mixamorigrightupleg, left hip → mixamorigleftupleg, right knee → mixamorigrightleg, left knee → mixamorigleftleg, right index finger → mixamorigrighthandindex1, left index finger → mixamoriglefthandindex1, right thumb → mixamorigrighthandthumb1, left thumb → mixamoriglefthandthumb1.
-Anatomical degree ranges: spine ±30, neck/head ±45, shoulder ±180, elbow 0 to 145, hip ±120, knee 0 to -150, fingers 0 to 100.
+Anatomical degree ranges: spine ±45, neck/head ±70, shoulder ±180, elbow 0 to 145, hip ±120, knee 0 to -150, fingers 0 to 100.
 
 OUTPUT: Stream thought, then ---ACTION--- then this exact JSON schema:
 {
