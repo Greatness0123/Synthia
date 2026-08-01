@@ -78,6 +78,26 @@ export class BodyProxy {
     ];
     return PhysicsEngine.mujocoToWorld(aMj);
   }
+
+  public setTranslation(pos: { x: number; y: number; z: number }, _wakeUp?: boolean): void {
+    if (!this.isValid()) return;
+    const module = PhysicsEngine.getModule();
+    if (!module) return;
+    const rootJntId = module.mj_name2id(this.model, module.mjtObj.mjOBJ_JOINT.value, 'root_freejoint');
+    if (rootJntId >= 0) {
+      const qposadr = this.model.jnt_qposadr[rootJntId];
+      const qveladr = this.model.jnt_dofadr[rootJntId];
+      const posMj = PhysicsEngine.worldToMuJoCo(pos);
+      this.data.qpos[qposadr] = posMj[0];
+      this.data.qpos[qposadr + 1] = posMj[1];
+      this.data.qpos[qposadr + 2] = posMj[2];
+      if (qveladr >= 0 && this.data.qvel) {
+        for (let i = 0; i < 6; i++) {
+          this.data.qvel[qveladr + i] = 0;
+        }
+      }
+    }
+  }
 }
 
 interface BoneInfo {
