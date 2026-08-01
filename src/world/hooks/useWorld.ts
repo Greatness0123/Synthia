@@ -8,6 +8,9 @@ import { PhysicsEngine } from "../engine/PhysicsEngine";
 import { AudioEngine } from "../engine/AudioEngine";
 import { ObjectManager } from "../engine/ObjectManager";
 import { HumanoidPhysicsBinder } from "../engine/HumanoidPhysicsBinder";
+import { generateCombinedMultiAgentMJCF } from "../engine/MJCFHumanoidTemplate";
+import { StateRehydrator } from "../engine/StateRehydrator";
+import { AgentLoop } from "../agent/AgentLoop";
 import { useWorldStore } from "../../store/worldStore";
 import { useAgentStore } from "../../store/agentStore";
 import { useConnectionStore } from "../../store/connectionStore";
@@ -27,6 +30,8 @@ export const useWorld = (containerRef: React.RefObject<HTMLDivElement>) => {
   const audioEngineRef = useRef<AudioEngine | null>(null);
   const objectManagerRef = useRef<ObjectManager | null>(null);
   const humanoidPhysicsBinderRef = useRef<HumanoidPhysicsBinder | null>(null);
+  const humanoidPhysicsBindersRef = useRef<Map<string, HumanoidPhysicsBinder>>(new Map());
+  const activeAgentLoopsRef = useRef<Map<string, AgentLoop>>(new Map());
 
   const worldStore = useWorldStore();
   const agentStore = useAgentStore();
@@ -145,22 +150,34 @@ export const useWorld = (containerRef: React.RefObject<HTMLDivElement>) => {
               target.position,
               target.quaternion
             );
-          } else if (object === humanoidPhysicsBinderRef.current?.getModelRoot()) {
-            humanoidPhysicsBinderRef.current?.setCapsulePosition(
-              object.position.x,
-              object.position.y,
-              object.position.z
-            );
+          } else {
+            let draggedBinder: any = null;
+            for (const binder of humanoidPhysicsBindersRef.current.values()) {
+              if (object === binder.getModelRoot()) {
+                draggedBinder = binder;
+                break;
+              }
+            }
+            if (draggedBinder) {
+              draggedBinder.setCapsulePosition(
+                object.position.x,
+                object.position.y,
+                object.position.z
+              );
+            }
           }
         };
 
         const humanoidPhysicsBinder = new HumanoidPhysicsBinder(
           physicsEngine,
-          worldEngine.getScene()
+          worldEngine.getScene(),
+          'agent_0'
         );
         humanoidPhysicsBinderRef.current = humanoidPhysicsBinder;
+        humanoidPhysicsBindersRef.current.set('agent_0', humanoidPhysicsBinder);
 
         // Expose humanoid binder to window for step-by-step testing
+        (window as any).__SYNTHIA_HUMANOID_BINDERS__ = humanoidPhysicsBindersRef.current;
         (window as any).__SYNTHIA_HUMANOID_BINDER__ = humanoidPhysicsBinder;
         (window as any).__SYNTHIA_PHYSICS_ENGINE__ = physicsEngine;
         (window as any).__SYNTHIA_MUJOCO_MODULE__ = PhysicsEngine.getModule();
@@ -757,8 +774,6 @@ export const useWorld = (containerRef: React.RefObject<HTMLDivElement>) => {
           },
           () => {
             // ── Per-frame (60Hz): Object sync, motor updates, camera, boundary ──
-            const humanoidBinder = humanoidPhysicsBinderRef.current;
-
             try {
               objectManagerRef.current?.update();
               objectManagerRef.current?.syncVisuals();
@@ -766,51 +781,57 @@ export const useWorld = (containerRef: React.RefObject<HTMLDivElement>) => {
               Logger.warn("ObjectManager update error caught safely", error);
             }
 
-            if (worldStore.bodyType === 'humanoid' && humanoidBinder) {
-              try {
-                humanoidBinder.updateMotorTargets();
-                humanoidBinder.syncVisuals();
+            if (worldStore.bodyType === 'humanoid') {
+              for (const [id, binder] of humanoidPhysicsBindersRef.current.entries()) {
+                try {
+                  binder.updateMotorTargets();
+                  binder.syncVisuals();
 
-                humanoidBinder.renderAICameraHelper(
-                  useWorldStore.getState().showAICameraHelper,
-                  worldEngineRef.current?.getCameraManager().getCameraData()
-                );
-                const state = humanoidBinder.getJointState();
-                lastJointStateRef.current = state;
+                  const activeId = useAgentStore.getState().activeAgentId || 'agent_0';
+                  if (id === activeId) {
+                    binder.renderAICameraHelper(
+                      useWorldStore.getState().showAICameraHelper,
+                      worldEngineRef.current?.getCameraManager().getCameraData()
+                    );
+                    const state = binder.getJointState();
+                    lastJointStateRef.current = state;
 
-                const headTransform = humanoidBinder.getHeadTransform();
-                if (headTransform) {
-                  const headMatrix = new THREE.Matrix4().compose(
-                    headTransform.position,
-                    headTransform.quaternion,
-                    new THREE.Vector3(1, 1, 1)
-                  );
+                    const headTransform = binder.getHeadTransform();
+                    if (headTransform) {
+                      const headMatrix = new THREE.Matrix4().compose(
+                        headTransform.position,
+                        headTransform.quaternion,
+                        new THREE.Vector3(1, 1, 1)
+                      );
 
-                  let capsuleQuat: THREE.Quaternion | undefined;
-                  let capsulePos: THREE.Vector3 | undefined;
-                  const capsuleBody = humanoidBinder.getCapsuleBody();
-                  if (capsuleBody?.isValid()) {
-                    const t = capsuleBody.translation();
-                    const r = capsuleBody.rotation();
-                    capsulePos = new THREE.Vector3(t.x, t.y, t.z);
-                    capsuleQuat = new THREE.Quaternion(r.x, r.y, r.z, r.w);
+                      let capsuleQuat: THREE.Quaternion | undefined;
+                      let capsulePos: THREE.Vector3 | undefined;
+                      const capsuleBody = binder.getCapsuleBody();
+                      if (capsuleBody?.isValid()) {
+                        const t = capsuleBody.translation();
+                        const r = capsuleBody.rotation();
+                        capsulePos = new THREE.Vector3(t.x, t.y, t.z);
+                        capsuleQuat = new THREE.Quaternion(r.x, r.y, r.z, r.w);
+                      }
+
+                      worldEngineRef.current?.getCameraManager().update(headMatrix, headTransform.position, capsuleQuat, capsulePos);
+                    }
                   }
 
-                  worldEngineRef.current?.getCameraManager().update(headMatrix, headTransform.position, capsuleQuat, capsulePos);
-                }
-
-                if (humanoidBinder.isOutOfWorldBounds()) {
-                  boundaryViolationCountRef.current += 1;
-                  if (boundaryViolationCountRef.current >= BOUNDARY_RESET_FRAMES) {
-                    Logger.warn('useWorld: humanoid exceeded world boundary — auto reset');
-                    humanoidBinder.resetPose(useWorldStore.getState().spawnPoint);
-                    boundaryViolationCountRef.current = 0;
+                  if (binder.isOutOfWorldBounds()) {
+                    const offsetIndex = parseInt(id.replace('agent_', '')) || 0;
+                    let spawnX = 0;
+                    if (offsetIndex === 1) spawnX = 1.75;
+                    else if (offsetIndex === 2) spawnX = -1.75;
+                    else if (offsetIndex > 2) {
+                      spawnX = offsetIndex % 2 === 1 ? 1.75 * Math.ceil(offsetIndex / 2) : -1.75 * (offsetIndex / 2);
+                    }
+                    const agentSpawn = new THREE.Vector3(spawnX, 0, 0);
+                    binder.resetPose(agentSpawn);
                   }
-                } else {
-                  boundaryViolationCountRef.current = 0;
+                } catch (error) {
+                  Logger.warn(`HumanoidPhysicsBinder (${id}) sync failed:`, error);
                 }
-              } catch (error) {
-                Logger.warn('HumanoidPhysicsBinder sync failed:', error);
               }
             }
           }
@@ -845,9 +866,9 @@ export const useWorld = (containerRef: React.RefObject<HTMLDivElement>) => {
   }, [worldStore.gravity]);
 
   useEffect(() => {
-    if (humanoidPhysicsBinderRef.current) {
-      humanoidPhysicsBinderRef.current.friction = worldStore.globalFriction;
-    }
+    humanoidPhysicsBindersRef.current.forEach((binder) => {
+      binder.friction = worldStore.globalFriction;
+    });
     // Also update friction on all spawned objects
     if (objectManagerRef.current) {
       objectManagerRef.current.setGlobalFriction(worldStore.globalFriction);
@@ -855,22 +876,22 @@ export const useWorld = (containerRef: React.RefObject<HTMLDivElement>) => {
   }, [worldStore.globalFriction]);
 
   useEffect(() => {
-    if (humanoidPhysicsBinderRef.current) {
-      humanoidPhysicsBinderRef.current.setLerpSpeed(worldStore.movementSmoothing);
-    }
+    humanoidPhysicsBindersRef.current.forEach((binder) => {
+      binder.setLerpSpeed(worldStore.movementSmoothing);
+    });
   }, [worldStore.movementSmoothing]);
 
   useEffect(() => {
-    if (humanoidPhysicsBinderRef.current) {
-      humanoidPhysicsBinderRef.current.renderDebugSpheres(worldStore.showDebugJoints);
-    }
+    humanoidPhysicsBindersRef.current.forEach((binder) => {
+      binder.renderDebugSpheres(worldStore.showDebugJoints);
+    });
   }, [worldStore.showDebugJoints]);
 
   useEffect(() => {
     if (worldStore.bodyType === 'humanoid') {
-      if (humanoidPhysicsBinderRef.current) {
-        humanoidPhysicsBinderRef.current.setMode(worldStore.bodyMode);
-      }
+      humanoidPhysicsBindersRef.current.forEach((binder) => {
+        binder.setMode(worldStore.bodyMode);
+      });
     }
   }, [worldStore.bodyMode, worldStore.bodyType]);
 
@@ -1023,11 +1044,275 @@ export const useWorld = (containerRef: React.RefObject<HTMLDivElement>) => {
     return () => window.removeEventListener('synthia:spawnCustom', handleSpawnCustom);
   }, [findSpawnPosition]);
 
+  // Helpers to capture and build state/loops per agent
+  const captureWorldStateForAgent = useCallback(async (agentId: string) => {
+    if (!worldEngineRef.current || !audioEngineRef.current) return null;
+
+    const binder = humanoidPhysicsBindersRef.current.get(agentId);
+    if (!binder) return null;
+
+    const renderer = worldEngineRef.current.getRenderer();
+    const scene = worldEngineRef.current.getScene();
+    const camera = worldEngineRef.current.getCamera();
+
+    // Render main view
+    renderer.render(scene, camera);
+
+    const rawFrame = worldEngineRef.current.getLastAIFrame();
+    if (!rawFrame || rawFrame === '') {
+      Logger.warn(`captureWorldState (${agentId}): frame not yet available, skipping cycle`);
+      return null;
+    }
+
+    const frame = rawFrame;
+    const fileSize = (frame.length * 0.75) / 1024;
+    (window as any)._synthia_connection_store_metrics?.({
+      frameSize: fileSize,
+    });
+
+    const joints = binder.getJointState();
+
+    let proprioception: any = null;
+    if (binder.mbActive) {
+      const obsBuilder = binder.getObservationBuilder();
+      const capsuleBody = binder.getCapsuleBody();
+      if (capsuleBody?.isValid()) {
+        proprioception = obsBuilder.buildVLMProprioception(capsuleBody);
+      }
+    }
+
+    const audioBuffer = await audioEngineRef.current.getBuffer();
+    const audioPcm = audioBuffer ? btoa(String.fromCharCode(...new Uint8Array(audioBuffer.buffer))) : "";
+
+    let contact_forces: Record<string, any> = {};
+    if (useWorldStore.getState().bodyType === 'humanoid') {
+      contact_forces = binder.getContactForces();
+    }
+
+    const activeObjManager = objectManagerRef.current;
+    const objects = activeObjManager
+      ? Array.from(activeObjManager.getObjects().values()).map((obj: any) => ({
+          id: obj.id,
+          type: obj.type,
+          name: obj.name || obj.type,
+          position: {
+            x: obj.mesh?.position.x ?? 0,
+            y: obj.mesh?.position.y ?? 0,
+            z: obj.mesh?.position.z ?? 0
+          },
+          dimensions: obj.dimensions || { w: 1, h: 1, d: 1 },
+          isStatic: obj.isStatic ?? true,
+          interactionZones: obj.interactionZones?.map((z: any) => ({
+            zoneId: z.id || z.zoneId,
+            note: z.note,
+            onContact: z.onContact
+          })) || []
+        }))
+      : [];
+
+    const uprightPreset = binder.getUprightPreset();
+    const isGrounded = binder.getIsGrounded();
+
+    const agentState = useAgentStore.getState().agents[agentId] || { heartbeat: 0, currentRung: 0, currentGoal: '' };
+
+    return {
+      frame,
+      joints,
+      proprioception,
+      audio_pcm: audioPcm,
+      contact_forces,
+      objects,
+      uprightPreset,
+      isGrounded,
+      heartbeat: agentState.heartbeat,
+      currentRung: agentState.currentRung,
+      bodyType: useWorldStore.getState().bodyType,
+      currentGoal: agentState.currentGoal,
+      lightState: useWorldStore.getState().lightState,
+      timestamp: Date.now(),
+    };
+  }, []);
+
+  const generateCombinedMCF = useCallback(() => {
+    const agentsList: any[] = [];
+    for (const [id, binder] of humanoidPhysicsBindersRef.current.entries()) {
+      agentsList.push({
+        prefix: binder.prefix,
+        boneInfoMap: binder.getBoneInfoMap(),
+        capsuleCenterY: binder.getCapsuleCenterY(),
+      });
+    }
+
+    const customSpecs = objectManagerRef.current ? (objectManagerRef.current as any).customMeshesSpec : [];
+    return generateCombinedMultiAgentMJCF(agentsList, customSpecs);
+  }, []);
+
+  const startAgentClientLoop = useCallback((agentId: string) => {
+    if (activeAgentLoopsRef.current.has(agentId)) {
+      activeAgentLoopsRef.current.get(agentId)!.stop();
+    }
+
+    const connStore = useConnectionStore.getState();
+    const loop = new AgentLoop({
+      agentId,
+      cycleMs: connStore.cycleMs || 2000,
+      supabaseUrl: connStore.supabaseUrl,
+      supabaseKey: connStore.supabaseKey,
+      captureWorldState: async () => {
+        return await captureWorldStateForAgent(agentId);
+      }
+    });
+
+    loop.setProvider(connStore.providerType, connStore.endpoint, connStore.apiKey, connStore.model);
+    loop.start().catch((err) => Logger.error(`[AgentLoop (${agentId})] Failed to start client loop`, err));
+
+    activeAgentLoopsRef.current.set(agentId, loop);
+    console.log(`[useWorld] Started client-side cognitive loop for ${agentId}`);
+  }, [captureWorldStateForAgent]);
+
+  const spawnAgent = useCallback(async () => {
+    if (!worldEngineRef.current || !physicsEngineRef.current) return null;
+
+    const physicsEngine = physicsEngineRef.current;
+    const scene = worldEngineRef.current.getScene();
+
+    const offsetIndex = humanoidPhysicsBindersRef.current.size;
+    const agentId = `agent_${offsetIndex}`;
+
+    // Linear offset spaced 1.75 meters apart
+    let spawnX = 0;
+    if (offsetIndex === 1) spawnX = 1.75;
+    else if (offsetIndex === 2) spawnX = -1.75;
+    else if (offsetIndex > 2) {
+      spawnX = offsetIndex % 2 === 1 ? 1.75 * Math.ceil(offsetIndex / 2) : -1.75 * (offsetIndex / 2);
+    }
+    const spawnPoint = new THREE.Vector3(spawnX, 0, 0);
+
+    const binder = new HumanoidPhysicsBinder(physicsEngine, scene, agentId);
+
+    // STEP A: Load model bind pose
+    const probePoint = new THREE.Vector3(0, 0, 0);
+    const stepA = await binder.loadAndVisualizeBindPose(probePoint);
+    if (!stepA) {
+      Logger.error(`useWorld: spawnAgent - STEP A failed for ${agentId}`);
+      return null;
+    }
+
+    binder.repositionModel(spawnPoint.x, spawnPoint.y, spawnPoint.z);
+
+    binder.friction = worldStore.globalFriction;
+    binder.setLerpSpeed(worldStore.movementSmoothing);
+    binder.renderDebugSpheres(worldStore.showDebugJoints);
+    binder.setMode(worldStore.bodyMode);
+
+    humanoidPhysicsBindersRef.current.set(agentId, binder);
+    (window as any).__SYNTHIA_HUMANOID_BINDER__ = binder; // keep active
+    (window as any).__SYNTHIA_HUMANOID_BINDERS__ = humanoidPhysicsBindersRef.current;
+
+    // Rebuild physics world
+    physicsEngine.setMutating(true);
+    physicsEngine.setReady(false);
+
+    try {
+      const existingAgentIds = Array.from(humanoidPhysicsBindersRef.current.keys()).filter(id => id !== agentId);
+      const objectsList = objectManagerRef.current ? Array.from(objectManagerRef.current.getObjects().values()) : [];
+      const capturedState = StateRehydrator.capture(physicsEngine, existingAgentIds, objectsList);
+
+      const baseXml = generateCombinedMCF();
+      physicsEngine.loadMJCFModel(baseXml);
+      physicsEngine.setReady(true);
+
+      for (const [id, activeBinder] of humanoidPhysicsBindersRef.current.entries()) {
+        const bm = activeBinder.getMultiBodyManager();
+        bm.remapIdsAgainstLoadedWorld(activeBinder.getBoneInfoMap());
+        activeBinder.initMotorController();
+        activeBinder.mbActive = true;
+
+        // Re-initialize and activate position motors
+        await activeBinder.createJointsWithZeroMotors();
+        await activeBinder.activateMotorsWithStiffnessAndDamping(80, 10);
+        if (worldStore.useMultiBodyPD) {
+          await activeBinder.activateMultiBody();
+        }
+        activeBinder.setMode(worldStore.bodyMode);
+      }
+
+      StateRehydrator.restore(physicsEngine, capturedState, objectsList);
+
+      const newAgentCapsule = binder.getMultiBodyManager().getCapsuleBody();
+      if (newAgentCapsule && newAgentCapsule.isValid()) {
+        binder.setCapsulePosition(spawnPoint.x, spawnPoint.y, spawnPoint.z);
+        binder.resetPose(spawnPoint);
+      }
+    } catch (err) {
+      Logger.error(`useWorld: spawnAgent - physics rebuild failed:`, err);
+    } finally {
+      physicsEngine.setMutating(false);
+    }
+
+    // Add agent to Zustand state
+    const { addAgent } = useAgentStore.getState() as any;
+    if (addAgent) {
+      addAgent(agentId);
+    }
+
+    startAgentClientLoop(agentId);
+    Logger.info(`useWorld: Spawned agent ${agentId} at X=${spawnX}`);
+    return binder;
+  }, [worldStore, generateCombinedMCF, startAgentClientLoop]);
+
+  // Sync window generators
+  useEffect(() => {
+    (window as any).__SYNTHIA_GENERATE_COMBINED_MJCF__ = generateCombinedMCF;
+    (window as any).synthia = {
+      spawnAgent: async () => {
+        return await spawnAgent();
+      },
+      getActiveAgentId: () => {
+        return useAgentStore.getState().activeAgentId;
+      },
+      setActiveAgent: (id: string) => {
+        useAgentStore.getState().setActiveAgentId(id);
+      }
+    };
+    return () => {
+      delete (window as any).__SYNTHIA_GENERATE_COMBINED_MJCF__;
+      delete (window as any).synthia;
+    };
+  }, [generateCombinedMCF, spawnAgent]);
+
+  // Sync connection store changes with active loops
+  const connStore = useConnectionStore();
+  useEffect(() => {
+    activeAgentLoopsRef.current.forEach((loop) => {
+      loop.setProvider(
+        connStore.providerType,
+        connStore.endpoint,
+        connStore.apiKey,
+        connStore.model
+      );
+      loop.updateSupabase(
+        connStore.supabaseUrl,
+        connStore.supabaseKey
+      );
+      loop.setCycleMs(connStore.cycleMs);
+    });
+  }, [
+    connStore.providerType,
+    connStore.endpoint,
+    connStore.apiKey,
+    connStore.model,
+    connStore.supabaseUrl,
+    connStore.supabaseKey,
+    connStore.cycleMs,
+  ]);
+
   useEffect(() => {
     const handlePush = (e: any) => {
-      const { partName, impulse } = e.detail;
-      if (worldStore.bodyType === 'humanoid' && humanoidPhysicsBinderRef.current) {
-        humanoidPhysicsBinderRef.current.push(partName, new THREE.Vector3(impulse.x, impulse.y, impulse.z));
+      const { partName, impulse, agentId = 'agent_0' } = e.detail;
+      const binder = humanoidPhysicsBindersRef.current.get(agentId);
+      if (worldStore.bodyType === 'humanoid' && binder) {
+        binder.push(partName, new THREE.Vector3(impulse.x, impulse.y, impulse.z));
       }
     };
 
@@ -1037,93 +1322,84 @@ export const useWorld = (containerRef: React.RefObject<HTMLDivElement>) => {
 
   useEffect(() => {
     const handleAction = (e: any) => {
-      const binder = humanoidPhysicsBinderRef.current as any;
-      if (binder) {
-        binder['timelineQueue'] = [];
-        binder['timelineSequenceStart'] = null;
-      }
+      const { jointOverrides, programSequence, sequence, activeGaitPhase, agentId = 'agent_0' } = e.detail;
+      const binder = humanoidPhysicsBindersRef.current.get(agentId) as any;
+      if (!binder) return;
 
-      const { jointOverrides, programSequence, sequence, activeGaitPhase } = e.detail;
-      Logger.info(`[ACTION_PIPELINE] useWorld handling action: jointOverrides=${Object.keys(jointOverrides || {}).length} keys [${JSON.stringify(jointOverrides).substring(0, 200)}], sequence=${Array.isArray(sequence) ? sequence.length : 0}, programSequence=${JSON.stringify(programSequence || [])}`);
+      binder['timelineQueue'] = [];
+      binder['timelineSequenceStart'] = null;
 
-      if (worldStore.bodyType === 'humanoid' && humanoidPhysicsBinderRef.current) {
+      Logger.info(`[ACTION_PIPELINE] useWorld handling action for ${agentId}: jointOverrides=${Object.keys(jointOverrides || {}).length} keys, sequence=${Array.isArray(sequence) ? sequence.length : 0}`);
+
+      if (worldStore.bodyType === 'humanoid') {
         try {
           const skeleton = binder['skeleton'];
 
           if (Array.isArray(sequence) && sequence.length > 0) {
-            // Use full timeline provided by coordinator
             const validation = binder.validateAndApplyTimeline(skeleton, sequence, { activeGaitPhase: !!activeGaitPhase });
-
-            // Apply immediate frames (timeOffsetMs === 0)
             for (const f of validation.appliedTimeline) {
               if (f.timeOffsetMs === 0) {
                 binder.setMotorTargets(f.overrides as any);
               }
             }
 
-            if (validation.rejections.length > 0 || validation.clampingNotes.length > 0 || validation.injections.length > 0) {
-              sendMessage('action_feedback', {
-                agentId: 'agent_a',
-                rejections: validation.rejections,
-                clamping: validation.clampingNotes,
-                injections: validation.injections,
-              });
+            const loop = activeAgentLoopsRef.current.get(agentId);
+            if (loop && validation.rejections.length > 0) {
+              loop.recordActionFeedback(validation.rejections);
             }
           } else {
-            // Fallback: single-frame jointOverrides
             const seq = [{ timeOffsetMs: 0, overrides: jointOverrides || {} }];
             const validation = binder.validateAndApplyTimeline(skeleton, seq, { activeGaitPhase: false });
             for (const f of validation.appliedTimeline) {
               if (f.timeOffsetMs === 0) binder.setMotorTargets(f.overrides as any);
             }
-            if (validation.rejections.length > 0 || validation.clampingNotes.length > 0 || validation.injections.length > 0) {
-              sendMessage('action_feedback', {
-                agentId: 'agent_a',
-                rejections: validation.rejections,
-                clamping: validation.clampingNotes,
-                injections: validation.injections,
-              });
+
+            const loop = activeAgentLoopsRef.current.get(agentId);
+            if (loop && validation.rejections.length > 0) {
+              loop.recordActionFeedback(validation.rejections);
             }
           }
 
           if (programSequence && Array.isArray(programSequence) && programSequence.length > 0) {
-            humanoidPhysicsBinderRef.current.executeProgramSequence(programSequence);
+            binder.executeProgramSequence(programSequence);
           }
         } catch (err) {
-          Logger.warn('Action validation failed', err);
-          sendMessage('action_feedback', {
-            agentId: 'agent_a',
-            rejections: [{ joint: 'internal', reason: String(err), requested: null }],
-            clamping: [],
-            injections: []
-          });
+          Logger.warn(`Action validation failed for ${agentId}`, err);
         }
       }
     };
 
     window.addEventListener('synthia:action', handleAction);
     return () => window.removeEventListener('synthia:action', handleAction);
-  }, [worldStore.bodyType, sendMessage]);
+  }, [worldStore.bodyType]);
 
   // ── Reset Pose Event Handler ─────────────────────────────────────────
   useEffect(() => {
     const handleResetPose = () => {
-      const binder = humanoidPhysicsBinderRef.current;
-      if (binder) {
-        binder.resetPose(worldStore.spawnPoint);
-      }
+      humanoidPhysicsBindersRef.current.forEach((binder, id) => {
+        const offsetIndex = parseInt(id.replace('agent_', '')) || 0;
+        let spawnX = 0;
+        if (offsetIndex === 1) spawnX = 1.75;
+        else if (offsetIndex === 2) spawnX = -1.75;
+        else if (offsetIndex > 2) {
+          spawnX = offsetIndex % 2 === 1 ? 1.75 * Math.ceil(offsetIndex / 2) : -1.75 * (offsetIndex / 2);
+        }
+        binder.resetPose(new THREE.Vector3(spawnX, 0, 0));
+      });
     };
     window.addEventListener('synthia:resetPose', handleResetPose);
     return () => window.removeEventListener('synthia:resetPose', handleResetPose);
-  }, [worldStore.spawnPoint]);
+  }, []);
 
   // ── Root Motion Event Handler ────────────────────────────────────────
   useEffect(() => {
     const handleRootMotion = (e: Event) => {
       const detail = (e as CustomEvent).detail || {};
-      const { dx = 0, dz = 0 } = detail;
-      if (worldStore.bodyType !== 'humanoid' || !humanoidPhysicsBinderRef.current) return;
-      const capsuleBody = humanoidPhysicsBinderRef.current.getCapsuleBody();
+      const { dx = 0, dz = 0, agentId = 'agent_0' } = detail;
+      if (worldStore.bodyType !== 'humanoid') return;
+      const binder = humanoidPhysicsBindersRef.current.get(agentId);
+      if (!binder) return;
+      const capsuleBody = binder.getCapsuleBody();
       if (!capsuleBody || !capsuleBody.isValid()) return;
       const t = capsuleBody.translation();
       capsuleBody.setTranslation({ x: t.x + dx, y: t.y, z: t.z + dz }, true);
@@ -1136,19 +1412,16 @@ export const useWorld = (containerRef: React.RefObject<HTMLDivElement>) => {
     if (!isReady) return;
 
     const build = async () => {
-      // Detach TransformControls before any cleanup to prevent
-      // "not part of scene graph" errors from the gizmo tracking a removed object.
       worldEngineRef.current?.getCameraManager().attachTransform(null);
 
       if (worldStore.bodyType === 'humanoid' && humanoidPhysicsBinderRef.current) {
         const binder = humanoidPhysicsBinderRef.current;
 
-        // STEP A: Load model at x=0, z=0, y=0 initially to read bind pose bone positions
+        // STEP A: Load model at x=0, z=0, y=0 initially
         const probePoint = new THREE.Vector3(0, 0, 0);
         const stepA = await binder.loadAndVisualizeBindPose(probePoint);
         if (!stepA) { Logger.error('useWorld: STEP A failed'); return; }
 
-        // Reposition the model root. Since model root is at the feet, we use spawnPoint directly.
         binder.repositionModel(
           worldStore.spawnPoint.x,
           worldStore.spawnPoint.y,
@@ -1162,12 +1435,11 @@ export const useWorld = (containerRef: React.RefObject<HTMLDivElement>) => {
         if (!stepB) { Logger.error('useWorld: STEP B failed'); return; }
         Logger.info('useWorld: STEP B complete — single capsule created');
 
-        // STEP C & D: No-ops for single capsule, but we call them for API compat
+        // STEP C & D: No-ops for single capsule
         await binder.createJointsWithZeroMotors();
         await binder.activateMotorsWithStiffnessAndDamping(80, 10);
         Logger.info('useWorld: STEP D complete — model is standing');
 
-        // Activate multi-body PD motor control if enabled
         if (worldStore.useMultiBodyPD) {
           const mbSuccess = await binder.activateMultiBody();
           if (mbSuccess) {
@@ -1179,7 +1451,10 @@ export const useWorld = (containerRef: React.RefObject<HTMLDivElement>) => {
 
         binder.setMode(worldStore.bodyMode);
 
-        // Warm-up: pre-compute forces/contacts at initial pose before first render
+        // Start client-side cognitive loop for agent_0
+        startAgentClientLoop('agent_0');
+
+        // Warm-up
         physicsEngineRef.current?.forward();
       }
     };
@@ -1192,6 +1467,7 @@ export const useWorld = (containerRef: React.RefObject<HTMLDivElement>) => {
     worldStore.useMultiBodyPD,
     worldStore.bodyMode,
     worldStore.showDebugJoints,
+    startAgentClientLoop,
   ]);
 
   useEffect(() => {
@@ -1246,104 +1522,9 @@ export const useWorld = (containerRef: React.RefObject<HTMLDivElement>) => {
   }, []);
 
   const captureWorldState = useCallback(async () => {
-    if (
-      !worldEngineRef.current ||
-      !humanoidPhysicsBinderRef.current ||
-      !audioEngineRef.current
-    )
-      return null;
-
-    const renderer = worldEngineRef.current.getRenderer();
-    const scene = worldEngineRef.current.getScene();
-    const camera = worldEngineRef.current.getCamera();
-
-    // Render main view for user (unchanged)
-    renderer.render(scene, camera);
-
-    // Get AI frame from dedicated 448×448 offscreen capture (raw base64, no prefix)
-    const rawFrame = worldEngineRef.current.getLastAIFrame();
-
-    if (!rawFrame || rawFrame === '') {
-      Logger.warn('captureWorldState: frame not yet available, skipping cycle');
-      return null;
-    }
-
-    const frame = rawFrame;
-
-    // Estimate file size: base64 is ~75% of decoded bytes, divide by 1024 for KB
-    const fileSize = (frame.length * 0.75) / 1024;
-
-    (window as any)._synthia_connection_store_metrics?.({
-      frameSize: fileSize,
-    });
-
-    const joints = lastJointStateRef.current;
-
-    // Build local-frame observation for AI proprioception
-    let proprioception: any = null;
-    if (humanoidPhysicsBinderRef.current?.mbActive) {
-      const obsBuilder = humanoidPhysicsBinderRef.current.getObservationBuilder();
-      const capsuleBody = humanoidPhysicsBinderRef.current.getCapsuleBody();
-      if (capsuleBody?.isValid()) {
-        proprioception = obsBuilder.buildVLMProprioception(capsuleBody);
-      }
-    }
-
-    const audioBuffer = await audioEngineRef.current.getBuffer();
-    const audioPcm = audioBuffer ? btoa(String.fromCharCode(...new Uint8Array(audioBuffer.buffer))) : "";
-
-    // Gather contact forces from the active humanoid/ragdoll
-    let contact_forces: Record<string, any> = {};
-    if (useWorldStore.getState().bodyType === 'humanoid' && humanoidPhysicsBinderRef.current) {
-      contact_forces = humanoidPhysicsBinderRef.current.getContactForces();
-    }
-
-    const activeObjManager = objectManagerRef.current;
-    const objects = activeObjManager
-      ? Array.from(activeObjManager.getObjects().values()).map((obj: any) => ({
-          id: obj.id,
-          type: obj.type,
-          name: obj.name || obj.type,
-          position: {
-            x: obj.mesh?.position.x ?? 0,
-            y: obj.mesh?.position.y ?? 0,
-            z: obj.mesh?.position.z ?? 0
-          },
-          dimensions: obj.dimensions || { w: 1, h: 1, d: 1 },
-          isStatic: obj.isStatic ?? true,
-          interactionZones: obj.interactionZones?.map((z: any) => ({
-            zoneId: z.id || z.zoneId,
-            note: z.note,
-            onContact: z.onContact
-          })) || []
-        }))
-      : [];
-
-    const uprightPreset = humanoidPhysicsBinderRef.current
-      ? humanoidPhysicsBinderRef.current.getUprightPreset()
-      : {};
-
-    const isGrounded = humanoidPhysicsBinderRef.current
-      ? humanoidPhysicsBinderRef.current.getIsGrounded()
-      : true;
-
-    return {
-      frame,
-      joints,
-      proprioception,
-      audio_pcm: audioPcm,
-      contact_forces,
-      objects,
-      uprightPreset,
-      isGrounded,
-      heartbeat: useAgentStore.getState().heartbeat,
-      currentRung: useAgentStore.getState().currentRung,
-      bodyType: useWorldStore.getState().bodyType,
-      currentGoal: useAgentStore.getState().currentGoal,
-      lightState: useWorldStore.getState().lightState,
-      timestamp: Date.now(),
-    };
-  }, []);
+    const activeId = useAgentStore.getState().activeAgentId || 'agent_0';
+    return await captureWorldStateForAgent(activeId);
+  }, [captureWorldStateForAgent]);
 
   const detectOutcomes = useCallback(() => {
     const outcomes = [...pendingOutcomesRef.current];
@@ -1371,8 +1552,10 @@ export const useWorld = (containerRef: React.RefObject<HTMLDivElement>) => {
       activeObjManager?.deleteObject(id);
     },
     push: (partName: string, impulse: THREE.Vector3) => {
-      if (worldStore.bodyType === 'humanoid' && humanoidPhysicsBinderRef.current) {
-        humanoidPhysicsBinderRef.current.push(partName, impulse);
+      const activeId = useAgentStore.getState().activeAgentId || 'agent_0';
+      const binder = humanoidPhysicsBindersRef.current.get(activeId);
+      if (worldStore.bodyType === 'humanoid' && binder) {
+        binder.push(partName, impulse);
       }
     },
     captureWorldState,

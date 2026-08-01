@@ -128,27 +128,13 @@ export function _estimateBoneLength(
   return heuristic[boneName] ?? 0.15;
 }
 
-export function generateHumanoidMJCF(
+export function generateAgentSubtreeMJCF(
   boneInfoMap: Map<string, { bone: THREE.Bone; worldPosition: THREE.Vector3 }>,
-  _skeletonOrBones: any,
-  capsuleCenterYOrPhysicsMatrix?: any,
-  modelRootOrRigConstraints?: any,
-  physicsMatrix?: any,
-  rigConstraints?: any
-): string {
-  let capsuleCenterY = 0.9;
-  let pMatrix = COMPLETE_MIXAMO_PHYSICS_MATRIX;
-  let rConstraints = SYNTHIA_RIG_CONSTRAINTS;
-
-  if (typeof capsuleCenterYOrPhysicsMatrix === 'number') {
-    capsuleCenterY = capsuleCenterYOrPhysicsMatrix;
-    if (physicsMatrix) pMatrix = physicsMatrix;
-    if (rigConstraints) rConstraints = rigConstraints;
-  } else {
-    if (capsuleCenterYOrPhysicsMatrix) pMatrix = capsuleCenterYOrPhysicsMatrix;
-    if (modelRootOrRigConstraints) rConstraints = modelRootOrRigConstraints;
-  }
-
+  capsuleCenterY: number = 0.9,
+  pMatrix: any = COMPLETE_MIXAMO_PHYSICS_MATRIX,
+  rConstraints: any = SYNTHIA_RIG_CONSTRAINTS,
+  prefix: string = ''
+): { bodyXml: string; actuatorsXml: string[] } {
   // Set of tracked bone names
   const trackedBones = new Set<string>();
   for (const canonical of boneInfoMap.keys()) {
@@ -160,7 +146,6 @@ export function generateHumanoidMJCF(
   const actuators: string[] = [];
 
   // Model root and Capsule properties
-  // Find model root position
   let modelX = 0;
   let modelZ = 0;
 
@@ -195,8 +180,6 @@ export function generateHumanoidMJCF(
     const threePos = boneInfo.worldPosition.clone();
     const threeQuat = new THREE.Quaternion();
     bone.getWorldQuaternion(threeQuat);
-
-
 
     // Convert child absolute position/rotation to MuJoCo space
     const childPosMj = PhysicsEngine.worldToMuJoCo(threePos);
@@ -251,10 +234,10 @@ export function generateHumanoidMJCF(
       const pGeomLocalStr = `${pGeomLocal.x} ${pGeomLocal.y} ${pGeomLocal.z}`;
 
       // High friction on foot soles: sliding=1.5 torsional=0.1 rolling=0.05 prevents ice-cube drift
-      geomXML = `<geom name="${boneName}_geom" type="box" size="${FOOT_HALF_WIDTH} ${FOOT_HALF_LENGTH} ${FOOT_HALF_HEIGHT}" pos="${pGeomLocalStr}" quat="${qGeomLocalStr}" friction="1.5 0.1 0.05" contype="2" conaffinity="1" solref="0.004 1" solimp="0.95 0.99 0.001 0.5 2"/>`;
+      geomXML = `<geom name="${prefix}${boneName}_geom" type="box" size="${FOOT_HALF_WIDTH} ${FOOT_HALF_LENGTH} ${FOOT_HALF_HEIGHT}" pos="${pGeomLocalStr}" quat="${qGeomLocalStr}" friction="1.5 0.1 0.05" contype="2" conaffinity="1" solref="0.004 1" solimp="0.95 0.99 0.001 0.5 2"/>`;
     } else {
       const colRadius = 0.04;
-      geomXML = `<geom name="${boneName}_geom" type="sphere" size="${colRadius}" pos="0 0 0" contype="2" conaffinity="1" solref="0.004 1" solimp="0.95 0.99 0.001 0.5 2"/>`;
+      geomXML = `<geom name="${prefix}${boneName}_geom" type="sphere" size="${colRadius}" pos="0 0 0" contype="2" conaffinity="1" solref="0.004 1" solimp="0.95 0.99 0.001 0.5 2"/>`;
     }
 
     // Joint declarations
@@ -281,18 +264,18 @@ export function generateHumanoidMJCF(
       // Single Hinge Joint (Pitch: axis 1 0 0)
       const min = constraint?.x?.[0] ?? limits?.min ?? -2.618;
       const max = constraint?.x?.[1] ?? limits?.max ?? 0;
-      jointsXML = `<joint name="${boneName}_pitch" type="hinge" axis="1 0 0" range="${getSafeRangeStr(min, max)}" limited="true"/>`;
-      actuators.push(`<position name="act_${boneName}_pitch" joint="${boneName}_pitch" kp="${kp}" kv="${kv}" ctrlrange="${getSafeRangeStr(min, max)}"/>`);
+      jointsXML = `<joint name="${prefix}${boneName}_pitch" type="hinge" axis="1 0 0" range="${getSafeRangeStr(min, max)}" limited="true"/>`;
+      actuators.push(`<position name="act_${prefix}${boneName}_pitch" joint="${prefix}${boneName}_pitch" kp="${kp}" kv="${kv}" ctrlrange="${getSafeRangeStr(min, max)}"/>`);
     } else if (constraint && constraint.dof === 2) {
       // 2-DOF Joint Decomposed into Pitch (1 0 0) and Roll (0 1 0)
       const minX = constraint.x[0], maxX = constraint.x[1];
       const minZ = constraint.z[0], maxZ = constraint.z[1];
       jointsXML = `
-        <joint name="${boneName}_pitch" type="hinge" axis="1 0 0" range="${getSafeRangeStr(minX, maxX)}" limited="true"/>
-        <joint name="${boneName}_roll" type="hinge" axis="0 1 0" range="${getSafeRangeStr(minZ, maxZ)}" limited="true"/>
+        <joint name="${prefix}${boneName}_pitch" type="hinge" axis="1 0 0" range="${getSafeRangeStr(minX, maxX)}" limited="true"/>
+        <joint name="${prefix}${boneName}_roll" type="hinge" axis="0 1 0" range="${getSafeRangeStr(minZ, maxZ)}" limited="true"/>
       `;
-      actuators.push(`<position name="act_${boneName}_pitch" joint="${boneName}_pitch" kp="${kp}" kv="${kv}" ctrlrange="${getSafeRangeStr(minX, maxX)}"/>`);
-      actuators.push(`<position name="act_${boneName}_roll" joint="${boneName}_roll" kp="${kp}" kv="${kv}" ctrlrange="${getSafeRangeStr(minZ, maxZ)}"/>`);
+      actuators.push(`<position name="act_${prefix}${boneName}_pitch" joint="${prefix}${boneName}_pitch" kp="${kp}" kv="${kv}" ctrlrange="${getSafeRangeStr(minX, maxX)}"/>`);
+      actuators.push(`<position name="act_${prefix}${boneName}_roll" joint="${prefix}${boneName}_roll" kp="${kp}" kv="${kv}" ctrlrange="${getSafeRangeStr(minZ, maxZ)}"/>`);
     } else {
       const minX = constraint?.x?.[0] ?? limits?.min ?? -0.785;
       const maxX = constraint?.x?.[1] ?? limits?.max ?? 0.785;
@@ -313,13 +296,13 @@ export function generateHumanoidMJCF(
 
       // 3-DOF Joint: Yaw -> Pitch -> Roll
       jointsXML = `
-        <joint name="${boneName}_yaw" type="hinge" axis="${yawAxis}" range="${getSafeRangeStr(minY, maxY)}" limited="true"/>
-        <joint name="${boneName}_pitch" type="hinge" axis="1 0 0" range="${getSafeRangeStr(minX, maxX)}" limited="true"/>
-        <joint name="${boneName}_roll" type="hinge" axis="${rollAxis}" range="${getSafeRangeStr(minZ, maxZ)}" limited="true"/>
+        <joint name="${prefix}${boneName}_yaw" type="hinge" axis="${yawAxis}" range="${getSafeRangeStr(minY, maxY)}" limited="true"/>
+        <joint name="${prefix}${boneName}_pitch" type="hinge" axis="1 0 0" range="${getSafeRangeStr(minX, maxX)}" limited="true"/>
+        <joint name="${prefix}${boneName}_roll" type="hinge" axis="${rollAxis}" range="${getSafeRangeStr(minZ, maxZ)}" limited="true"/>
       `;
-      actuators.push(`<position name="act_${boneName}_yaw" joint="${boneName}_yaw" kp="${kp}" kv="${kv}" ctrlrange="${getSafeRangeStr(minY, maxY)}"/>`);
-      actuators.push(`<position name="act_${boneName}_pitch" joint="${boneName}_pitch" kp="${kp}" kv="${kv}" ctrlrange="${getSafeRangeStr(minX, maxX)}"/>`);
-      actuators.push(`<position name="act_${boneName}_roll" joint="${boneName}_roll" kp="${kp}" kv="${kv}" ctrlrange="${getSafeRangeStr(minZ, maxZ)}"/>`);
+      actuators.push(`<position name="act_${prefix}${boneName}_yaw" joint="${prefix}${boneName}_yaw" kp="${kp}" kv="${kv}" ctrlrange="${getSafeRangeStr(minY, maxY)}"/>`);
+      actuators.push(`<position name="act_${prefix}${boneName}_pitch" joint="${prefix}${boneName}_pitch" kp="${kp}" kv="${kv}" ctrlrange="${getSafeRangeStr(minX, maxX)}"/>`);
+      actuators.push(`<position name="act_${prefix}${boneName}_roll" joint="${prefix}${boneName}_roll" kp="${kp}" kv="${kv}" ctrlrange="${getSafeRangeStr(minZ, maxZ)}"/>`);
     }
 
     // Recursively build children
@@ -327,7 +310,7 @@ export function generateHumanoidMJCF(
     const childrenXML = childBones.map(cb => buildBodyTreeXML(cb, childPosMj as [number, number, number], childQuatMj as [number, number, number, number])).join('\n');
 
     return `
-      <body name="${boneName}" pos="${posStr}" quat="${quatStr}">
+      <body name="${prefix}${boneName}" pos="${posStr}" quat="${quatStr}">
         <inertial pos="0 0 0" mass="${phys.mass}" diaginertia="${ixx} ${iyy} ${izz}"/>
         ${jointsXML}
         ${geomXML}
@@ -338,6 +321,44 @@ export function generateHumanoidMJCF(
 
   // Build the humanoid skeleton tree anchored at mixamorighips under the root capsule
   const hipsBranch = buildBodyTreeXML('mixamorighips', capsulePosMj as [number, number, number], capsuleQuatMj as [number, number, number, number]);
+
+  const bodyXml = `
+    <body name="${prefix}root_capsule" pos="${rootCapsulePosStr}" quat="${rootCapsuleQuatStr}">
+      <freejoint name="${prefix}root_freejoint"/>
+      <geom name="${prefix}root_capsule_geom" type="capsule" size="${capsuleRadius} ${capsuleHalfHeight}" pos="0 0 0" contype="0" conaffinity="0"/>
+      <inertial pos="0 0 0" mass="0.001" diaginertia="5.0 3.0 5.0"/>
+
+      ${hipsBranch}
+      <geom name="${prefix}torso_collider" type="sphere" size="0.12" pos="0 0 0" contype="2" conaffinity="1" solref="0.004 1" solimp="0.95 0.99 0.001 0.5 2"/>
+    </body>
+  `.trim();
+
+  return { bodyXml, actuatorsXml: actuators };
+}
+
+export function generateHumanoidMJCF(
+  boneInfoMap: Map<string, { bone: THREE.Bone; worldPosition: THREE.Vector3 }>,
+  _skeletonOrBones: any,
+  capsuleCenterYOrPhysicsMatrix?: any,
+  modelRootOrRigConstraints?: any,
+  physicsMatrix?: any,
+  rigConstraints?: any,
+  prefix: string = ''
+): string {
+  let capsuleCenterY = 0.9;
+  let pMatrix = COMPLETE_MIXAMO_PHYSICS_MATRIX;
+  let rConstraints = SYNTHIA_RIG_CONSTRAINTS;
+
+  if (typeof capsuleCenterYOrPhysicsMatrix === 'number') {
+    capsuleCenterY = capsuleCenterYOrPhysicsMatrix;
+    if (physicsMatrix) pMatrix = physicsMatrix;
+    if (rigConstraints) rConstraints = rigConstraints;
+  } else {
+    if (capsuleCenterYOrPhysicsMatrix) pMatrix = capsuleCenterYOrPhysicsMatrix;
+    if (modelRootOrRigConstraints) rConstraints = modelRootOrRigConstraints;
+  }
+
+  const { bodyXml, actuatorsXml } = generateAgentSubtreeMJCF(boneInfoMap, capsuleCenterY, pMatrix, rConstraints, prefix);
 
   // Generate pre-allocated slot bodies (env_slot_0 to env_slot_N)
   const slotBodies: string[] = [];
@@ -394,14 +415,7 @@ ${pianoGeoms.join('\n')}
     <light directional="true" pos="0 0 5" dir="0 0 -1"/>
     <geom name="floor" type="plane" size="100 100 0.1" rgba="0.8 0.9 0.8 1" friction="1.0 0.05 0.01" contype="1" conaffinity="2" solref="0.004 1" solimp="0.95 0.99 0.001 0.5 2"/>
 
-    <body name="root_capsule" pos="${rootCapsulePosStr}" quat="${rootCapsuleQuatStr}">
-      <freejoint name="root_freejoint"/>
-      <geom name="root_capsule_geom" type="capsule" size="${capsuleRadius} ${capsuleHalfHeight}" pos="0 0 0" contype="0" conaffinity="0"/>
-      <inertial pos="0 0 0" mass="0.001" diaginertia="5.0 3.0 5.0"/>
-
-      ${hipsBranch}
-      <geom name="torso_collider" type="sphere" size="0.12" pos="0 0 0" contype="2" conaffinity="1" solref="0.004 1" solimp="0.95 0.99 0.001 0.5 2"/>
-    </body>
+    ${bodyXml}
 
     ${slotBodies.join('\n')}
 
@@ -409,7 +423,126 @@ ${pianoGeoms.join('\n')}
   </worldbody>
 
   <actuator>
-    ${actuators.join('\n    ')}
+    ${actuatorsXml.join('\n    ')}
+  </actuator>
+</mujoco>
+  `.trim();
+
+  return xml;
+}
+
+export function generateCombinedMultiAgentMJCF(
+  agents: Array<{
+    prefix: string;
+    boneInfoMap: Map<string, { bone: THREE.Bone; worldPosition: THREE.Vector3 }>;
+    capsuleCenterY: number;
+    physicsMatrix?: any;
+    rigConstraints?: any;
+  }>,
+  customMeshesSpec: any[] = []
+): string {
+  const bodiesXmlList: string[] = [];
+  const actuatorsXmlList: string[] = [];
+
+  for (const agent of agents) {
+    const pMatrix = agent.physicsMatrix || COMPLETE_MIXAMO_PHYSICS_MATRIX;
+    const rConstraints = agent.rigConstraints || SYNTHIA_RIG_CONSTRAINTS;
+    const { bodyXml, actuatorsXml } = generateAgentSubtreeMJCF(
+      agent.boneInfoMap,
+      agent.capsuleCenterY,
+      pMatrix,
+      rConstraints,
+      agent.prefix
+    );
+    bodiesXmlList.push(bodyXml);
+    actuatorsXmlList.push(...actuatorsXml);
+  }
+
+  // Generate pre-allocated slot bodies (env_slot_0 to env_slot_N)
+  const slotBodies: string[] = [];
+  for (let i = 0; i < NUM_ENV_SLOTS; i++) {
+    slotBodies.push(`
+    <body name="env_slot_${i}" pos="0 0 -10">
+      <freejoint name="env_slot_${i}_joint"/>
+      <geom name="env_slot_${i}_sphere" type="sphere" size="0.001" contype="0" conaffinity="0"/>
+      <geom name="env_slot_${i}_box" type="box" size="0.001 0.001 0.001" contype="0" conaffinity="0"/>
+      <geom name="env_slot_${i}_cylinder" type="cylinder" size="0.001 0.001" contype="0" conaffinity="0"/>
+      <geom name="env_slot_${i}_capsule" type="capsule" size="0.001 0.001" contype="0" conaffinity="0"/>
+    </body>`);
+  }
+
+  // Generate 88 piano keys
+  const pianoGeoms: string[] = [];
+  const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+  for (let i = 0; i < 88; i++) {
+    const isBlack = [1, 3, 6, 8, 10].includes((i + 9) % 12);
+    const width = isBlack ? 0.012 : 0.022;
+    const height = isBlack ? 0.022 : 0.015;
+    const depth = isBlack ? 0.08 : 0.12;
+
+    const xOffset = (i - 44) * 0.023;
+    const yOffset = isBlack ? 0.015 : 0;
+    const zOffset = isBlack ? -0.02 : 0;
+
+    const midiNote = 21 + i;
+    const octave = Math.floor(midiNote / 12) - 1;
+    const noteIndex = midiNote % 12;
+    const noteName = NOTE_NAMES[noteIndex] + octave;
+
+    // Map relative positions: x_mj = xOffset, y_mj = zOffset, z_mj = -yOffset
+    pianoGeoms.push(`      <geom name="piano_${noteName}" type="box" size="${width / 2} ${depth / 2} ${height / 2}" pos="${xOffset} ${zOffset} ${-yOffset}" contype="0" conaffinity="0"/>`);
+  }
+
+  const pianoBody = `
+    <body name="piano_body" pos="0 0 -30">
+      <freejoint name="piano_joint"/>
+      <inertial pos="0 0 0" mass="50" diaginertia="5.0 5.0 5.0"/>
+${pianoGeoms.join('\n')}
+    </body>
+  `;
+
+  // Process custom meshes specs XML
+  const customModelsXml = customMeshesSpec.map((spec) => {
+    const posMj = PhysicsEngine.worldToMuJoCo(spec.position);
+    const quatMj = spec.quaternion
+      ? PhysicsEngine.threeQuatToMuJoCo(spec.quaternion)
+      : [1, 0, 0, 0];
+
+    const verticesStr = Array.from(spec.vertices).join(' ');
+    const facesStr = Array.from(spec.indices).join(' ');
+
+    return `
+    <asset>
+      <mesh name="mesh_${spec.id}" vertex="${verticesStr}" face="${facesStr}"/>
+    </asset>
+    <body name="custom_${spec.id}" pos="${posMj[0]} ${posMj[1]} ${posMj[2]}" quat="${quatMj[0]} ${quatMj[1]} ${quatMj[2]} ${quatMj[3]}">
+      <freejoint name="custom_${spec.id}_joint"/>
+      <geom name="custom_geom_${spec.id}" type="mesh" mesh="mesh_${spec.id}" contype="2" conaffinity="1"/>
+      <inertial pos="0 0 0" mass="${spec.preset.mass}" diaginertia="0.1 0.1 0.1"/>
+    </body>`;
+  }).join('\n');
+
+  const xml = `
+<mujoco model="synthia_humanoid">
+  <compiler angle="radian" coordinate="local"/>
+  <option gravity="0 0 -9.81" timestep="0.002" iterations="100" integrator="implicitfast"/>
+  <default>
+    <geom friction="1.0 0.05 0.01"/>
+  </default>
+  <worldbody>
+    <light directional="true" pos="0 0 5" dir="0 0 -1"/>
+    <geom name="floor" type="plane" size="100 100 0.1" rgba="0.8 0.9 0.8 1" friction="1.0 0.05 0.01" contype="1" conaffinity="2" solref="0.004 1" solimp="0.95 0.99 0.001 0.5 2"/>
+
+    ${bodiesXmlList.join('\n\n')}
+
+    ${slotBodies.join('\n')}
+
+    ${pianoBody}
+    ${customModelsXml}
+  </worldbody>
+
+  <actuator>
+    ${actuatorsXmlList.join('\n    ')}
   </actuator>
 </mujoco>
   `.trim();

@@ -20,11 +20,13 @@ export class BodyProxy {
   private bodyId: number;
   private model: any;
   private data: any;
+  private prefix: string;
 
-  constructor(bodyId: number, model: any, data: any, _module: any) {
+  constructor(bodyId: number, model: any, data: any, _module: any, prefix: string = '') {
     this.bodyId = bodyId;
     this.model = model;
     this.data = data;
+    this.prefix = prefix;
     void _module;
   }
 
@@ -83,7 +85,7 @@ export class BodyProxy {
     if (!this.isValid()) return;
     const module = PhysicsEngine.getModule();
     if (!module) return;
-    const rootJntId = module.mj_name2id(this.model, module.mjtObj.mjOBJ_JOINT.value, 'root_freejoint');
+    const rootJntId = module.mj_name2id(this.model, module.mjtObj.mjOBJ_JOINT.value, this.prefix + 'root_freejoint');
     if (rootJntId >= 0) {
       const qposadr = this.model.jnt_qposadr[rootJntId];
       const qveladr = this.model.jnt_dofadr[rootJntId];
@@ -189,11 +191,15 @@ export class HumanoidPhysicsBinder {
 
   public mbActive: boolean = false;
   private observationBuilder: ObservationBuilder = new ObservationBuilder();
+  public agentId: string;
+  public prefix: string;
 
-  constructor(physicsEngine: PhysicsEngine, scene: THREE.Scene) {
+  constructor(physicsEngine: PhysicsEngine, scene: THREE.Scene, agentId: string = '') {
     this.physicsEngine = physicsEngine;
     this.scene = scene;
-    this.bodyManager = new BodyManager(physicsEngine);
+    this.agentId = agentId;
+    this.prefix = agentId ? `${agentId}_` : '';
+    this.bodyManager = new BodyManager(physicsEngine, agentId);
     this.motorController = new MotorController();
     this.avatarSynchronizer = new AvatarSynchronizer(0.04);
 
@@ -659,12 +665,7 @@ export class HumanoidPhysicsBinder {
       );
 
       if (success) {
-        const world = this.physicsEngine.getWorld();
-        this.motorController.init(
-          this.bodyManager.getActuatorMap(),
-          world.model,
-          world.data
-        );
+        this.initMotorController();
       }
 
       this.buildStep = 'B';
@@ -751,6 +752,23 @@ export class HumanoidPhysicsBinder {
 
   public getMultiBodyManager() {
     return this.bodyManager;
+  }
+
+  public initMotorController(): void {
+    const world = this.physicsEngine.getWorld();
+    this.motorController.init(
+      this.bodyManager.getActuatorMap(),
+      world.model,
+      world.data
+    );
+  }
+
+  public getBoneInfoMap() {
+    return this.boneInfoMap;
+  }
+
+  public getCapsuleCenterY(): number {
+    return this.capsuleCenterY;
   }
 
   public getObservationBuilder(): ObservationBuilder {
@@ -846,7 +864,7 @@ export class HumanoidPhysicsBinder {
       const proxiesMap = new Map<string, BodyProxy>();
       for (const [canonical, bodyId] of this.bodyManager.getRigidBodiesMap()) {
         if (canonical === 'root_capsule') continue;
-        proxiesMap.set(canonical, new BodyProxy(bodyId, model, data, module));
+        proxiesMap.set(canonical, new BodyProxy(bodyId, model, data, module, this.prefix));
       }
 
       this.avatarSynchronizer.synchronize(bonesSyncMap, proxiesMap as any);
@@ -1157,7 +1175,7 @@ export class HumanoidPhysicsBinder {
     const module = PhysicsEngine.getModule();
     if (!module) return;
 
-    const rootJntId = module.mj_name2id(model, module.mjtObj.mjOBJ_JOINT.value, 'root_freejoint');
+    const rootJntId = module.mj_name2id(model, module.mjtObj.mjOBJ_JOINT.value, this.prefix + 'root_freejoint');
     if (rootJntId >= 0) {
       const qposadr = model.jnt_qposadr[rootJntId];
       const qveladr = model.jnt_dofadr[rootJntId];
@@ -1563,22 +1581,22 @@ export class HumanoidPhysicsBinder {
     // Reset all hinge qpos values to 0 (which maps perfectly to bind pose in our template!)
     const joints = this.bodyManager.getRigidBodiesMap();
     for (const [boneName] of joints) {
-      const hasYaw = module.mj_name2id(model, module.mjtObj.mjOBJ_JOINT.value, boneName + '_yaw') >= 0;
-      const hasPitch = module.mj_name2id(model, module.mjtObj.mjOBJ_JOINT.value, boneName + '_pitch') >= 0;
-      const hasRoll = module.mj_name2id(model, module.mjtObj.mjOBJ_JOINT.value, boneName + '_roll') >= 0;
+      const hasYaw = module.mj_name2id(model, module.mjtObj.mjOBJ_JOINT.value, this.prefix + boneName + '_yaw') >= 0;
+      const hasPitch = module.mj_name2id(model, module.mjtObj.mjOBJ_JOINT.value, this.prefix + boneName + '_pitch') >= 0;
+      const hasRoll = module.mj_name2id(model, module.mjtObj.mjOBJ_JOINT.value, this.prefix + boneName + '_roll') >= 0;
 
       if (hasYaw) {
-        const jntId = module.mj_name2id(model, module.mjtObj.mjOBJ_JOINT.value, boneName + '_yaw');
+        const jntId = module.mj_name2id(model, module.mjtObj.mjOBJ_JOINT.value, this.prefix + boneName + '_yaw');
         qpos[model.jnt_qposadr[jntId]] = 0;
         qvel[model.jnt_dofadr[jntId]] = 0;
       }
       if (hasPitch) {
-        const jntId = module.mj_name2id(model, module.mjtObj.mjOBJ_JOINT.value, boneName + '_pitch');
+        const jntId = module.mj_name2id(model, module.mjtObj.mjOBJ_JOINT.value, this.prefix + boneName + '_pitch');
         qpos[model.jnt_qposadr[jntId]] = 0;
         qvel[model.jnt_dofadr[jntId]] = 0;
       }
       if (hasRoll) {
-        const jntId = module.mj_name2id(model, module.mjtObj.mjOBJ_JOINT.value, boneName + '_roll');
+        const jntId = module.mj_name2id(model, module.mjtObj.mjOBJ_JOINT.value, this.prefix + boneName + '_roll');
         qpos[model.jnt_qposadr[jntId]] = 0;
         qvel[model.jnt_dofadr[jntId]] = 0;
       }
