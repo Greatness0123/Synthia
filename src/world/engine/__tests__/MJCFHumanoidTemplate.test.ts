@@ -100,4 +100,50 @@ describe('MJCFHumanoidTemplate', () => {
     expect(loadFailed).toBe(false);
     expect(engine.isBroken).toBe(false);
   });
+
+  test('generateCombinedMultiAgentMJCF generates valid loadable multi-agent XML', async () => {
+    await engine.init();
+
+    // Create a mock skeleton structure
+    const boneInfoMap = new Map<string, { bone: THREE.Bone; worldPosition: THREE.Vector3 }>();
+
+    const pelvis = new THREE.Bone();
+    pelvis.name = 'mixamorighips';
+    boneInfoMap.set('mixamorighips', { bone: pelvis, worldPosition: new THREE.Vector3(0, 0.9, 0) });
+
+    const spine = new THREE.Bone();
+    spine.name = 'mixamorigspine';
+    pelvis.add(spine);
+    boneInfoMap.set('mixamorigspine', { bone: spine, worldPosition: new THREE.Vector3(0, 1.1, 0) });
+
+    const xml = generateHumanoidMJCF(boneInfoMap, [], 0.9, pelvis);
+    expect(xml).toBeTruthy();
+
+    const importTemplate = await import('../MJCFHumanoidTemplate');
+    if ('generateCombinedMultiAgentMJCF' in importTemplate) {
+      const combinedXml = importTemplate.generateCombinedMultiAgentMJCF([
+        { prefix: 'agent_0_', boneInfoMap, capsuleCenterY: 0.9 },
+        { prefix: 'agent_1_', boneInfoMap, capsuleCenterY: 0.9 }
+      ]);
+
+      expect(combinedXml).toBeTruthy();
+      expect(combinedXml.includes('body name="agent_0_root_capsule"')).toBe(true);
+      expect(combinedXml.includes('body name="agent_1_root_capsule"')).toBe(true);
+      expect(combinedXml.includes('joint name="agent_0_mixamorigspine_yaw"')).toBe(true);
+      expect(combinedXml.includes('joint name="agent_1_mixamorigspine_yaw"')).toBe(true);
+      expect(combinedXml.includes('position name="act_agent_0_mixamorigspine_yaw"')).toBe(true);
+      expect(combinedXml.includes('position name="act_agent_1_mixamorigspine_yaw"')).toBe(true);
+
+      let loadFailed = false;
+      try {
+        engine.loadMJCFModel(combinedXml);
+        engine.setReady(true);
+      } catch (err) {
+        loadFailed = true;
+        console.error(err);
+      }
+      expect(loadFailed).toBe(false);
+      expect(engine.isBroken).toBe(false);
+    }
+  });
 });

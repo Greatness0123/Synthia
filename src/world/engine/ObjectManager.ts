@@ -128,54 +128,31 @@ export class ObjectManager {
       const module = PhysicsEngine.getModule();
       if (!module) return;
 
-      // 1. Capture current simulation state
-      const stateCache: Record<string, {
-        pos: [number, number, number];
-        quat: [number, number, number, number];
-        linvel: [number, number, number];
-        angvel: [number, number, number];
-      }> = {};
+      // 1. Capture current simulation state using StateRehydrator
+      const activeAgentIds = (window as any).__SYNTHIA_HUMANOID_BINDERS__
+        ? Array.from((window as any).__SYNTHIA_HUMANOID_BINDERS__.keys()) as string[]
+        : ['agent_0'];
 
-      // Capture humanoid qpos / qvel
-      const humanoidQPos: number[] = [];
-      const humanoidQVel: number[] = [];
-      for (let i = 0; i < model.nq; i++) humanoidQPos.push(data.qpos[i]);
-      for (let i = 0; i < model.nv; i++) humanoidQVel.push(data.qvel[i]);
-
-      // Capture active dynamic objects state
-      this.objects.forEach((obj) => {
-        if (obj.bodyId !== undefined && obj.bodyId >= 0) {
-          const dofAdr = model.body_dofadr[obj.bodyId];
-          const dofNum = model.body_dofnum[obj.bodyId];
-          const qposAdr = model.jnt_qposadr[model.body_jntadr[obj.bodyId]];
-
-          if (dofNum === 6) {
-            stateCache[obj.id] = {
-              pos: [data.qpos[qposAdr], data.qpos[qposAdr + 1], data.qpos[qposAdr + 2]],
-              quat: [data.qpos[qposAdr + 3], data.qpos[qposAdr + 4], data.qpos[qposAdr + 5], data.qpos[qposAdr + 6]],
-              linvel: [data.qvel[dofAdr], data.qvel[dofAdr + 1], data.qvel[dofAdr + 2]],
-              angvel: [data.qvel[dofAdr + 3], data.qvel[dofAdr + 4], data.qvel[dofAdr + 5]],
-            };
-          }
-        }
-      });
+      const { StateRehydrator } = require('./StateRehydrator');
+      const capturedState = StateRehydrator.capture(this.physicsEngine, activeAgentIds, this.objects);
 
       // 3. Rebuild the XML MJCF model
-      // Retrieve humanoid visual bones model structure
-      const skeletonBinder = (window as any).__SYNTHIA_HUMANOID_BINDER__;
-      if (!skeletonBinder) {
-        throw new Error('Hydration error: Humanoid binder reference is missing.');
+      let baseXml = '';
+      if (typeof (window as any).__SYNTHIA_GENERATE_COMBINED_MJCF__ === 'function') {
+        baseXml = (window as any).__SYNTHIA_GENERATE_COMBINED_MJCF__();
+      } else {
+        const skeletonBinder = (window as any).__SYNTHIA_HUMANOID_BINDER__;
+        if (!skeletonBinder) {
+          throw new Error('Hydration error: Humanoid binder reference is missing.');
+        }
+        const mbm = skeletonBinder.getMultiBodyManager();
+        baseXml = newMeshSpec
+          ? (mbm.getCurrentBaseMjcfXml() || mbm.getPristineBaseMjcfXml())
+          : mbm.getPristineBaseMjcfXml();
       }
 
-      const mbm = skeletonBinder.getMultiBodyManager();
-
-      // Generate base MJCF XML string from pristine or current accumulated base XML
-      const baseXml = newMeshSpec
-        ? (mbm.getCurrentBaseMjcfXml() || mbm.getPristineBaseMjcfXml())
-        : mbm.getPristineBaseMjcfXml();
-
       if (!baseXml) {
-        throw new Error('Hydration error: Pristine or current base MJCF is empty or uninitialized');
+        throw new Error('Hydration error: Base MJCF is empty or uninitialized');
       }
 
       // If we have a new custom mesh, only append the new mesh to the current accumulated XML.
@@ -223,17 +200,24 @@ export class ObjectManager {
 
       // 4. Load compiled XML into the physics engine
       this.physicsEngine.loadMJCFModel(combinedXml);
-      skeletonBinder.getMultiBodyManager().setCurrentBaseMjcfXml(combinedXml);
+      if (typeof (window as any).__SYNTHIA_GENERATE_COMBINED_MJCF__ !== 'function') {
+        skeletonBinder.getMultiBodyManager().setCurrentBaseMjcfXml(combinedXml);
+      }
       this.physicsEngine.setReady(true);
 
       const newWorld = this.physicsEngine.getWorld();
       const newModel = newWorld.model;
-      const newData = newWorld.data;
 
       // 5. State rehydration into the new mjData heap view
-      // Rehydrate Humanoid state
-      for (let i = 0; i < Math.min(newModel.nq, humanoidQPos.length); i++) newData.qpos[i] = humanoidQPos[i];
-      for (let i = 0; i < Math.min(newModel.nv, humanoidQVel.length); i++) newData.qvel[i] = humanoidQVel[i];
+      StateRehydrator.restore(this.physicsEngine, capturedState, this.objects);
+
+      // Re-map IDs on all active binders if multi-agent is running
+      if ((window as any).__SYNTHIA_HUMANOID_BINDERS__) {
+        (window as any).__SYNTHIA_HUMANOID_BINDERS__.forEach((binder: any) => {
+          binder.getMultiBodyManager().remapIdsAgainstLoadedWorld(binder.getBoneInfoMap());
+          binder.initMotorController();
+        });
+      }
 
       // Rehydrate pre-allocated slot bodies and custom models
       this.objects.forEach((obj) => {
@@ -247,26 +231,6 @@ export class ObjectManager {
 
         if (bodyId >= 0) {
           obj.bodyId = bodyId;
-          const cached = stateCache[obj.id];
-          if (cached) {
-            const dofAdr = newModel.body_dofadr[bodyId];
-            const qposAdr = newModel.jnt_qposadr[newModel.body_jntadr[bodyId]];
-
-            newData.qpos[qposAdr] = cached.pos[0];
-            newData.qpos[qposAdr + 1] = cached.pos[1];
-            newData.qpos[qposAdr + 2] = cached.pos[2];
-            newData.qpos[qposAdr + 3] = cached.quat[0];
-            newData.qpos[qposAdr + 4] = cached.quat[1];
-            newData.qpos[qposAdr + 5] = cached.quat[2];
-            newData.qpos[qposAdr + 6] = cached.quat[3];
-
-            newData.qvel[dofAdr] = cached.linvel[0];
-            newData.qvel[dofAdr + 1] = cached.linvel[1];
-            newData.qvel[dofAdr + 2] = cached.linvel[2];
-            newData.qvel[dofAdr + 3] = cached.angvel[0];
-            newData.qvel[dofAdr + 4] = cached.angvel[1];
-            newData.qvel[dofAdr + 5] = cached.angvel[2];
-          }
 
           // Re-populate mapped geom colliders IDs
           obj.colliders = [];
