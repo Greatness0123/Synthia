@@ -945,6 +945,30 @@ export const useWorld = (containerRef: React.RefObject<HTMLDivElement>) => {
     worldEngineRef.current?.getCameraManager().setMode(worldStore.cameraMode);
   }, [worldStore.cameraMode]);
 
+  // Instant Camera target snap on active agent change
+  const activeAgentId = useAgentStore((state) => state.activeAgentId);
+  const lastActiveAgentIdRef = useRef<string>('agent_0');
+
+  useEffect(() => {
+    if (!isReady || !worldEngineRef.current) return;
+    if (activeAgentId !== lastActiveAgentIdRef.current) {
+      lastActiveAgentIdRef.current = activeAgentId;
+
+      const binder = humanoidPhysicsBindersRef.current.get(activeAgentId);
+      if (binder) {
+        const headTransform = binder.getHeadTransform();
+        if (headTransform && headTransform.position) {
+          const camManager = worldEngineRef.current.getCameraManager();
+          camManager.getTransformControls().detach();
+          camManager.getMainCamera().lookAt(headTransform.position);
+          (camManager as any).controls.target.copy(headTransform.position);
+          (camManager as any).controls.update();
+          console.log(`[useWorld] Instantly snapped camera focus to selected agent: ${activeAgentId}`);
+        }
+      }
+    }
+  }, [activeAgentId, isReady]);
+
   const findSpawnPosition = useCallback((skipHumanoidCheck = false): THREE.Vector3 => {
     const humanoidPos = new THREE.Vector3(0, 0, 5);
     const binder = humanoidPhysicsBinderRef.current;
@@ -1226,11 +1250,13 @@ export const useWorld = (containerRef: React.RefObject<HTMLDivElement>) => {
         const bm = activeBinder.getMultiBodyManager();
         bm.remapIdsAgainstLoadedWorld(activeBinder.getBoneInfoMap());
         activeBinder.initMotorController();
-        activeBinder.mbActive = true;
 
         // Re-initialize and activate position motors
         await activeBinder.createJointsWithZeroMotors();
         await activeBinder.activateMotorsWithStiffnessAndDamping(80, 10);
+
+        // Correctly reset and re-initialize multi-body to bind visual bone synchronizers and observations
+        activeBinder.deactivateMultiBody();
         if (worldStore.useMultiBodyPD) {
           await activeBinder.activateMultiBody();
         }
