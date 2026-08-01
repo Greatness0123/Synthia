@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "coordinator": "cd coordinator && npm run dev",
-    "sync-types": "node scripts/sync-types.mjs"
+    "sync-types": "node scripts/sync-types.mjs",
+    "verify-proxy": "npx ts-node --esm tests/verify-proxy.ts"
   },
   "dependencies": {
     "@fontsource/geist-mono": "^5.2.8",
