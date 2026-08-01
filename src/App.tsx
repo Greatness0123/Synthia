@@ -14,6 +14,7 @@ import { StructureViewer } from './components/agent/StructureViewer';
 import { GodModePanel } from './components/godmode/GodModePanel';
 import { useUIStore } from './store/uiStore';
 import { useWorldStore } from './store/worldStore';
+import { useAgentStore } from './store/agentStore';
 import { Brain, Database, Cube, ListChecks, TreeStructure, Camera, VideoCamera, Monitor, X, Sun, Moon } from '@phosphor-icons/react';
 import { ExportModal } from './components/export/ExportModal';
 import { LogViewer } from './components/agent/LogViewer';
@@ -73,6 +74,39 @@ function App() {
           <Moon size={20} className="text-text-secondary group-hover:text-accent-purple" />
         )}
       </button>
+
+      {/* Dev Multi-Agent Controller - Top Center */}
+      <div className="fixed top-4 left-1/2 -translate-x-1/2 glassmorphism rounded-full flex items-center gap-4 p-2 z-50">
+        <button
+          onClick={async () => {
+            if ((window as any).synthia?.spawnAgent) {
+              const newBinder = await (window as any).synthia.spawnAgent();
+              if (newBinder) {
+                console.log('Successfully spawned agent.');
+              }
+            }
+          }}
+          className="px-4 py-1.5 bg-accent-blue/20 hover:bg-accent-blue/30 text-accent-blue text-[10px] font-bold uppercase tracking-widest rounded-full transition-all"
+        >
+          + Spawn Agent
+        </button>
+
+        {/* Agent Selector Dropdown */}
+        <select
+          value={useAgentStore((state) => state.activeAgentId)}
+          onChange={(e) => {
+            const nextAgentId = e.target.value;
+            useAgentStore.getState().setActiveAgentId(nextAgentId);
+          }}
+          className="bg-transparent border-0 text-[10px] font-bold text-text-secondary outline-none uppercase select-none cursor-pointer"
+        >
+          {Object.keys(useAgentStore.getState().agents).map((id) => (
+            <option key={id} value={id} className="bg-[#111115] text-text-secondary text-[10px] font-bold">
+              {id}
+            </option>
+          ))}
+        </select>
+      </div>
 
       {/* Camera Controls Pill - Top Right */}
       <div className="fixed top-4 right-4 glassmorphism rounded-full flex items-center p-1 z-50">

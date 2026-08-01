@@ -30,12 +30,22 @@ export class MotorController {
     this.data = data;
     this.actuatorMap = actuatorMap;
 
+    // Collect all actuator IDs that belong to this specific agent's map
+    const ourActuators = new Set<number>();
+    actuatorMap.forEach((ids) => {
+      for (const id of ids) {
+        ourActuators.add(id);
+      }
+    });
+
     this.baseGains.clear();
     for (let i = 0; i < model.nu; i++) {
-      // position actuators store kp in actuator_gainprm[i*3] and -kv in actuator_biasprm[i*3+2]
-      const kp = model.actuator_gainprm[i * 3];
-      const kv = -model.actuator_biasprm[i * 3 + 2];
-      this.baseGains.set(i, { kp, kv });
+      if (ourActuators.has(i)) {
+        // position actuators store kp in actuator_gainprm[i*3] and -kv in actuator_biasprm[i*3+2]
+        const kp = model.actuator_gainprm[i * 3];
+        const kv = -model.actuator_biasprm[i * 3 + 2];
+        this.baseGains.set(i, { kp, kv });
+      }
     }
 
     this.globalStiffnessScale = 1.0;
@@ -43,7 +53,7 @@ export class MotorController {
     this.limpModeActive = false;
     this.simulationStepCount = 0;
 
-    Logger.info(`MotorController: Initialized with ${model.nu} actuators.`);
+    Logger.info(`MotorController: Initialized with our ${ourActuators.size} actuators (world has ${model.nu}).`);
   }
 
   public resetRamp(): void {
@@ -55,10 +65,12 @@ export class MotorController {
 
     const ctrl = this.data.ctrl;
 
-    // Reset all controls to 0 by default
-    for (let i = 0; i < this.model.nu; i++) {
-      ctrl[i] = 0;
-    }
+    // Reset ONLY our own agent's controls to 0 by default to prevent overwriting other agents
+    this.actuatorMap.forEach((actuatorIds) => {
+      for (const id of actuatorIds) {
+        ctrl[id] = 0;
+      }
+    });
 
     if (this.limpModeActive) return;
 
@@ -127,29 +139,36 @@ export class MotorController {
     if (!this.model || !this.data) return;
 
     if (active) {
-      // Zero out all actuator gains for passive ragdoll
-      for (let i = 0; i < this.model.nu; i++) {
-        this.model.actuator_gainprm[i * 3] = 0;
-        this.model.actuator_biasprm[i * 3 + 1] = 0;
-        this.model.actuator_biasprm[i * 3 + 2] = 0;
-        this.data.ctrl[i] = 0;
-      }
-      Logger.info('MotorController: Limp mode activated. All gains zeroed.');
+      // Zero out only our own specific actuator gains for passive ragdoll
+      this.actuatorMap.forEach((actuatorIds) => {
+        for (const i of actuatorIds) {
+          this.model.actuator_gainprm[i * 3] = 0;
+          this.model.actuator_biasprm[i * 3 + 1] = 0;
+          this.model.actuator_biasprm[i * 3 + 2] = 0;
+          this.data.ctrl[i] = 0;
+        }
+      });
+      Logger.info('MotorController: Limp mode activated. Gains zeroed for our actuators.');
     } else {
-      // Restore standard scaled gains
+      // Restore standard scaled gains for our actuators
       this.applyGainsToModel();
-      Logger.info('MotorController: Limp mode deactivated. Gains restored.');
+      Logger.info('MotorController: Limp mode deactivated. Gains restored for our actuators.');
     }
   }
 
   private applyGainsToModel(): void {
     if (!this.model) return;
 
-    for (const [actuatorId, gains] of this.baseGains) {
-      this.model.actuator_gainprm[actuatorId * 3] = gains.kp * this.globalStiffnessScale;
-      this.model.actuator_biasprm[actuatorId * 3 + 1] = -gains.kp * this.globalStiffnessScale;
-      this.model.actuator_biasprm[actuatorId * 3 + 2] = -gains.kv * this.globalDampingScale;
-    }
+    this.actuatorMap.forEach((actuatorIds) => {
+      for (const i of actuatorIds) {
+        const gains = this.baseGains.get(i);
+        if (gains) {
+          this.model.actuator_gainprm[i * 3] = gains.kp * this.globalStiffnessScale;
+          this.model.actuator_biasprm[i * 3 + 1] = -gains.kp * this.globalStiffnessScale;
+          this.model.actuator_biasprm[i * 3 + 2] = -gains.kv * this.globalDampingScale;
+        }
+      }
+    });
   }
 
   public getJointCount(): number {
