@@ -12,10 +12,16 @@ export class MotorController {
   private globalDampingScale = 1.0;
   private limpModeActive = false;
   private simulationStepCount = 0;
+  private gaitActive = false;
 
   // Diagnostics (read externally via PhysicsDiagnostic)
   public lastBalanceTorqueMag: number = 0;
   public lastBalanceTiltRad: number = 0;
+
+  /** Enabled while a gait timeline is active — softens root balance torque. */
+  public setGaitActive(active: boolean): void {
+    this.gaitActive = active;
+  }
 
   constructor() {}
 
@@ -184,8 +190,10 @@ export class MotorController {
     const angVelWorld = PhysicsEngine.mujocoToWorld(angVelMj);
 
     // Scale balancing gains dynamically
-    const BALANCE_KP = 100.0 * this.globalStiffnessScale;
-    const BALANCE_KD = 40.0 * this.globalDampingScale;
+    const GAIT_BALANCE_SCALE = 0.15;
+    const balanceScale = this.gaitActive ? GAIT_BALANCE_SCALE : 1.0;
+    const BALANCE_KP = 100.0 * this.globalStiffnessScale * balanceScale;
+    const BALANCE_KD = 40.0 * this.globalDampingScale * balanceScale;
 
     // Upright balancing torque in Three.js/world space
     const torqueWorld = new THREE.Vector3(

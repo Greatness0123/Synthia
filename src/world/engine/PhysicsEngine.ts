@@ -6,6 +6,7 @@ export interface ColliderContactState {
   inContact: boolean;
   impulse_magnitude: number;
   contact_normal: [number, number, number];
+  contact_force?: [number, number, number];
   max_force_magnitude: number;
   lastUpdate: number;
 }
@@ -410,11 +411,23 @@ export class PhysicsEngine {
           const frame = contact.frame;
           const normal: [number, number, number] = [frame[0], frame[1], frame[2]];
 
-          const updateState = (geomId: number, normalDirectionMultiplier: number) => {
+          // Rebuild the world-frame (MuJoCo) contact force vector:
+          const forceWorldMj: [number, number, number] = [
+            frame[0] * normalForce + frame[3] * frictionForce1 + frame[6] * frictionForce2,
+            frame[1] * normalForce + frame[4] * frictionForce1 + frame[7] * frictionForce2,
+            frame[2] * normalForce + frame[5] * frictionForce1 + frame[8] * frictionForce2,
+          ];
+
+          const updateState = (geomId: number, normalDirectionMultiplier: number, forceMultiplier: number) => {
             const mappedNormal: [number, number, number] = [
               normal[0] * normalDirectionMultiplier,
               normal[1] * normalDirectionMultiplier,
               normal[2] * normalDirectionMultiplier
+            ];
+            const mappedForce: [number, number, number] = [
+              forceWorldMj[0] * forceMultiplier,
+              forceWorldMj[1] * forceMultiplier,
+              forceWorldMj[2] * forceMultiplier,
             ];
 
             const existing = this.contactForceRegistry.get(geomId);
@@ -422,6 +435,7 @@ export class PhysicsEngine {
               existing.inContact = true;
               existing.impulse_magnitude = totalImpulse;
               existing.contact_normal = mappedNormal;
+              existing.contact_force = mappedForce;
               existing.max_force_magnitude = totalImpulse;
               existing.lastUpdate = now;
             } else {
@@ -429,15 +443,17 @@ export class PhysicsEngine {
                 inContact: true,
                 impulse_magnitude: totalImpulse,
                 contact_normal: mappedNormal,
+                contact_force: mappedForce,
                 max_force_magnitude: totalImpulse,
                 lastUpdate: now
               });
             }
           };
 
-          // Update states for both geoms involved in the contact
-          updateState(geom1, 1);
-          updateState(geom2, -1);
+          // Update states for both geoms involved in the contact.
+          // mj_contactForce returns the force applied to geom1; geom2 receives -force.
+          updateState(geom1, 1, 1);
+          updateState(geom2, -1, -1);
         }
       } finally {
         // Free DoubleBuffer memory to avoid WASM leaks

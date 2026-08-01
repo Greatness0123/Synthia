@@ -79,7 +79,7 @@ export class BodyProxy {
     return PhysicsEngine.mujocoToWorld(aMj);
   }
 
-  public setTranslation(pos: { x: number; y: number; z: number }, _wakeUp?: boolean): void {
+  public setTranslation(pos: { x: number; y: number; z: number }): void {
     if (!this.isValid()) return;
     const module = PhysicsEngine.getModule();
     if (!module) return;
@@ -97,6 +97,16 @@ export class BodyProxy {
         }
       }
     }
+  }
+
+  public setLinearVelocity(v: { x: number; y: number; z: number }): void {
+    if (!this.isValid()) return;
+    const dofAdr = this.model.body_dofadr[this.bodyId];
+    if (dofAdr === undefined || dofAdr < 0) return;
+    const vMj = PhysicsEngine.worldToMuJoCo({ x: v.x, y: v.y, z: v.z });
+    this.data.qvel[dofAdr] = vMj[0];
+    this.data.qvel[dofAdr + 1] = vMj[1];
+    this.data.qvel[dofAdr + 2] = vMj[2];
   }
 }
 
@@ -140,6 +150,24 @@ export class HumanoidPhysicsBinder {
   private groundingMagnetStrength: number = 0.0;
   private targetSpawnGrounded: boolean = false;
   private groundSurfaceY: number = 0.0;
+  private gaitActive: boolean = false;
+
+  public setGaitActive(active: boolean): void {
+    this.gaitActive = active;
+    const capsuleBodyId = this.bodyManager.getCapsuleBody();
+    if (capsuleBodyId !== null && capsuleBodyId >= 0) {
+      this.motorController.setGaitActive(active);
+    }
+    Logger.info(`HumanoidPhysicsBinderMuJoCo: gaitActive=${active}`);
+  }
+
+  public setLinearVelocity(v: { x: number; y: number; z: number }): void {
+    const capsuleBodyId = this.bodyManager.getCapsuleBody();
+    if (capsuleBodyId === null || capsuleBodyId < 0) return;
+    const world = this.physicsEngine.getWorld();
+    const proxy = new BodyProxy(capsuleBodyId, world.model, world.data, null);
+    proxy.setLinearVelocity(v);
+  }
 
   private hipToFootDistance: number = 0.95;
   private modelHeight: number = 1.8;
@@ -945,25 +973,34 @@ export class HumanoidPhysicsBinder {
         const footPos = new THREE.Vector3();
         boneInfo.bone.getWorldPosition(footPos);
 
-        const forceScale = 1.0 / 60.0;
-        const impulseMag = Math.min(state.impulse_magnitude * forceScale, 8.0);
+        const gaitBoost = this.gaitActive ? 1.5 : 1.0;
+        let forwardComponent: number;
+        if (state.contact_force) {
+          const forceWorld = PhysicsEngine.mujocoToWorld(state.contact_force);
+          const lateralForce = new THREE.Vector3(forceWorld.x, 0, forceWorld.z);
+          forwardComponent = lateralForce.dot(modelForward);
+        } else {
+          const contactNormal = new THREE.Vector3(
+            state.contact_normal[0],
+            state.contact_normal[1],
+            state.contact_normal[2]
+          );
+          const lateralForce = contactNormal.clone();
+          lateralForce.y = 0;
+          forwardComponent = lateralForce.dot(modelForward);
+        }
 
-        const contactNormal = new THREE.Vector3(
-          state.contact_normal[0],
-          state.contact_normal[1],
-          state.contact_normal[2]
-        );
-        const lateralForce = contactNormal.clone();
-        lateralForce.y = 0;
-        const forwardComponent = lateralForce.dot(modelForward);
+        const forceScale = 1.0 / 700.0;
+        const cap = 8.0;
+        const impulseMag = Math.max(-cap, Math.min(cap, forwardComponent * forceScale * gaitBoost));
 
         if (Math.abs(forwardComponent) > 0.01) {
-          const grf = modelForward.clone().multiplyScalar(forwardComponent * impulseMag);
+          const grf = modelForward.clone().multiplyScalar(impulseMag);
           totalImpulse.add(grf);
         }
 
         const offsetFromCenter = footPos.x - capsulePos.x;
-        const torqueY = -forwardComponent * impulseMag * offsetFromCenter * 3.0;
+        const torqueY = -forwardComponent * 0.003 * offsetFromCenter * 6.0;
         totalTorque.y += Math.max(-5.0, Math.min(5.0, torqueY));
       }
 
@@ -1489,6 +1526,7 @@ export class HumanoidPhysicsBinder {
   }
 
   public resetPose(spawnPoint: { x: number; y: number; z: number }): void {
+    this.setGaitActive(false);
     this.setCapsulePosition(spawnPoint.x, spawnPoint.y, spawnPoint.z);
     this.resetToBindPose();
     this.previousFootPositions.clear();
@@ -1510,6 +1548,7 @@ export class HumanoidPhysicsBinder {
   }
 
   public resetToBindPose(): void {
+    this.setGaitActive(false);
     this.currentTargets.clear();
     this.motorController.resetRamp();
 
