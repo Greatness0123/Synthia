@@ -1315,11 +1315,10 @@ export const useWorld = (containerRef: React.RefObject<HTMLDivElement>) => {
       StateRehydrator.restore(physicsEngine, capturedState, objectsList);
 
       // Fix 4: After restoring, re-arm spawn grounding and clear stale GRF history
-      // ONLY for the newly spawned binder so existing simulated agents do not experience vertical snap.
-      const newBinder = humanoidPhysicsBindersRef.current.get(agentId);
-      if (newBinder) {
-        (newBinder as any).targetSpawnGrounded = false;
-        (newBinder as any).previousFootPositions?.clear();
+      // for ALL binders so they re-align to the new floor and produce no phantom impulses.
+      for (const [, activeBinder] of humanoidPhysicsBindersRef.current.entries()) {
+        (activeBinder as any).targetSpawnGrounded = false;
+        (activeBinder as any).previousFootPositions?.clear();
       }
 
       const newAgentCapsule = binder.getCapsuleBody();
