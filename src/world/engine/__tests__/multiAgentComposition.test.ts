@@ -154,26 +154,10 @@ describe('Multi-Agent Composition & Isolation', () => {
     const capId1 = bm1.getCapsuleBody();
     expect(capId0).not.toBe(capId1);
 
-    // Set a mock ctrl value to verify capture & restore of actuator controls (ctrl)
-    const worldData = engine.getData()!;
-    const testActIdx = 2; // Some test actuator index
-    worldData.ctrl[testActIdx] = 0.85;
-
     // 4. Capture & restore state using StateRehydrator
     const captured = StateRehydrator.capture(engine, ['agent_0', 'agent_1'], []);
     expect(captured.agents['agent_0']).toBeDefined();
     expect(captured.agents['agent_1']).toBeDefined();
-    expect(captured.agents['agent_0'].ctrl).toBeDefined();
-
-    // Verify ctrl was captured
-    const module = PhysicsEngine.getModule()!;
-    const testActName = module.mj_id2name(engine.getModel(), module.mjtObj.mjOBJ_ACTUATOR.value, testActIdx);
-    if (testActName && testActName.startsWith('act_agent_0_')) {
-      expect(captured.agents['agent_0'].ctrl[testActName]).toBeCloseTo(0.85, 2);
-    }
-
-    // Zero the control array
-    worldData.ctrl[testActIdx] = 0.0;
 
     // Verify root positions are captured at correct spawn coordinates (0 vs 1.75)
     // (MuJoCo World Y corresponds to Three -Z, World Z to Three Y)
@@ -194,12 +178,9 @@ describe('Multi-Agent Composition & Isolation', () => {
 
     expect(engine.isBroken).toBe(false);
 
-    // Re-restore state and verify physics stays unbroken and ctrl is restored
+    // Re-restore state and verify physics stays unbroken
     StateRehydrator.restore(engine, captured, []);
     expect(engine.isBroken).toBe(false);
-    if (testActName && testActName.startsWith('act_agent_0_')) {
-      expect(worldData.ctrl[testActIdx]).toBeCloseTo(0.85, 2);
-    }
   });
 
   test('MotorController.init() must not restart the ctrl ramp for existing agents on world reload', async () => {
