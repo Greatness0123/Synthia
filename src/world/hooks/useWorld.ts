@@ -14,7 +14,7 @@ import { AgentLoop } from "../agent/AgentLoop";
 import { useWorldStore } from "../../store/worldStore";
 import { useAgentStore } from "../../store/agentStore";
 import { useConnectionStore } from "../../store/connectionStore";
-import { useCoordinator } from "./useCoordinator";
+import { useAgentRuntimeStore } from "../../store/agentRuntimeStore";
 import { useUIStore } from "../../store/uiStore";
 import { synthiaToast } from "../../components/ui/Toast";
 import { debouncedToast } from "../../utils/toastUtils";
@@ -24,7 +24,6 @@ import * as THREE from "three";
 
 export const useWorld = (containerRef: React.RefObject<HTMLDivElement>) => {
   const [isReady, setIsReady] = useState(false);
-  const { sendMessage } = useCoordinator();
   const worldEngineRef = useRef<WorldEngine | null>(null);
   const physicsEngineRef = useRef<PhysicsEngine | null>(null);
   const audioEngineRef = useRef<AudioEngine | null>(null);
@@ -37,8 +36,6 @@ export const useWorld = (containerRef: React.RefObject<HTMLDivElement>) => {
   const agentStore = useAgentStore();
   const pendingOutcomesRef = useRef<any[]>([]);
   const lastJointStateRef = useRef<Record<string, any>>({});
-  const boundaryViolationCountRef = useRef(0);
-  const BOUNDARY_RESET_FRAMES = 5;
 
   // ─── Fall diagnostics ring buffer ────────────────────
   const DIAG_RING_SIZE = 300; // ~5 seconds at 60fps (throttled from 500Hz physics)
@@ -1077,12 +1074,43 @@ export const useWorld = (containerRef: React.RefObject<HTMLDivElement>) => {
 
     const renderer = worldEngineRef.current.getRenderer();
     const scene = worldEngineRef.current.getScene();
+    const cameraManager = worldEngineRef.current.getCameraManager();
     const camera = worldEngineRef.current.getCamera();
 
     // Render main view
     renderer.render(scene, camera);
 
-    const rawFrame = worldEngineRef.current.getLastAIFrame();
+    // ── Per-agent first-person vision ─────────────────────────────
+    // Reposition the AI perception camera to THIS agent's head transform,
+    // render the 448x448 frame from it, then restore the active agent's view.
+    // This makes every agent's perception genuinely first-person rather than
+    // all agents receiving the active agent's frame.
+    const headTransform = binder.getHeadTransform();
+    const aiCamera = cameraManager.getHeadCamera();
+    const prevPos = aiCamera.position.clone();
+    const prevQuat = aiCamera.quaternion.clone();
+
+    let rawFrame = '';
+    if (headTransform && headTransform.position) {
+      aiCamera.position.copy(headTransform.position);
+      aiCamera.quaternion.copy(headTransform.quaternion);
+      aiCamera.up.set(0, 1, 0);
+      try {
+        rawFrame = cameraManager.captureFrameFromCamera(scene, aiCamera);
+      } catch (err) {
+        Logger.warn(`captureWorldStateForAgent (${agentId}): per-agent frame render failed`, err);
+      }
+      // Restore the display/active-agent camera
+      aiCamera.position.copy(prevPos);
+      aiCamera.quaternion.copy(prevQuat);
+      aiCamera.up.set(0, 1, 0);
+      aiCamera.updateProjectionMatrix();
+    }
+
+    // Fallback: active-agent shared frame (matches legacy behavior)
+    if (!rawFrame || rawFrame === '') {
+      rawFrame = worldEngineRef.current.getLastAIFrame() || '';
+    }
     if (!rawFrame || rawFrame === '') {
       Logger.warn(`captureWorldState (${agentId}): frame not yet available, skipping cycle`);
       return null;
@@ -1160,11 +1188,15 @@ export const useWorld = (containerRef: React.RefObject<HTMLDivElement>) => {
   const generateCombinedMCF = useCallback(() => {
     const agentsList: any[] = [];
     for (const [id, binder] of humanoidPhysicsBindersRef.current.entries()) {
+      // Fix 3 (fallback): For any binder whose capsuleCenterY is still 0 (legacy spawned
+      // agents before ensureCapsuleGeometry was added), compute a safe value from modelHeight.
+      const capsuleCenterY = binder.getCapsuleCenterY() || (binder as any).modelHeight / 2;
       agentsList.push({
         prefix: binder.prefix,
         boneInfoMap: binder.getBoneInfoMap(),
-        capsuleCenterY: binder.getCapsuleCenterY(),
+        capsuleCenterY,
       });
+      void id;
     }
 
     const customSpecs = objectManagerRef.current ? (objectManagerRef.current as any).customMeshesSpec : [];
@@ -1177,21 +1209,22 @@ export const useWorld = (containerRef: React.RefObject<HTMLDivElement>) => {
     }
 
     const connStore = useConnectionStore.getState();
+    const runtime = useAgentRuntimeStore.getState().getConfig(agentId);
     const loop = new AgentLoop({
       agentId,
-      cycleMs: connStore.cycleMs || 2000,
-      supabaseUrl: connStore.supabaseUrl,
-      supabaseKey: connStore.supabaseKey,
+      cycleMs: runtime.cycleMs || connStore.cycleMs || 2000,
+      supabaseUrl: runtime.supabaseUrl || connStore.supabaseUrl,
+      supabaseKey: runtime.supabaseKey || connStore.supabaseKey,
       captureWorldState: async () => {
         return await captureWorldStateForAgent(agentId);
       }
     });
 
-    loop.setProvider(connStore.providerType, connStore.endpoint, connStore.apiKey, connStore.model);
+    loop.setProvider(runtime.provider, runtime.endpoint, runtime.apiKey, runtime.model);
     loop.start().catch((err) => Logger.error(`[AgentLoop (${agentId})] Failed to start client loop`, err));
 
     activeAgentLoopsRef.current.set(agentId, loop);
-    console.log(`[useWorld] Started client-side cognitive loop for ${agentId}`);
+    console.log(`[useWorld] Started client-side cognitive loop for ${agentId} (provider=${runtime.provider})`);
   }, [captureWorldStateForAgent]);
 
   const spawnAgent = useCallback(async () => {
@@ -1222,12 +1255,18 @@ export const useWorld = (containerRef: React.RefObject<HTMLDivElement>) => {
       return null;
     }
 
+    // Fix 1: Set capsuleCenterY BEFORE adding to the map / before generateCombinedMCF.
+    // Without this, capsuleCenterY stays 0, causing the root capsule to be placed at
+    // floor level and catapulting the agent skyward on first contact resolution.
+    binder.ensureCapsuleGeometry();
+
     binder.repositionModel(spawnPoint.x, spawnPoint.y, spawnPoint.z);
 
     binder.friction = worldStore.globalFriction;
     binder.setLerpSpeed(worldStore.movementSmoothing);
     binder.renderDebugSpheres(worldStore.showDebugJoints);
-    binder.setMode(worldStore.bodyMode);
+    // NOTE: setMode is NOT called here for the new binder — it is called inside
+    // the per-binder loop below (Fix 3), gated to the new binder only.
 
     humanoidPhysicsBindersRef.current.set(agentId, binder);
     (window as any).__SYNTHIA_HUMANOID_BINDER__ = binder; // keep active
@@ -1251,21 +1290,38 @@ export const useWorld = (containerRef: React.RefObject<HTMLDivElement>) => {
         bm.remapIdsAgainstLoadedWorld(activeBinder.getBoneInfoMap());
         activeBinder.initMotorController();
 
-        // Re-initialize and activate position motors
-        await activeBinder.createJointsWithZeroMotors();
-        await activeBinder.activateMotorsWithStiffnessAndDamping(80, 10);
-
-        // Correctly reset and re-initialize multi-body to bind visual bone synchronizers and observations
-        activeBinder.deactivateMultiBody();
-        if (worldStore.useMultiBodyPD) {
-          await activeBinder.activateMultiBody();
+        if (id === agentId) {
+          // Fix 3: Only the NEW agent gets the full pose reset (createJointsWithZeroMotors,
+          // activateMotors, setMode/resetToBindPose). Old agents must NOT have their
+          // currentTargets wiped or their ctrl ramp restarted — doing so causes the
+          // "arms crossed behind back" degradation on every spawn.
+          await activeBinder.createJointsWithZeroMotors();
+          await activeBinder.activateMotorsWithStiffnessAndDamping(80, 10);
+          activeBinder.deactivateMultiBody();
+          if (worldStore.useMultiBodyPD) {
+            await activeBinder.activateMultiBody();
+          }
+          activeBinder.setMode(worldStore.bodyMode);
+        } else {
+          // Old binders: re-bind their multi-body proxies to the new world IDs without
+          // touching currentTargets, ramp, or ctrl.
+          activeBinder.deactivateMultiBody();
+          if (worldStore.useMultiBodyPD) {
+            await activeBinder.activateMultiBody();
+          }
         }
-        activeBinder.setMode(worldStore.bodyMode);
       }
 
       StateRehydrator.restore(physicsEngine, capturedState, objectsList);
 
-      const newAgentCapsule = binder.getMultiBodyManager().getCapsuleBody();
+      // Fix 4: After restoring, re-arm spawn grounding and clear stale GRF history
+      // for ALL binders so they re-align to the new floor and produce no phantom impulses.
+      for (const [, activeBinder] of humanoidPhysicsBindersRef.current.entries()) {
+        (activeBinder as any).targetSpawnGrounded = false;
+        (activeBinder as any).previousFootPositions?.clear();
+      }
+
+      const newAgentCapsule = binder.getCapsuleBody();
       if (newAgentCapsule && newAgentCapsule.isValid()) {
         binder.setCapsulePosition(spawnPoint.x, spawnPoint.y, spawnPoint.z);
         binder.resetPose(spawnPoint);
@@ -1307,27 +1363,34 @@ export const useWorld = (containerRef: React.RefObject<HTMLDivElement>) => {
     };
   }, [generateCombinedMCF, spawnAgent]);
 
-  // Sync connection store changes with active loops
+  // Sync connection store changes with active loops.
+  // Per-agent runtime overrides (agentRuntimeStore) take precedence: loops with
+  // an override for a given field keep their own value; everything else follows global.
   const connStore = useConnectionStore();
   useEffect(() => {
-    activeAgentLoopsRef.current.forEach((loop) => {
-      loop.setProvider(
-        connStore.providerType,
-        connStore.endpoint,
-        connStore.apiKey,
-        connStore.model
-      );
-      loop.updateSupabase(
-        connStore.supabaseUrl,
-        connStore.supabaseKey
-      );
-      loop.setCycleMs(connStore.cycleMs);
+    activeAgentLoopsRef.current.forEach((loop, agentId) => {
+      const rt = useAgentRuntimeStore.getState();
+      const runtime = rt.getConfig(agentId);
+      const has = (key: any) => rt.hasOverride(agentId, key);
+
+      const provider = has('provider') ? runtime.provider : connStore.provider;
+      const endpoint = has('endpoint') ? runtime.endpoint : connStore.inferenceEndpoint;
+      const apiKey = has('apiKey') ? runtime.apiKey : connStore.providerApiKey;
+      const model = has('model') ? runtime.model : connStore.providerModel;
+      loop.setProvider(provider, endpoint, apiKey, model);
+
+      const supabaseUrl = has('supabaseUrl') ? runtime.supabaseUrl : connStore.supabaseUrl;
+      const supabaseKey = has('supabaseKey') ? runtime.supabaseKey : connStore.supabaseKey;
+      loop.updateSupabase(supabaseUrl, supabaseKey);
+
+      const cycleMs = has('cycleMs') ? runtime.cycleMs : connStore.cycleMs;
+      loop.setCycleMs(cycleMs || 2000);
     });
   }, [
-    connStore.providerType,
-    connStore.endpoint,
-    connStore.apiKey,
-    connStore.model,
+    connStore.provider,
+    connStore.inferenceEndpoint,
+    connStore.providerApiKey,
+    connStore.providerModel,
     connStore.supabaseUrl,
     connStore.supabaseKey,
     connStore.cycleMs,
@@ -1561,6 +1624,21 @@ export const useWorld = (containerRef: React.RefObject<HTMLDivElement>) => {
         type: "outcome",
         data: { success: false, reward: -1.0, description: "Agent fell" },
       });
+    }
+
+    // Route outcomes into the active agent's client-side cognitive loop so it can
+    // finalize its pending memory cycle with the correct reward/outcome. Previously
+    // this went to the coordinator's server loop via WorldViewport.
+    if (outcomes.length > 0) {
+      const activeId = useAgentStore.getState().activeAgentId || 'agent_0';
+      const loop = activeAgentLoopsRef.current.get(activeId);
+      if (loop) {
+        for (const outcome of outcomes) {
+          loop.handleOutcome(outcome).catch((err) =>
+            Logger.warn(`[useWorld] outcome routing to ${activeId} failed`, err)
+          );
+        }
+      }
     }
 
     return outcomes;

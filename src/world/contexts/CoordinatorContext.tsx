@@ -1,8 +1,12 @@
 /**
  * Context Provider for the Coordinator WebSocket connection.
+ *
+ * This file intentionally exports ONLY the CoordinatorProvider component so the
+ * file stays react-refresh friendly. The shared context object, types, helpers,
+ * and the useCoordinator hook live in ./coordinatorContextCore.
  */
 
-import React, { createContext, useContext, useEffect, useRef, useCallback } from 'react';
+import React, { useEffect, useRef, useCallback, useState } from 'react';
 import { useConnectionStore } from '../../store/connectionStore';
 import { useAgentStore } from '../../store/agentStore';
 import { useUIStore } from '../../store/uiStore';
@@ -10,42 +14,17 @@ import { useLogStore } from '../../store/logStore';
 import { SKILL_RUNGS } from '../../constants/progressionLadder';
 import { synthiaToast } from '../../components/ui/Toast';
 import { logger as Logger } from '../../utils/logger';
-
-type MessageListener = (msg: { type: string; data: any }) => void;
-
-interface CoordinatorContextType {
-  sendMessage: (type: string, data: Record<string, any>) => void;
-  setRagdoll: (ragdoll: any | null) => void;
-  onMessage: (listener: MessageListener) => () => void;
-}
-
-const CoordinatorContext = createContext<CoordinatorContextType | null>(null);
-
-function normalizeWebSocketUrl(url: string): string {
-  if (url.startsWith('wss://') || url.startsWith('ws://')) return url;
-  if (url.startsWith('https://')) return url.replace('https://', 'wss://');
-  if (url.startsWith('http://')) return url.replace('http://', 'ws://');
-  return `ws://${url}`;
-}
+import {
+  CoordinatorContext,
+  normalizeWebSocketUrl,
+  resolveAgentId,
+  type MessageListener,
+} from './coordinatorContextCore';
 
 export const CoordinatorProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const socketRef = useRef<WebSocket | null>(null);
   const ragdollRef = useRef<any | null>(null);
-  const { endpoint, setStatus, setMetrics } = useConnectionStore();
-  const { setExportProgress } = useUIStore();
-  const {
-    appendThoughtToken,
-    setCurrentThought,
-    addThought,
-    addMemory,
-    appendRehydrationToken,
-    setHasRehydrated,
-    addMasteredSkill,
-    incrementHeartbeat,
-    setInjectionQueue,
-    decrementInjectionQueueCount,
-    setRung
-  } = useAgentStore();
+  const { endpoint } = useConnectionStore();
 
   const setRagdoll = useCallback((ragdoll: any | null) => {
     ragdollRef.current = ragdoll;
@@ -65,21 +44,21 @@ export const CoordinatorProvider: React.FC<{ children: React.ReactNode }> = ({ c
     }
   }, []);
 
-  const [reconnectCounter, setReconnectCounter] = React.useState(0);
+  const [reconnectCounter, setReconnectCounter] = useState(0);
 
   useEffect(() => {
     if (!endpoint) return;
 
     const normalizedUrl = normalizeWebSocketUrl(endpoint);
     Logger.info(`Connecting to coordinator at ${normalizedUrl}`);
-    setStatus('connecting');
+    useConnectionStore.getState().setStatus('connecting');
 
     const socket = new WebSocket(normalizedUrl);
     socketRef.current = socket;
 
     socket.onopen = () => {
       Logger.info('Connected to coordinator');
-      setStatus('connected');
+      useConnectionStore.getState().setStatus('connected');
       synthiaToast.success('Connected to coordinator');
       useLogStore.getState().addEntry('Connected to coordinator', 'success');
 
@@ -118,11 +97,11 @@ export const CoordinatorProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
         // Dispatch to external listeners (e.g. ExportModal)
         messageListenersRef.current.forEach(listener => {
-          try { listener({ type, data }); } catch (e) { /* ignore listener errors */ }
+          try { listener({ type, data }); } catch { /* ignore listener errors */ }
         });
 
         switch (type) {
-          case 'action':
+          case 'action': {
             Logger.info(`[ACTION_PIPELINE] Received action from coordinator: ${JSON.stringify(data.jointOverrides || {}).substring(0, 100)}`);
             lastInjectedRef.current = !!data.isInjected;
             const hasJointOverrides = Object.keys(data.jointOverrides || {}).length > 0;
@@ -137,58 +116,75 @@ export const CoordinatorProvider: React.FC<{ children: React.ReactNode }> = ({ c
               synthiaToast.success(`AI moving ${jointCount} joints${frameCount ? ` over ${frameCount} timeline frames` : ''}`);
               useLogStore.getState().addEntry(`Action: moving ${jointCount} joints, sequence frames=${frameCount} — [${data.programSequence?.join(', ') || 'none'}]`, 'success');
             }
+            // data.agentId propagates to useWorld's synthia:action handler, which
+            // applies the action to the matching binder only.
             window.dispatchEvent(new CustomEvent('synthia:action', { detail: data }));
             break;
+          }
 
-          case 'thought_token':
-            appendThoughtToken(data.token);
+          case 'thought_token': {
+            const targetId = resolveAgentId(data);
+            useAgentStore.getState().appendThoughtTokenForAgent(targetId, data.token);
             break;
+          }
 
-          case 'heartbeat_sync':
-            useAgentStore.getState().setHeartbeat(data.heartbeat);
+          case 'heartbeat_sync': {
+            const targetId = resolveAgentId(data);
+            useAgentStore.getState().setHeartbeatForAgent(targetId, data.heartbeat);
             break;
+          }
 
-          case 'thought_complete':
-            const thoughtText = useAgentStore.getState().currentThought;
+          case 'thought_complete': {
+            const targetId = resolveAgentId(data);
+            const targetAgent = useAgentStore.getState().agents[targetId];
+            const thoughtText = targetAgent?.currentThought || '';
             if (thoughtText) {
               useLogStore.getState().addEntry(`Thought: ${thoughtText.substring(0, 200)}`, 'info');
             }
-            addThought({
+            useAgentStore.getState().addThoughtForAgent(targetId, {
               id: Math.random().toString(36).substr(2, 9),
-              heartbeat: useAgentStore.getState().heartbeat,
+              heartbeat: targetAgent?.heartbeat || 0,
               text: thoughtText,
               isStreaming: false,
               isInjected: lastInjectedRef.current,
               timestamp: Date.now()
             });
             lastInjectedRef.current = false;
-            setCurrentThought('');
+            useAgentStore.getState().setCurrentThoughtForAgent(targetId, '');
             break;
+          }
 
-          case 'rehydration_token':
-            appendRehydrationToken(data.token);
+          case 'rehydration_token': {
+            const targetId = resolveAgentId(data);
+            useAgentStore.getState().appendRehydrationTokenForAgent(targetId, data.token);
             break;
+          }
 
-          case 'rehydration_complete':
-            setHasRehydrated(true);
+          case 'rehydration_complete': {
+            const targetId = resolveAgentId(data);
+            useAgentStore.getState().setRehydrationSummaryForAgent(targetId, "Reconnection complete.");
+            useAgentStore.getState().setHasRehydrated(true);
             break;
+          }
 
           case 'skill_mastered': {
-            addMasteredSkill(data.skillName);
+            const targetId = resolveAgentId(data);
+            useAgentStore.getState().addSkillForAgent(targetId, data.skillName);
             synthiaToast.success(`Skill Mastered: ${data.skillName}`);
 
-            // Rung progression logic — read rung imperatively to avoid WebSocket reconnect
-            const rung = useAgentStore.getState().currentRung;
+            // Rung progression logic — per-agent rung
+            const targetAgent = useAgentStore.getState().agents[targetId];
+            const rung = targetAgent?.currentRung ?? 0;
             const next = SKILL_RUNGS[rung + 1];
             if (next && data.skillName.toLowerCase().includes(next.criteria.toLowerCase())) {
-              setRung(rung + 1);
+              useAgentStore.getState().setRungForAgent(targetId, rung + 1);
               synthiaToast.success(`Rung ${rung + 1} complete: ${next.name}`);
             }
             break;
           }
 
-          case 'connection_status':
-            setMetrics({
+          case 'connection_status': {
+            useConnectionStore.getState().setMetrics({
               rtt: data.rtt,
               inferenceTime: data.inferenceTime
             });
@@ -196,23 +192,28 @@ export const CoordinatorProvider: React.FC<{ children: React.ReactNode }> = ({ c
               `Inference: ${data.inferenceTime}ms (RTT ${data.rtt}ms)`,
               data.inferenceTime > 5000 ? 'warning' : 'success'
             );
-            incrementHeartbeat();
+            useAgentStore.getState().incrementHeartbeatForAgent(resolveAgentId(data));
             break;
+          }
 
-          case 'injection_queue_update':
-            setInjectionQueue(data.queue);
+          case 'injection_queue_update': {
+            useAgentStore.getState().setInjectionQueueForAgent(resolveAgentId(data), data.queue);
             break;
+          }
 
-          case 'injection_consumed':
-            decrementInjectionQueueCount();
+          case 'injection_consumed': {
+            useAgentStore.getState().decrementInjectionQueueCountForAgent(resolveAgentId(data));
             break;
+          }
 
-          case 'memory_saved':
+          case 'memory_saved': {
             synthiaToast.success(`Memory saved: ${data.memoryId} (tier ${data.tier})`);
-            addMemory({
+            const targetId = resolveAgentId(data);
+            const targetAgent = useAgentStore.getState().agents[targetId];
+            useAgentStore.getState().addMemoryForAgent(targetId, {
               id: data.memoryId,
               memoryId: data.memoryId,
-              heartbeat: useAgentStore.getState().heartbeat,
+              heartbeat: targetAgent?.heartbeat || 0,
               tier: data.tier || 3,
               daycycle: 'day',
               lightState: 'day',
@@ -223,16 +224,17 @@ export const CoordinatorProvider: React.FC<{ children: React.ReactNode }> = ({ c
               rewardSignal: data.reward || 0,
               goalAtTime: null,
               isInjected: false,
-              agentId: data.agentId || 'agent_a',
+              agentId: targetId,
             });
             break;
+          }
 
           case 'export_progress':
-            setExportProgress(data.percent);
+            useUIStore.getState().setExportProgress(data.percent);
             break;
 
           case 'export_complete': {
-            setExportProgress(100);
+            useUIStore.getState().setExportProgress(100);
             synthiaToast.success(`Export complete: ${data.filename}`);
             // Logic to trigger real download via the result.filename
             const downloadUrl = `${endpoint.replace('ws://', 'http://').replace('wss://', 'https://').split('/ws')[0]}/exports/${data.filename}`;
@@ -255,9 +257,9 @@ export const CoordinatorProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
     socket.onclose = () => {
       Logger.info('Disconnected from coordinator. Reconnecting in 3 seconds...');
-      setStatus('disconnected');
+      useConnectionStore.getState().setStatus('disconnected');
       useLogStore.getState().addEntry('Disconnected from coordinator — reconnecting...', 'warning');
-      
+
       // Auto-reconnect cleanly by incrementing the counter
       setTimeout(() => {
         setReconnectCounter(c => c + 1);
@@ -266,7 +268,7 @@ export const CoordinatorProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
     socket.onerror = () => {
       Logger.error('WebSocket error');
-      setStatus('error');
+      useConnectionStore.getState().setStatus('error');
       useLogStore.getState().addEntry('WebSocket connection error', 'error');
     };
 
@@ -282,12 +284,4 @@ export const CoordinatorProvider: React.FC<{ children: React.ReactNode }> = ({ c
       {children}
     </CoordinatorContext.Provider>
   );
-};
-
-export const useCoordinator = () => {
-  const context = useContext(CoordinatorContext);
-  if (!context) {
-    throw new Error('useCoordinator must be used within a CoordinatorProvider');
-  }
-  return context;
 };

@@ -6,6 +6,8 @@ export interface CapturedAgentState {
   rootVel: number[]; // 6 elements
   jointAngles: Record<string, number>;
   jointVels: Record<string, number>;
+  /** Fix 2: Actuator control values keyed by actuator name, captured before world reload. */
+  ctrl: Record<string, number>;
 }
 
 export interface CapturedObjectState {
@@ -66,12 +68,24 @@ export class StateRehydrator {
         }
       }
 
+      // Fix 2: Capture data.ctrl for all actuators belonging to this agent.
+      // Without this, every world reload zeros all ctrl, causing a 20-step ramp from
+      // zero that destabilizes old agents' poses.
+      const ctrl: Record<string, number> = {};
+      for (let ai = 0; ai < model.nu; ai++) {
+        const actName = module.mj_id2name(model, module.mjtObj.mjOBJ_ACTUATOR.value, ai);
+        if (actName && actName.startsWith(prefix)) {
+          ctrl[actName] = data.ctrl[ai];
+        }
+      }
+
       agentsState[agentId] = {
         rootPos,
         rootQuat,
         rootVel,
         jointAngles,
         jointVels,
+        ctrl,
       };
     }
 
@@ -138,6 +152,18 @@ export class StateRehydrator {
           const qv = model.jnt_dofadr[ji];
           data.qpos[qp] = angle;
           data.qvel[qv] = state.jointVels[jntName] ?? 0;
+        }
+      }
+
+      // Fix 2: Restore data.ctrl for this agent's actuators by name so that old agents
+      // resume their exact commanded servo state on the first step after reload —
+      // no 20-step ramp from zero, no pose flop.
+      if (state.ctrl) {
+        for (const [actName, value] of Object.entries(state.ctrl)) {
+          const ai = module.mj_name2id(model, module.mjtObj.mjOBJ_ACTUATOR.value, actName);
+          if (ai >= 0) {
+            data.ctrl[ai] = value;
+          }
         }
       }
     }

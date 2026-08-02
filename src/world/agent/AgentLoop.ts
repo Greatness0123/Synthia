@@ -7,7 +7,6 @@ import { PayloadBuilder } from './payloadBuilder';
 import { InferenceClient } from './InferenceClient';
 import { MemoryManager, MemoryEntry } from './memoryManager';
 import { useAgentStore } from '../../store/agentStore';
-import { useConnectionStore } from '../../store/connectionStore';
 
 interface AgentLoopConfig {
   agentId: string;
@@ -74,18 +73,24 @@ export class AgentLoop {
 
     const rehydrationSummary = "Reconnecting to neural lattice... archives accessed... current status: operational.";
     const store = useAgentStore.getState() as any;
+    const agentId = this.config.agentId;
+    const isActiveAgent = store.activeAgentId === agentId;
 
-    // Send rehydration tokens
-    if (store.setRehydrationSummary) {
-      store.setRehydrationSummary('');
+    // Send rehydration tokens to the agent's own record. Only the active agent
+    // drives the flat mirror + startup modal so spawning additional agents never
+    // re-triggers the RehydrationModal.
+    if (store.setRehydrationSummaryForAgent) {
+      store.setRehydrationSummaryForAgent(agentId, '');
       for (const token of rehydrationSummary.split(' ')) {
-        store.appendRehydrationToken(token + ' ');
+        store.appendRehydrationTokenForAgent(agentId, token + ' ');
         await new Promise(resolve => setTimeout(resolve, 80));
       }
-      store.setHasRehydrated(true);
+      if (isActiveAgent) {
+        store.setHasRehydrated(true);
+      }
     }
 
-    this.interval = setInterval(() => this.cycle(), this.config.configCycleMs || this.config.cycleMs || 2000);
+    this.interval = setInterval(() => this.cycle(), this.config.cycleMs || 2000);
     console.log(`[AgentLoop (${this.config.agentId})] started independent inference loop`);
   }
 
@@ -117,7 +122,8 @@ export class AgentLoop {
     // Sync agent heartbeat state
     this.heartbeat = worldState.heartbeat || this.heartbeat + 1;
 
-    // Direct read of pending injection from store for this agent
+    // Direct read of pending injection + directive/goal from store for this agent.
+    // DirectivePanel/InjectionInput write to agents[agentId] via *ForAgent actions.
     const store = useAgentStore.getState() as any;
     const agentState = store.agents?.[this.config.agentId];
     let pendingInjection: string | null = null;
@@ -125,6 +131,17 @@ export class AgentLoop {
       pendingInjection = agentState.pendingInjection;
       if (store.setPendingInjectionForAgent) {
         store.setPendingInjectionForAgent(this.config.agentId, null);
+      }
+    }
+
+    // Per-agent directive mode + goal (client path). Falls back to last set via
+    // setDirective() so the loop always carries the latest intent.
+    if (agentState) {
+      if (agentState.directiveMode) {
+        this.directives.mode = agentState.directiveMode === 'training' ? 'training' : 'free_will';
+      }
+      if (agentState.currentGoal != null) {
+        this.directives.goal = agentState.currentGoal;
       }
     }
 

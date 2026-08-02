@@ -22,7 +22,7 @@ logStream.write(`\n\n========================================================\n`
 logStream.write(`=== NEW COORDINATOR SESSION: ${new Date().toISOString()} ===\n`);
 logStream.write(`========================================================\n\n`);
 
-const wrapConsole = (originalFn: (...args: any[]) => void, prefix: string) => {
+const wrapConsole = (originalFn: Function, prefix: string) => {
   return function (...args: any[]) {
     const msg = `[${new Date().toISOString()}] ${prefix} ` + args.map(a => typeof a === 'object' ? JSON.stringify(a) : a).join(' ') + '\n';
     logStream.write(msg);
@@ -48,13 +48,6 @@ fastify.register(fastifyStatic, {
 
 const agents = new Map<string, AgentLoop>();
 
-// ── Per-agent configuration maps (Phase 6E: no more global .forEach) ─────────
-// Fallbacks for newly created agents; per-agent entries take precedence.
-const perAgentProviderConfig = new Map<string, { type: string; endpoint: string; apiKey?: string; model?: string }>();
-const perAgentCycleMs = new Map<string, number>();
-// Which agent loops each socket owns, so a disconnect only stops ITS agents.
-const perSocketAgents = new Map<any, Set<string>>();
-
 // Default Supabase config (should be updated via WebSocket)
 let supabaseUrl = process.env.SUPABASE_URL || '';
 let supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
@@ -69,11 +62,8 @@ if (supabaseUrl && supabaseKey) {
 }
 
 fastify.register(async (fastify) => {
-  fastify.get('/ws', { websocket: true }, (connection: any) => {
+  fastify.get('/ws', { websocket: true }, (connection: any, req: any) => {
     const socket = connection.socket || connection;
-    const socketAgentIds = new Set<string>();
-    perSocketAgents.set(socket, socketAgentIds);
-
     socket.on('message', async (message: Buffer) => {
       try {
         const { type, data } = JSON.parse(message.toString());
@@ -107,13 +97,9 @@ fastify.register(async (fastify) => {
         switch (type) {
           case 'world_state':
             if (!agent) {
-              // Per-agent config: perAgent* entry > stored global fallback
-              const providerCfg = perAgentProviderConfig.get(agentId) || storedProviderConfig;
-              const cycleCfg = perAgentCycleMs.get(agentId) ?? storedCycleMs ?? 2000;
-
               agent = new AgentLoop({
                 agentId,
-                cycleMs: cycleCfg,
+                cycleMs: storedCycleMs ?? 2000,
                 sendToFrontend: (msg) => {
                   try {
                     socket.send(JSON.stringify(msg));
@@ -125,24 +111,23 @@ fastify.register(async (fastify) => {
                 supabaseKey
               });
               if (kaggleEndpoint) agent.setEndpoint(kaggleEndpoint);
-              if (providerCfg) {
-                agent.setProvider(providerCfg.type, providerCfg.endpoint, providerCfg.apiKey, providerCfg.model);
-                console.log(`[Coordinator] Applied provider config to new agent ${agentId}: ${providerCfg.type}`);
+              // Apply stored provider config (e.g. Gemini, OpenRouter) if the user connected before the world loaded
+              if (storedProviderConfig) {
+                agent.setProvider(storedProviderConfig.type, storedProviderConfig.endpoint, storedProviderConfig.apiKey, storedProviderConfig.model);
+                console.log(`[Coordinator] Applied stored provider config to new agent ${agentId}: ${storedProviderConfig.type}`);
               }
               agent.start();
               agents.set(agentId, agent);
-              socketAgentIds.add(agentId);
             }
             if (agent) agent.updateWorldState(data);
             break;
 
-          case 'inject_thought': {
+          case 'inject_thought':
             const queue = injectionQueue.enqueue(data.text, agentId);
             // Echo queue state immediately so the frontend badge updates right away
             socket.send(JSON.stringify({ type: 'injection_queue_update', data: { queue, agentId } }));
             console.log(`inject_thought queued for ${agentId}: "${data.text}" (queue size: ${queue.length})`);
             break;
-          }
 
           case 'outcome':
             if (agent) agent.handleOutcome(data);
@@ -157,43 +142,22 @@ fastify.register(async (fastify) => {
           case 'set_endpoint':
             console.log(`Received set_endpoint from frontend: ${data.url}`);
             kaggleEndpoint = data.url;
-            // Apply to registered agents as a global transport default.
+            // Apply to ALL registered agents (message has no agentId)
             agents.forEach(a => a.setEndpoint(data.url));
             break;
 
-          case 'set_provider': {
-            console.log(`Received set_provider from frontend: type=${data.type}, endpoint=${data.endpoint}, model=${data.model} (agentId=${agentId || 'ALL'})`);
-            const config = { type: data.type, endpoint: data.endpoint, apiKey: data.apiKey, model: data.model };
-            // Always keep the global fallback for agents that connect later.
-            storedProviderConfig = config;
-            if (agentId && perAgentProviderConfig.has(agentId)) {
-              perAgentProviderConfig.set(agentId, config);
-            }
-            // Per-agent: if the target agent exists, configure ONLY it — never all agents.
-            if (agentId) {
-              perAgentProviderConfig.set(agentId, config);
-              if (agent) {
-                agent.setProvider(config.type, config.endpoint, config.apiKey, config.model);
-                console.log(`[Coordinator] Applied provider to agent ${agentId} only`);
-              }
-            } else {
-              // No agentId → legacy global apply to currently registered agents.
-              agents.forEach(a => a.setProvider(config.type, config.endpoint, config.apiKey, config.model));
-            }
+          case 'set_provider':
+            console.log(`Received set_provider from frontend: type=${data.type}, endpoint=${data.endpoint}, model=${data.model}`);
+            storedProviderConfig = { type: data.type, endpoint: data.endpoint, apiKey: data.apiKey, model: data.model };
+            agents.forEach(a => a.setProvider(data.type, data.endpoint, data.apiKey, data.model));
             break;
-          }
 
           case 'set_supabase':
             supabaseUrl = data.url;
             supabaseKey = data.key;
             setupSupabasePing(supabaseUrl, supabaseKey);
-            // Target a specific agent when agentId is supplied; otherwise apply to all.
-            if (agentId && agents.has(agentId)) {
-              agents.get(agentId)!.updateSupabase(supabaseUrl, supabaseKey);
-              console.log(`[Coordinator] Applied Supabase config to agent ${agentId} only`);
-            } else {
-              agents.forEach(a => a.updateSupabase(supabaseUrl, supabaseKey));
-            }
+            // Apply to ALL registered agents (message has no agentId)
+            agents.forEach(a => a.updateSupabase(supabaseUrl, supabaseKey));
             break;
 
           case 'set_directive':
@@ -203,9 +167,6 @@ fastify.register(async (fastify) => {
           case 'set_cycle_ms': {
             const { cycleMs } = data;
             if (typeof cycleMs === 'number' && cycleMs >= 500 && cycleMs <= 10000) {
-              if (agentId) {
-                perAgentCycleMs.set(agentId, cycleMs);
-              }
               const cycleAgent = agents.get(agentId);
               if (cycleAgent) cycleAgent.setCycleMs(cycleMs);
               storedCycleMs = cycleMs;
@@ -258,24 +219,11 @@ fastify.register(async (fastify) => {
 
     socket.on('close', () => {
       console.log('Client disconnected');
-      // Multi-agent: stop ONLY the loops owned by THIS socket, so other
-      // clients' agents keep running.
-      if (socketAgentIds.size > 0) {
-        socketAgentIds.forEach((agentId) => {
-          const ownedAgent = agents.get(agentId);
-          if (ownedAgent) {
-            ownedAgent.stop();
-            agents.delete(agentId);
-          }
-          perAgentProviderConfig.delete(agentId);
-          perAgentCycleMs.delete(agentId);
-        });
-        socketAgentIds.clear();
-        console.log(`[Coordinator] Stopped ${socketAgentIds.size} agent loop(s) owned by the disconnected socket`);
-      } else {
-        console.log('No registered agents for this socket — leaving other agents untouched.');
-      }
-      perSocketAgents.delete(socket);
+      agents.forEach((agent, agentId) => {
+        // Stop the agent loop if client disconnects to properly close the session
+        agent.stop();
+        agents.delete(agentId);
+      });
     });
   });
 });

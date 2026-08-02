@@ -4,9 +4,6 @@
  * Handles streaming responses in-browser.
  */
 
-import { COMPLETE_MIXAMO_PHYSICS_MATRIX } from '../../constants/physics';
-import SYNTHIA_RIG_CONSTRAINTS from '../../constants/rigConstraints';
-
 export interface InferenceResult {
   thoughtTokens: string;
   actionJson: string;
@@ -265,12 +262,12 @@ OUTPUT: Stream thought, then ---ACTION--- then this exact JSON schema:
     // Grab shared secret from window/localStorage or connectionStore
     const sharedSecret = (window as any)._SYNTHIA_SHARED_SECRET__ || localStorage.getItem('synthia_shared_secret') || 'default_secret';
 
-    let url = '';
-    let headers: Record<string, string> = {
+    let url: string;
+    const headers: Record<string, string> = {
       'Content-Type': 'application/json',
       'x-synthia-secret': sharedSecret,
     };
-    let body: any = {};
+    let body: any;
 
     if (this.providerType === 'gemini') {
       url = '/api/infer/gemini';

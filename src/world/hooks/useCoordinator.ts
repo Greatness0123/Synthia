@@ -1,4 +1,4 @@
 /**
- * Re-export useCoordinator from context to avoid breaking changes.
+ * Re-export useCoordinator from the coordinator context core to avoid breaking changes.
  */
-export { useCoordinator } from '../contexts/CoordinatorContext';
+export { useCoordinator } from '../contexts/coordinatorContextCore';

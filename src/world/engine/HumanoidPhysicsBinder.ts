@@ -679,6 +679,19 @@ export class HumanoidPhysicsBinder {
     }
   }
 
+  /**
+   * Fix 1: Ensures capsuleCenterY is correctly set for spawned agents.
+   * Must be called after loadAndVisualizeBindPose() and before generateCombinedMCF()
+   * to prevent the root capsule from being placed at Z=0 (floor level), which causes
+   * the contact solver to catapult the agent skyward on the first physics step.
+   */
+  public ensureCapsuleGeometry(): void {
+    this.capsuleCenterY = this.modelHeight / 2;
+    // Keep BodyManager offset consistent so setCapsulePosition math is correct
+    (this.bodyManager as any).capsuleCenterY = this.capsuleCenterY;
+    Logger.info(`HumanoidPhysicsBinder (${this.agentId}): ensureCapsuleGeometry set capsuleCenterY=${this.capsuleCenterY.toFixed(3)}`);
+  }
+
   public async createJointsWithZeroMotors(): Promise<boolean> {
     this.buildStep = 'C';
     return true;
@@ -1578,6 +1591,8 @@ export class HumanoidPhysicsBinder {
     const module = PhysicsEngine.getModule();
     if (!module) return;
 
+    const armsDownAngle = this.restArmAngleDeg * (Math.PI / 180);
+
     // Reset all hinge qpos values to 0 (which maps perfectly to bind pose in our template!)
     const joints = this.bodyManager.getRigidBodiesMap();
     for (const [boneName] of joints) {
@@ -1592,7 +1607,11 @@ export class HumanoidPhysicsBinder {
       }
       if (hasPitch) {
         const jntId = module.mj_name2id(model, module.mjtObj.mjOBJ_JOINT.value, this.prefix + boneName + '_pitch');
-        qpos[model.jnt_qposadr[jntId]] = 0;
+        // Fix 5: Pre-seed arm pitch qpos to the arms-down target angle so the servo
+        // doesn't have to sweep 75° through the torso on spawn, eliminating the
+        // arm-deflection-behind-trunk contact artifact.
+        const isArmPitch = boneName === 'mixamorigleftarm' || boneName === 'mixamorigrightarm';
+        qpos[model.jnt_qposadr[jntId]] = isArmPitch ? armsDownAngle : 0;
         qvel[model.jnt_dofadr[jntId]] = 0;
       }
       if (hasRoll) {
@@ -1602,7 +1621,6 @@ export class HumanoidPhysicsBinder {
       }
     }
 
-    const armsDownAngle = this.restArmAngleDeg * (Math.PI / 180);
     this.currentTargets.set('mixamorigrightarm', { x: armsDownAngle, y: 0, z: 0, isQuaternion: false });
     this.currentTargets.set('mixamorigleftarm', { x: armsDownAngle, y: 0, z: 0, isQuaternion: false });
     // Spine: neutral target in bind pose

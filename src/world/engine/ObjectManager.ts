@@ -3,6 +3,7 @@ import { ObjectPreset, OBJECT_PRESETS } from '../../constants/objectPresets';
 import { PhysicsEngine } from './PhysicsEngine';
 import { CollisionAdapter } from './CollisionAdapter';
 import { AudioEngine } from './AudioEngine';
+import { StateRehydrator } from './StateRehydrator';
 import { NUM_ENV_SLOTS } from './MJCFHumanoidTemplate';
 import { logger as Logger } from '../../utils/logger';
 
@@ -122,9 +123,6 @@ export class ObjectManager {
     this.physicsEngine.setReady(false);
 
     try {
-      const world = this.physicsEngine.getWorld();
-      const model = world.model;
-      const data = world.data;
       const module = PhysicsEngine.getModule();
       if (!module) return;
 
@@ -133,15 +131,15 @@ export class ObjectManager {
         ? Array.from((window as any).__SYNTHIA_HUMANOID_BINDERS__.keys()) as string[]
         : ['agent_0'];
 
-      const { StateRehydrator } = require('./StateRehydrator');
-      const capturedState = StateRehydrator.capture(this.physicsEngine, activeAgentIds, this.objects);
+      const capturedState = StateRehydrator.capture(this.physicsEngine, activeAgentIds, Array.from(this.objects.values()));
 
       // 3. Rebuild the XML MJCF model
+      let skeletonBinder: any = null;
       let baseXml = '';
       if (typeof (window as any).__SYNTHIA_GENERATE_COMBINED_MJCF__ === 'function') {
         baseXml = (window as any).__SYNTHIA_GENERATE_COMBINED_MJCF__();
       } else {
-        const skeletonBinder = (window as any).__SYNTHIA_HUMANOID_BINDER__;
+        skeletonBinder = (window as any).__SYNTHIA_HUMANOID_BINDER__;
         if (!skeletonBinder) {
           throw new Error('Hydration error: Humanoid binder reference is missing.');
         }
@@ -200,7 +198,7 @@ export class ObjectManager {
 
       // 4. Load compiled XML into the physics engine
       this.physicsEngine.loadMJCFModel(combinedXml);
-      if (typeof (window as any).__SYNTHIA_GENERATE_COMBINED_MJCF__ !== 'function') {
+      if (typeof (window as any).__SYNTHIA_GENERATE_COMBINED_MJCF__ !== 'function' && skeletonBinder) {
         skeletonBinder.getMultiBodyManager().setCurrentBaseMjcfXml(combinedXml);
       }
       this.physicsEngine.setReady(true);
@@ -209,7 +207,7 @@ export class ObjectManager {
       const newModel = newWorld.model;
 
       // 5. State rehydration into the new mjData heap view
-      StateRehydrator.restore(this.physicsEngine, capturedState, this.objects);
+      StateRehydrator.restore(this.physicsEngine, capturedState, Array.from(this.objects.values()));
 
       // Re-map IDs on all active binders if multi-agent is running
       if ((window as any).__SYNTHIA_HUMANOID_BINDERS__) {
@@ -344,7 +342,7 @@ export class ObjectManager {
         break;
       case 'wedge':
       case 'slope':
-      case 'ramp':
+      case 'ramp': {
         geometry = new THREE.BufferGeometry();
         const vertices = new Float32Array([
           -0.5, -0.5,  0.5,
@@ -365,6 +363,7 @@ export class ObjectManager {
         geometry.setIndex(indices);
         geometry.computeVertexNormals();
         break;
+      }
       case 'cube':
       default:
         geometry = new THREE.BoxGeometry(1, 1, 1);

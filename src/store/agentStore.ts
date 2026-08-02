@@ -18,6 +18,9 @@ export interface SingleAgentState {
   status: AgentStatus;
   pendingInjection: string | null;
   currentThought: string;
+  rehydrationSummary: string;
+  injectionQueue: string[];
+  injectionQueueCount: number;
 }
 
 const createDefaultAgent = (agentId: string): SingleAgentState => ({
@@ -32,6 +35,9 @@ const createDefaultAgent = (agentId: string): SingleAgentState => ({
   status: 'idle',
   pendingInjection: null,
   currentThought: '',
+  rehydrationSummary: '',
+  injectionQueue: [],
+  injectionQueueCount: 0,
 });
 
 interface AgentStoreState {
@@ -56,7 +62,7 @@ interface AgentStoreState {
   injectionQueue: string[];
   injectionQueueCount: number;
 
-  // Actions
+  // ── Per-agent actions ─────────────────────────────
   setActiveAgentId: (id: string) => void;
   addAgent: (id: string) => void;
   addThoughtForAgent: (id: string, thought: Thought) => void;
@@ -68,8 +74,17 @@ interface AgentStoreState {
   setDirectiveModeForAgent: (id: string, mode: DirectiveMode) => void;
   setCurrentGoalForAgent: (id: string, goal: string | null) => void;
   incrementHeartbeatForAgent: (id: string) => void;
+  setHeartbeatForAgent: (id: string, hb: number) => void;
+  setRungForAgent: (id: string, rung: number) => void;
+  addSkillForAgent: (id: string, skill: string) => void;
+  setRehydrationSummaryForAgent: (id: string, text: string) => void;
+  appendRehydrationTokenForAgent: (id: string, token: string) => void;
+  setInjectionQueueForAgent: (id: string, queue: string[]) => void;
+  setInjectionQueueCountForAgent: (id: string, count: number) => void;
+  incrementInjectionQueueCountForAgent: (id: string) => void;
+  decrementInjectionQueueCountForAgent: (id: string) => void;
 
-  // Mirrored Actions on the currently active agent
+  // ── Mirrored Actions on the currently active agent ─
   addThought: (thought: Thought) => void;
   addMemory: (memory: Memory) => void;
   setDirectiveMode: (mode: DirectiveMode) => void;
@@ -104,6 +119,7 @@ export const useAgentStore = create<AgentStoreState>((set, get) => {
       thoughts: active.thoughts,
       memories: active.memories,
       skills: active.skills,
+      masteredSkills: active.skills,
       currentRung: active.currentRung,
       currentGoal: active.currentGoal,
       directiveMode: active.directiveMode,
@@ -111,7 +127,22 @@ export const useAgentStore = create<AgentStoreState>((set, get) => {
       status: active.status,
       pendingInjection: active.pendingInjection,
       currentThought: active.currentThought,
+      injectionQueue: active.injectionQueue,
+      injectionQueueCount: active.injectionQueueCount,
     };
+  };
+
+  /** Update one agent record and mirror its fields only when it is the active agent. */
+  const updateAgent = (
+    state: AgentStoreState,
+    id: string,
+    patch: Partial<SingleAgentState>
+  ) => {
+    const agent = state.agents[id] || createDefaultAgent(id);
+    const updatedAgent = { ...agent, ...patch };
+    const newAgents = { ...state.agents, [id]: updatedAgent };
+    const mirrors = id === state.activeAgentId ? mirrorActiveAgentFields(id, newAgents) : {};
+    return { agents: newAgents, ...mirrors };
   };
 
   return {
@@ -141,148 +172,120 @@ export const useAgentStore = create<AgentStoreState>((set, get) => {
       return { agents: newAgents };
     }),
 
-    addThoughtForAgent: (id, thought) => set((state) => {
-      const agent = state.agents[id] || createDefaultAgent(id);
-      const updatedAgent = {
-        ...agent,
-        thoughts: [...agent.thoughts, thought],
-      };
-      const newAgents = { ...state.agents, [id]: updatedAgent };
-      const mirrors = id === state.activeAgentId ? mirrorActiveAgentFields(id, newAgents) : {};
-      return { agents: newAgents, ...mirrors };
-    }),
+    addThoughtForAgent: (id, thought) => set((state) => updateAgent(state, id, {
+      thoughts: [...(state.agents[id]?.thoughts || []), thought],
+    })),
 
-    addMemoryForAgent: (id, memory) => set((state) => {
-      const agent = state.agents[id] || createDefaultAgent(id);
-      const updatedAgent = {
-        ...agent,
-        memories: [...agent.memories, memory],
-      };
-      const newAgents = { ...state.agents, [id]: updatedAgent };
-      const mirrors = id === state.activeAgentId ? mirrorActiveAgentFields(id, newAgents) : {};
-      return { agents: newAgents, ...mirrors };
-    }),
+    addMemoryForAgent: (id, memory) => set((state) => updateAgent(state, id, {
+      memories: [...(state.agents[id]?.memories || []), memory],
+    })),
 
-    setStatusForAgent: (id, status) => set((state) => {
-      const agent = state.agents[id] || createDefaultAgent(id);
-      const updatedAgent = { ...agent, status };
-      const newAgents = { ...state.agents, [id]: updatedAgent };
-      const mirrors = id === state.activeAgentId ? mirrorActiveAgentFields(id, newAgents) : {};
-      return { agents: newAgents, ...mirrors };
-    }),
+    setStatusForAgent: (id, status) => set((state) => updateAgent(state, id, { status })),
 
-    setCurrentThoughtForAgent: (id, currentThought) => set((state) => {
-      const agent = state.agents[id] || createDefaultAgent(id);
-      const updatedAgent = { ...agent, currentThought };
-      const newAgents = { ...state.agents, [id]: updatedAgent };
-      const mirrors = id === state.activeAgentId ? mirrorActiveAgentFields(id, newAgents) : {};
-      return { agents: newAgents, ...mirrors };
-    }),
+    setCurrentThoughtForAgent: (id, currentThought) => set((state) => updateAgent(state, id, { currentThought })),
 
     appendThoughtTokenForAgent: (id, token) => set((state) => {
       const agent = state.agents[id] || createDefaultAgent(id);
-      const updatedAgent = {
-        ...agent,
-        currentThought: agent.currentThought + token,
-      };
-      const newAgents = { ...state.agents, [id]: updatedAgent };
-      const mirrors = id === state.activeAgentId ? mirrorActiveAgentFields(id, newAgents) : {};
-      return { agents: newAgents, ...mirrors };
+      return updateAgent(state, id, { currentThought: agent.currentThought + token });
     }),
 
-    setPendingInjectionForAgent: (id, text) => set((state) => {
-      const agent = state.agents[id] || createDefaultAgent(id);
-      const updatedAgent = { ...agent, pendingInjection: text };
-      const newAgents = { ...state.agents, [id]: updatedAgent };
-      const mirrors = id === state.activeAgentId ? mirrorActiveAgentFields(id, newAgents) : {};
-      return { agents: newAgents, ...mirrors };
-    }),
+    setPendingInjectionForAgent: (id, text) => set((state) => updateAgent(state, id, { pendingInjection: text })),
 
-    setDirectiveModeForAgent: (id, mode) => set((state) => {
-      const agent = state.agents[id] || createDefaultAgent(id);
-      const updatedAgent = { ...agent, directiveMode: mode };
-      const newAgents = { ...state.agents, [id]: updatedAgent };
-      const mirrors = id === state.activeAgentId ? mirrorActiveAgentFields(id, newAgents) : {};
-      return { agents: newAgents, ...mirrors };
-    }),
+    setDirectiveModeForAgent: (id, mode) => set((state) => updateAgent(state, id, { directiveMode: mode })),
 
-    setCurrentGoalForAgent: (id, goal) => set((state) => {
-      const agent = state.agents[id] || createDefaultAgent(id);
-      const updatedAgent = { ...agent, currentGoal: goal };
-      const newAgents = { ...state.agents, [id]: updatedAgent };
-      const mirrors = id === state.activeAgentId ? mirrorActiveAgentFields(id, newAgents) : {};
-      return { agents: newAgents, ...mirrors };
-    }),
+    setCurrentGoalForAgent: (id, goal) => set((state) => updateAgent(state, id, { currentGoal: goal })),
 
     incrementHeartbeatForAgent: (id) => set((state) => {
       const agent = state.agents[id] || createDefaultAgent(id);
-      const updatedAgent = { ...agent, heartbeat: agent.heartbeat + 1 };
-      const newAgents = { ...state.agents, [id]: updatedAgent };
-      const mirrors = id === state.activeAgentId ? mirrorActiveAgentFields(id, newAgents) : {};
-      return { agents: newAgents, ...mirrors };
+      return updateAgent(state, id, { heartbeat: agent.heartbeat + 1 });
     }),
 
-    // Mirrored Legacy Actions targeting the currently active agent
+    setHeartbeatForAgent: (id, heartbeat) => set((state) => updateAgent(state, id, { heartbeat })),
+
+    setRungForAgent: (id, currentRung) => set((state) => updateAgent(state, id, { currentRung })),
+
+    addSkillForAgent: (id, skill) => set((state) => {
+      const agent = state.agents[id] || createDefaultAgent(id);
+      const skills = [...(agent.skills || []), skill];
+      return updateAgent(state, id, { skills });
+    }),
+
+    setRehydrationSummaryForAgent: (id, rehydrationSummary) => set((state) => updateAgent(state, id, { rehydrationSummary })),
+
+    appendRehydrationTokenForAgent: (id, token) => set((state) => {
+      const agent = state.agents[id] || createDefaultAgent(id);
+      return updateAgent(state, id, { rehydrationSummary: agent.rehydrationSummary + token });
+    }),
+
+    setInjectionQueueForAgent: (id, queue) => set((state) => updateAgent(state, id, {
+      injectionQueue: queue || [],
+      injectionQueueCount: (queue || []).length,
+    })),
+
+    setInjectionQueueCountForAgent: (id, injectionQueueCount) => set((state) => updateAgent(state, id, { injectionQueueCount })),
+
+    incrementInjectionQueueCountForAgent: (id) => set((state) => {
+      const agent = state.agents[id] || createDefaultAgent(id);
+      return updateAgent(state, id, { injectionQueueCount: agent.injectionQueueCount + 1 });
+    }),
+
+    decrementInjectionQueueCountForAgent: (id) => set((state) => {
+      const agent = state.agents[id] || createDefaultAgent(id);
+      return updateAgent(state, id, { injectionQueueCount: Math.max(0, agent.injectionQueueCount - 1) });
+    }),
+
+    // ── Mirrored Legacy Actions targeting the active agent ──
     addThought: (thought) => {
-      const activeId = get().activeAgentId;
-      get().addThoughtForAgent(activeId, thought);
+      get().addThoughtForAgent(get().activeAgentId, thought);
     },
     addMemory: (memory) => {
-      const activeId = get().activeAgentId;
-      get().addMemoryForAgent(activeId, memory);
+      get().addMemoryForAgent(get().activeAgentId, memory);
     },
     setDirectiveMode: (mode) => {
-      const activeId = get().activeAgentId;
-      get().setDirectiveModeForAgent(activeId, mode);
+      get().setDirectiveModeForAgent(get().activeAgentId, mode);
     },
     setCurrentGoal: (goal) => {
-      const activeId = get().activeAgentId;
-      get().setCurrentGoalForAgent(activeId, goal);
+      get().setCurrentGoalForAgent(get().activeAgentId, goal);
     },
     setPendingInjection: (text) => {
-      const activeId = get().activeAgentId;
-      get().setPendingInjectionForAgent(activeId, text);
+      get().setPendingInjectionForAgent(get().activeAgentId, text);
     },
     setStatus: (status) => {
-      const activeId = get().activeAgentId;
-      get().setStatusForAgent(activeId, status);
+      get().setStatusForAgent(get().activeAgentId, status);
     },
     setCurrentThought: (text) => {
-      const activeId = get().activeAgentId;
-      get().setCurrentThoughtForAgent(activeId, text);
+      get().setCurrentThoughtForAgent(get().activeAgentId, text);
     },
     appendThoughtToken: (token) => {
-      const activeId = get().activeAgentId;
-      get().appendThoughtTokenForAgent(activeId, token);
+      get().appendThoughtTokenForAgent(get().activeAgentId, token);
     },
 
     setRehydrationSummary: (rehydrationSummary) => set({ rehydrationSummary }),
     appendRehydrationToken: (token) => set((state) => ({ rehydrationSummary: state.rehydrationSummary + token })),
     setHasRehydrated: (hasRehydrated) => set({ hasRehydrated }),
-    addMasteredSkill: (skill) => set((state) => ({ masteredSkills: [...state.masteredSkills, skill] })),
-    setInjectionQueue: (injectionQueue) => set({ injectionQueue }),
-    setInjectionQueueCount: (injectionQueueCount) => set({ injectionQueueCount }),
-    incrementInjectionQueueCount: () => set((state) => ({ injectionQueueCount: state.injectionQueueCount + 1 })),
-    decrementInjectionQueueCount: () => set({ injectionQueueCount: Math.max(0, get().injectionQueueCount - 1) }),
-    setRung: (currentRung) => set((state) => {
-      const activeId = state.activeAgentId;
-      const agent = state.agents[activeId] || createDefaultAgent(activeId);
-      const updatedAgent = { ...agent, currentRung };
-      const newAgents = { ...state.agents, [activeId]: updatedAgent };
-      const mirrors = mirrorActiveAgentFields(activeId, newAgents);
-      return { agents: newAgents, ...mirrors };
-    }),
-    incrementHeartbeat: () => {
-      const activeId = get().activeAgentId;
-      get().incrementHeartbeatForAgent(activeId);
+    addMasteredSkill: (skill) => {
+      get().addSkillForAgent(get().activeAgentId, skill);
     },
-    setHeartbeat: (heartbeat) => set((state) => {
-      const activeId = state.activeAgentId;
-      const agent = state.agents[activeId] || createDefaultAgent(activeId);
-      const updatedAgent = { ...agent, heartbeat };
-      const newAgents = { ...state.agents, [activeId]: updatedAgent };
-      const mirrors = mirrorActiveAgentFields(activeId, newAgents);
-      return { agents: newAgents, ...mirrors };
-    }),
+    setInjectionQueue: (queue) => {
+      get().setInjectionQueueForAgent(get().activeAgentId, queue);
+    },
+    setInjectionQueueCount: (count) => {
+      get().setInjectionQueueCountForAgent(get().activeAgentId, count);
+    },
+    incrementInjectionQueueCount: () => {
+      get().incrementInjectionQueueCountForAgent(get().activeAgentId);
+    },
+    decrementInjectionQueueCount: () => {
+      get().decrementInjectionQueueCountForAgent(get().activeAgentId);
+    },
+    setRung: (currentRung) => {
+      get().setRungForAgent(get().activeAgentId, currentRung);
+    },
+    incrementHeartbeat: () => {
+      get().incrementHeartbeatForAgent(get().activeAgentId);
+    },
+    setHeartbeat: (heartbeat) => {
+      get().setHeartbeatForAgent(get().activeAgentId, heartbeat);
+    },
   };
 });

@@ -6,8 +6,9 @@ import * as path from 'path';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { PhysicsEngine } from '../PhysicsEngine';
 import { HumanoidPhysicsBinder } from '../HumanoidPhysicsBinder';
-import { generateCombinedMultiAgentMJCF } from '../MJCFHumanoidTemplate';
+import { generateCombinedMultiAgentMJCF, generateAgentSubtreeMJCF } from '../MJCFHumanoidTemplate';
 import { StateRehydrator } from '../StateRehydrator';
+import { MotorController } from '../MotorController';
 
 declare function describe(name: string, fn: () => void): void;
 declare function beforeEach(fn: () => void): void;
@@ -21,7 +22,18 @@ declare function expect(actual: unknown): {
   toBeGreaterThanOrEqual(expected: number): void;
   toContain(expected: unknown): void;
   toBeDefined(): void;
+  toBeCloseTo(expected: number, numDigits?: number): void;
   assert(cond: boolean): void;
+  not: {
+    toBe(expected: unknown): void;
+    toBeTruthy(): void;
+    toBeLessThanOrEqual(expected: number): void;
+    toBeGreaterThan(expected: number): void;
+    toBeGreaterThanOrEqual(expected: number): void;
+    toContain(expected: unknown): void;
+    toBeDefined(): void;
+    toBeCloseTo(expected: number, numDigits?: number): void;
+  };
 };
 
 // Mock GLTFLoader to parse GLB from disk
@@ -170,4 +182,106 @@ describe('Multi-Agent Composition & Isolation', () => {
     StateRehydrator.restore(engine, captured, []);
     expect(engine.isBroken).toBe(false);
   });
+
+  test('MotorController.init() must not restart the ctrl ramp for existing agents on world reload', async () => {
+    // Regression test for the "existing agents snap to T-pose when a new agent spawns" bug.
+    //
+    // spawnAgent() → loadMJCFModel() deletes the old MjModel/MjData, so every binder's
+    // MotorController needs its model/data WASM pointers refreshed via init(). Previously
+    // init() reset simulationStepCount = 0, restarting the 20-frame ctrl ramp. With the
+    // ramp at ~0, setTargets() wrote ctrl ≈ 0 for the old agent's actuators, and MuJoCo's
+    // position servos drove the joints back toward the MJCF bind pose (Mixamo T-pose).
+    //
+    // This test simulates that exact path and asserts the ramp is preserved.
+
+    // Step 1: load a single-agent world for agent_0 and activate its controller.
+    const loaded = await binder0.loadAndVisualizeBindPose(new THREE.Vector3(0, 0, 0));
+    expect(loaded).toBe(true);
+    binder0.ensureCapsuleGeometry();
+    binder0.repositionModel(0, 0.05, 0);
+    await binder0.createRigidBodiesAndColliders();
+    await binder0.createJointsWithZeroMotors();
+    await binder0.activateMotorsWithStiffnessAndDamping(80, 10);
+    binder0.setMode('rigid');
+
+    const mc0: MotorController = (binder0 as any).motorController;
+
+    // Step 2: let the ramp run to full (20 frames) with a distinctive arm target.
+    for (let i = 0; i < 20; i++) {
+      binder0.updateMotorTargets();
+      engine.step();
+    }
+    const LEFT_ARM_TARGET = 1.0; // radians, well away from the bind-pose 0
+    binder0.setMotorTargets({ mixamorigleftarm: LEFT_ARM_TARGET });
+    binder0.updateMotorTargets();
+
+    const ctrlBefore = engine.getData()!.ctrl;
+    const modelBefore = engine.getModel();
+    const armActId = bmArmActuatorId(engine, mc0, 'mixamorigleftarm');
+    expect(armActId).toBeGreaterThanOrEqual(0);
+    const ctrlValueBefore = ctrlBefore[armActId];
+    // Sanity: the target must survive a full-ramp write (ramp factor 1.0).
+    expect(ctrlValueBefore).toBeCloseTo(LEFT_ARM_TARGET, 1);
+
+    // Step 3: simulate a new-agent spawn reload. The world is recompiled (fresh
+    // model/data) and the OLD agent's controller is re-initialized against it —
+    // the exact call sequence in useWorld.spawnAgent()'s per-binder loop.
+    const { bodyXml, actuatorsXml } = generateSingleAgentSubtreeForTest(binder0);
+    engine.loadMJCFModel(
+      `<mujoco model="synthia_humanoid"><compiler angle="radian" coordinate="local"/>
+       <option gravity="0 0 -9.81" timestep="0.002" iterations="100" integrator="implicitfast"/>
+       <worldbody><geom name="floor" type="plane" size="100 100 0.1" contype="1" conaffinity="2"/>
+       ${bodyXml}</worldbody><actuator>${actuatorsXml}</actuator></mujoco>`
+    );
+    engine.setReady(true);
+    binder0.getMultiBodyManager().remapIdsAgainstLoadedWorld(binder0.getBoneInfoMap());
+    binder0.initMotorController();
+
+    // Step 4: the next frame must write ctrl at FULL scale — not ramp*0.
+    // Re-assert the same target that was live before the reload.
+    binder0.setMotorTargets({ mixamorigleftarm: LEFT_ARM_TARGET });
+    binder0.updateMotorTargets();
+
+    const ctrlAfter = engine.getData()!.ctrl;
+    const armActIdAfter = armActuatorIdFor(binder0, 'mixamorigleftarm');
+    expect(armActIdAfter).toBeGreaterThanOrEqual(0);
+    const ctrlValueAfter = ctrlAfter[armActIdAfter];
+
+    // Without the fix, init() reset the ramp and this value would be ~0
+    // (target * 0), collapsing the arm back to the MJCF bind pose.
+    expect(ctrlValueAfter).toBeCloseTo(LEFT_ARM_TARGET, 1);
+
+    void modelBefore;
+    void mc0;
+  });
 });
+
+// ── Helpers for the ramp-preservation regression test ─────────────────────────
+
+function armActuatorIdFor(binder0: HumanoidPhysicsBinder, boneName: string): number {
+  const bm = binder0.getMultiBodyManager() as any;
+  const ids: number[] = bm.getActuatorMap().get(boneName) || [];
+  if (ids.length === 0) return -1;
+  // Spherical joints are [yaw, pitch, roll]; the pitch actuator is the second.
+  return ids.length === 3 ? ids[1] : ids[0];
+}
+
+function bmArmActuatorId(engine: PhysicsEngine, mc: MotorController, boneName: string): number {
+  const bm = (mc as any).actuatorMap as Map<string, number[]>;
+  const ids = bm.get(boneName) || [];
+  if (ids.length === 0) return -1;
+  void engine;
+  return ids.length === 3 ? ids[1] : ids[0];
+}
+
+function generateSingleAgentSubtreeForTest(binder0: HumanoidPhysicsBinder): { bodyXml: string; actuatorsXml: string } {
+  // Reuse the already-loaded bone info map to rebuild a fresh single-agent MJCF
+  // subtree, exactly as BodyManager.activate() does on first spawn.
+  const bm = binder0.getMultiBodyManager() as any;
+  const prefix = binder0.prefix;
+  const capsuleCenterY = binder0.getCapsuleCenterY();
+  const boneInfoMap = binder0.getBoneInfoMap();
+  const { bodyXml, actuatorsXml } = generateAgentSubtreeMJCF(boneInfoMap, capsuleCenterY, undefined, undefined, prefix);
+  void bm;
+  return { bodyXml: bodyXml.toString(), actuatorsXml: actuatorsXml.join('\n') };
+}

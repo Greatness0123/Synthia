@@ -139,19 +139,24 @@ export class CameraManager {
     this.renderer.setRenderTarget(currentRenderTarget);
   }
 
-  public captureAIFrame(scene: THREE.Scene): string {
+  /**
+   * Render the scene from an arbitrary camera into the 448x448 AI render target
+   * and encode as a base64 webp string. Used for per-agent first-person vision.
+   */
+  public captureFrameFromCamera(scene: THREE.Scene, camera: THREE.PerspectiveCamera): string {
     const size = CameraManager.AI_VIEW_SIZE;
     const previousTarget = this.renderer.getRenderTarget();
+    const previousAspect = camera.aspect;
 
     try {
+      camera.aspect = 1;
+      camera.updateProjectionMatrix();
 
       this.renderer.setRenderTarget(this.aiRenderTarget);
-      this.renderer.render(scene, this.aiPerceptionCamera);
+      this.renderer.render(scene, camera);
 
       const pixelBuffer = new Uint8Array(size * size * 4);
       this.renderer.readRenderTargetPixels(this.aiRenderTarget, 0, 0, size, size, pixelBuffer);
-
-      this.renderer.setRenderTarget(previousTarget);
 
       const bytesPerRow = size * 4;
       const flippedBuffer = new Uint8ClampedArray(size * size * 4);
@@ -170,11 +175,15 @@ export class CameraManager {
 
       const dataURL = canvas.toDataURL('image/webp', 0.7);
       return dataURL.split(',')[1];
-    } catch (err) {
-
+    } finally {
       this.renderer.setRenderTarget(previousTarget);
-      throw err;
+      camera.aspect = previousAspect;
+      camera.updateProjectionMatrix();
     }
+  }
+
+  public captureAIFrame(scene: THREE.Scene): string {
+    return this.captureFrameFromCamera(scene, this.aiPerceptionCamera);
   }
 
   public getAIRenderTarget(): THREE.WebGLRenderTarget {

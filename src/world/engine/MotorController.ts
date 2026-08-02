@@ -51,7 +51,13 @@ export class MotorController {
     this.globalStiffnessScale = 1.0;
     this.globalDampingScale = 1.0;
     this.limpModeActive = false;
-    this.simulationStepCount = 0;
+    // NOTE: simulationStepCount is deliberately NOT reset here. It defaults to 0
+    // for brand-new binders, so fresh agents still ramp ctrl in over ~20 frames.
+    // Re-initializing an EXISTING binder (multi-agent spawn → world reload) must
+    // not restart this ramp, otherwise the old agent's ctrl collapses to 0 and
+    // MuJoCo's position servos drive it toward the MJCF bind pose (Mixamo
+    // T-pose) for ~20 frames. Legitimate resets go through resetRamp().
+    void this.simulationStepCount;
 
     Logger.info(`MotorController: Initialized with our ${ourActuators.size} actuators (world has ${model.nu}).`);
   }

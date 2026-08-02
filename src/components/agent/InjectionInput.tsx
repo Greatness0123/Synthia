@@ -11,13 +11,23 @@ import { synthiaToast } from '../ui/Toast';
 
 export const InjectionInput: React.FC = () => {
   const [value, setValue] = useState('');
-  const { injectionQueue } = useAgentStore();
+  const activeAgentId = useAgentStore((state) => state.activeAgentId) || 'agent_0';
+  const injectionQueue = useAgentStore((state) => state.agents?.[activeAgentId]?.injectionQueue) || [];
+  const { setPendingInjectionForAgent } = useAgentStore();
   const { sendMessage } = useCoordinator();
 
   const handleInject = () => {
     if (!value.trim()) return;
 
-    sendMessage('inject_thought', { text: value, agentId: 'agent_a' });
+    const targetId = activeAgentId;
+
+    // Client path: per-agent pendingInjection — the client-side AgentLoop for this
+    // agent reads pendingInjection from store.agents[targetId] and consumes it.
+    setPendingInjectionForAgent(targetId, value.trim());
+
+    // Server path (optional, if the coordinator is connected): send with the real
+    // active agent id instead of the legacy hardcoded 'agent_a'.
+    sendMessage('inject_thought', { text: value.trim(), agentId: targetId });
 
     synthiaToast.info(STRINGS.TOASTS.THOUGHT_INJECTED);
     setValue('');
