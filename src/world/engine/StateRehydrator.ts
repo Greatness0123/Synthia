@@ -71,10 +71,11 @@ export class StateRehydrator {
       // Fix 2: Capture data.ctrl for all actuators belonging to this agent.
       // Without this, every world reload zeros all ctrl, causing a 20-step ramp from
       // zero that destabilizes old agents' poses.
+      // Actuator names in template are prefixed with "act_", e.g. "act_agent_0_..."
       const ctrl: Record<string, number> = {};
       for (let ai = 0; ai < model.nu; ai++) {
         const actName = module.mj_id2name(model, module.mjtObj.mjOBJ_ACTUATOR.value, ai);
-        if (actName && actName.startsWith(prefix)) {
+        if (actName && actName.startsWith('act_' + prefix)) {
           ctrl[actName] = data.ctrl[ai];
         }
       }
