@@ -168,7 +168,7 @@ describe('Multi-Agent Composition & Isolation', () => {
     // Verify ctrl was captured
     const module = PhysicsEngine.getModule()!;
     const testActName = module.mj_id2name(engine.getModel(), module.mjtObj.mjOBJ_ACTUATOR.value, testActIdx);
-    if (testActName && testActName.startsWith('agent_0_')) {
+    if (testActName && testActName.startsWith('act_agent_0_')) {
       expect(captured.agents['agent_0'].ctrl[testActName]).toBeCloseTo(0.85, 2);
     }
 
@@ -197,7 +197,7 @@ describe('Multi-Agent Composition & Isolation', () => {
     // Re-restore state and verify physics stays unbroken and ctrl is restored
     StateRehydrator.restore(engine, captured, []);
     expect(engine.isBroken).toBe(false);
-    if (testActName && testActName.startsWith('agent_0_')) {
+    if (testActName && testActName.startsWith('act_agent_0_')) {
       expect(worldData.ctrl[testActIdx]).toBeCloseTo(0.85, 2);
     }
   });
