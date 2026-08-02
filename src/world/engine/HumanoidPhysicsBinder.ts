@@ -137,6 +137,7 @@ export class HumanoidPhysicsBinder {
   private avatarSynchronizer: AvatarSynchronizer;
 
   private buildStep: 'A' | 'B' | 'C' | 'D' | null = null;
+  private currentMode: 'rigid' | 'ragdoll' | null = null;
 
   public restArmAngleDeg: number = 75;
   private currentStiffness: number = 0;
@@ -1329,13 +1330,15 @@ export class HumanoidPhysicsBinder {
   }
 
   public setMode(mode: 'rigid' | 'ragdoll'): void {
+    if (this.currentMode === mode) return;
+    this.currentMode = mode;
     if (mode === 'ragdoll') {
       this.motorController.setLimpMode(true);
-      Logger.info('HumanoidPhysicsBinderMuJoCo: Switched to RAGDOLL mode — limp active');
+      Logger.info(`HumanoidPhysicsBinderMuJoCo (${this.agentId}): Switched to RAGDOLL mode — limp active`);
     } else {
       this.motorController.setLimpMode(false);
       this.resetToBindPose();
-      Logger.info('HumanoidPhysicsBinderMuJoCo: Switched to RIGID mode — position control restored');
+      Logger.info(`HumanoidPhysicsBinderMuJoCo (${this.agentId}): Switched to RIGID mode — position control restored`);
     }
   }
 
@@ -1594,8 +1597,11 @@ export class HumanoidPhysicsBinder {
     const armsDownAngle = this.restArmAngleDeg * (Math.PI / 180);
 
     // Reset all hinge qpos values to 0 (which maps perfectly to bind pose in our template!)
+    // Also atomically set data.ctrl for those joints to prevent Frame-0 position-controller desync/snaps.
     const joints = this.bodyManager.getRigidBodiesMap();
     for (const [boneName] of joints) {
+      if (boneName === 'root_capsule') continue;
+
       const hasYaw = module.mj_name2id(model, module.mjtObj.mjOBJ_JOINT.value, this.prefix + boneName + '_yaw') >= 0;
       const hasPitch = module.mj_name2id(model, module.mjtObj.mjOBJ_JOINT.value, this.prefix + boneName + '_pitch') >= 0;
       const hasRoll = module.mj_name2id(model, module.mjtObj.mjOBJ_JOINT.value, this.prefix + boneName + '_roll') >= 0;
@@ -1604,6 +1610,12 @@ export class HumanoidPhysicsBinder {
         const jntId = module.mj_name2id(model, module.mjtObj.mjOBJ_JOINT.value, this.prefix + boneName + '_yaw');
         qpos[model.jnt_qposadr[jntId]] = 0;
         qvel[model.jnt_dofadr[jntId]] = 0;
+
+        const actName = `act_${this.prefix}${boneName}_yaw`;
+        const actId = module.mj_name2id(model, module.mjtObj.mjOBJ_ACTUATOR.value, actName);
+        if (actId >= 0) {
+          data.ctrl[actId] = 0;
+        }
       }
       if (hasPitch) {
         const jntId = module.mj_name2id(model, module.mjtObj.mjOBJ_JOINT.value, this.prefix + boneName + '_pitch');
@@ -1611,13 +1623,26 @@ export class HumanoidPhysicsBinder {
         // doesn't have to sweep 75° through the torso on spawn, eliminating the
         // arm-deflection-behind-trunk contact artifact.
         const isArmPitch = boneName === 'mixamorigleftarm' || boneName === 'mixamorigrightarm';
-        qpos[model.jnt_qposadr[jntId]] = isArmPitch ? armsDownAngle : 0;
+        const initialVal = isArmPitch ? armsDownAngle : 0;
+        qpos[model.jnt_qposadr[jntId]] = initialVal;
         qvel[model.jnt_dofadr[jntId]] = 0;
+
+        const actName = `act_${this.prefix}${boneName}_pitch`;
+        const actId = module.mj_name2id(model, module.mjtObj.mjOBJ_ACTUATOR.value, actName);
+        if (actId >= 0) {
+          data.ctrl[actId] = initialVal;
+        }
       }
       if (hasRoll) {
         const jntId = module.mj_name2id(model, module.mjtObj.mjOBJ_JOINT.value, this.prefix + boneName + '_roll');
         qpos[model.jnt_qposadr[jntId]] = 0;
         qvel[model.jnt_dofadr[jntId]] = 0;
+
+        const actName = `act_${this.prefix}${boneName}_roll`;
+        const actId = module.mj_name2id(model, module.mjtObj.mjOBJ_ACTUATOR.value, actName);
+        if (actId >= 0) {
+          data.ctrl[actId] = 0;
+        }
       }
     }
 
@@ -1721,6 +1746,7 @@ export class HumanoidPhysicsBinder {
     this.skinnedMesh = null;
     this.isLoaded = false;
     this.buildStep = null;
+    this.currentMode = null;
     this.mbActive = false;
   }
 }
