@@ -1,5 +1,7 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState } from 'react';
 import { useConnectionStore, type ProviderType } from '../../store/connectionStore';
+import { useAgentStore } from '../../store/agentStore';
+import { useAgentRuntimeStore, type AgentRuntimeConfig } from '../../store/agentRuntimeStore';
 import { useCoordinator } from '../../world/hooks/useCoordinator';
 import { STRINGS } from '../../constants/strings';
 import { CaretDown, CaretUp, Circle, ArrowsClockwise, CheckCircle, WifiHigh } from '@phosphor-icons/react';
@@ -14,70 +16,43 @@ const PROVIDER_INFO: Record<ProviderType, { label: string; defaultEndpoint: stri
   custom:     { label: 'Custom (OpenAI-compat)', defaultEndpoint: '', defaultModel: '', needsKey: true },
 };
 
-
-
 export const ConnectionPanel: React.FC = () => {
-  const {
-    endpoint, setEndpoint,
-    inferenceEndpoint, setInferenceEndpoint,
-    provider, setProvider,
-    providerModel, setProviderModel,
-    setProviderApiKey,
-    supabaseUrl, supabaseKey, setSupabaseConfig,
-    cycleMs, setCycleMs,
-    status, rtt
-  } = useConnectionStore();
-  const { sendMessage } = useCoordinator();
+  const { endpoint, setEndpoint, status, rtt } = useConnectionStore();
+  const activeAgentId = useAgentStore((state) => state.activeAgentId);
+  const runtimeStore = useAgentRuntimeStore();
+  const config = runtimeStore.getConfig(activeAgentId);
 
-  // API key kept in local state + sessionStorage (never zustand persist)
-  const [apiKey, setApiKey] = useState(() => sessionStorage.getItem('synthia_api_key') || '');
+  const { sendMessage } = useCoordinator();
 
   const [dbExpanded, setDbExpanded] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [sentOk, setSentOk] = useState(false);
 
-  // Track whether the user manually changed the provider dropdown (skip on mount)
-  const userChangedProviderRef = useRef(false);
-
-  // When provider changes, auto-fill endpoint and model defaults
-  // ONLY if the current endpoint is still a default/placeholder — never clobber a user-entered URL
-  useEffect(() => {
-    if (!userChangedProviderRef.current) return; // Skip on mount / hydration
-    userChangedProviderRef.current = false;
-
-    const info = PROVIDER_INFO[provider];
+  const handleProviderChange = (newProvider: ProviderType) => {
+    const info = PROVIDER_INFO[newProvider];
+    const patch: Partial<AgentRuntimeConfig> = { provider: newProvider };
     if (info) {
-      if (info.defaultEndpoint && provider !== 'custom') {
-        setInferenceEndpoint(info.defaultEndpoint);
+      if (info.defaultEndpoint && newProvider !== 'custom') {
+        patch.endpoint = info.defaultEndpoint;
       }
       if (info.defaultModel) {
-        setProviderModel(info.defaultModel);
+        patch.model = info.defaultModel;
       }
     }
-  }, [provider]);
-
-  // Persist API key to sessionStorage AND zustand store (for auto-sync on reconnect)
-  useEffect(() => {
-    if (apiKey) {
-      sessionStorage.setItem('synthia_api_key', apiKey);
-      setProviderApiKey(apiKey);
-    } else {
-      sessionStorage.removeItem('synthia_api_key');
-      setProviderApiKey('');
-    }
-  }, [apiKey]);
+    runtimeStore.setConfig(activeAgentId, patch);
+  };
 
   const handleConnect = async () => {
     if (status !== 'connected') {
       synthiaToast.error('Not connected to coordinator. Check the Endpoint URL above.');
       return;
     }
-    if (!inferenceEndpoint && provider !== 'custom') {
+    if (!config.endpoint && config.provider !== 'custom') {
       synthiaToast.error('Please enter an inference endpoint URL.');
       return;
     }
-    if (PROVIDER_INFO[provider].needsKey && !apiKey) {
-      synthiaToast.error(`API key required for ${PROVIDER_INFO[provider].label}.`);
+    if (PROVIDER_INFO[config.provider].needsKey && !config.apiKey) {
+      synthiaToast.error(`API key required for ${PROVIDER_INFO[config.provider].label}.`);
       return;
     }
 
@@ -85,19 +60,19 @@ export const ConnectionPanel: React.FC = () => {
     setSentOk(false);
     await new Promise(resolve => setTimeout(resolve, 600));
 
-    // Send provider config to coordinator
+    // Send provider config for active agent to coordinator
     sendMessage('set_provider', {
-      agentId: 'agent_a',
-      type: provider,
-      endpoint: inferenceEndpoint,
-      apiKey: apiKey || undefined,
-      model: providerModel || undefined,
+      agentId: activeAgentId,
+      type: config.provider,
+      endpoint: config.endpoint,
+      apiKey: config.apiKey || undefined,
+      model: config.model || undefined,
     });
-    sendMessage('set_supabase', { url: supabaseUrl, key: supabaseKey });
+    sendMessage('set_supabase', { url: config.supabaseUrl, key: config.supabaseKey });
 
     setIsSending(false);
     setSentOk(true);
-    synthiaToast.success(`Connected to ${PROVIDER_INFO[provider].label}`);
+    synthiaToast.success(`Connected ${activeAgentId} to ${PROVIDER_INFO[config.provider].label}`);
     setTimeout(() => setSentOk(false), 5000);
   };
 
@@ -115,8 +90,7 @@ export const ConnectionPanel: React.FC = () => {
     error: 'bg-accent-red/10 border-accent-red/30',
   };
 
-  const showApiKey = PROVIDER_INFO[provider].needsKey;
-
+  const showApiKey = PROVIDER_INFO[config.provider].needsKey;
 
   return (
     <div className="p-4 border-t border-border">
@@ -126,11 +100,11 @@ export const ConnectionPanel: React.FC = () => {
 
       <div className="space-y-4">
 
-        {/* Coordinator WebSocket URL */}
+        {/* Coordinator WebSocket URL - Shared World Level */}
         <div className="space-y-1.5">
-          <label className="text-[10px] uppercase tracking-wider text-text-tertiary">
-            {STRINGS.GOD_MODE.ENDPOINT_URL}
-            <span className="ml-1 text-text-tertiary/50">(ws://)</span>
+          <label className="text-[10px] uppercase tracking-wider text-text-tertiary font-bold">
+            COORDINATOR ENDPOINT
+            <span className="ml-1 text-text-tertiary/50 font-normal">(ws://) [GLOBAL]</span>
           </label>
           <input
             type="text"
@@ -148,11 +122,8 @@ export const ConnectionPanel: React.FC = () => {
           </label>
           <div className="relative">
             <select
-              value={provider}
-              onChange={(e) => {
-                userChangedProviderRef.current = true;
-                setProvider(e.target.value as ProviderType);
-              }}
+              value={config.provider}
+              onChange={(e) => handleProviderChange(e.target.value as ProviderType)}
               className="w-full h-8 px-2 bg-bg-elevated border border-border rounded-btn text-xs text-text-primary appearance-none cursor-pointer focus:outline-none focus:ring-1 focus:ring-accent-blue"
             >
               {Object.entries(PROVIDER_INFO).map(([key, info]) => (
@@ -172,8 +143,8 @@ export const ConnectionPanel: React.FC = () => {
             </label>
             <input
               type="password"
-              value={apiKey}
-              onChange={(e) => setApiKey(e.target.value)}
+              value={config.apiKey || ''}
+              onChange={(e) => runtimeStore.setConfig(activeAgentId, { apiKey: e.target.value })}
               placeholder="sk-..."
               className="w-full h-8 px-2 bg-bg-elevated border border-border rounded-btn text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-accent-blue"
             />
@@ -181,16 +152,16 @@ export const ConnectionPanel: React.FC = () => {
         )}
 
         {/* Model (for non-Kaggle) */}
-        {provider !== 'kaggle' && (
+        {config.provider !== 'kaggle' && (
           <div className="space-y-1.5">
             <label className="text-[10px] uppercase tracking-wider text-text-tertiary">
               Model
             </label>
             <input
               type="text"
-              value={providerModel}
-              onChange={(e) => setProviderModel(e.target.value)}
-              placeholder={PROVIDER_INFO[provider]?.defaultModel || 'model-name'}
+              value={config.model || ''}
+              onChange={(e) => runtimeStore.setConfig(activeAgentId, { model: e.target.value })}
+              placeholder={PROVIDER_INFO[config.provider]?.defaultModel || 'model-name'}
               className="w-full h-8 px-2 bg-bg-elevated border border-border rounded-btn text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-accent-blue"
             />
           </div>
@@ -199,13 +170,13 @@ export const ConnectionPanel: React.FC = () => {
         {/* Inference Endpoint */}
         <div className="space-y-1.5">
           <label className="text-[10px] uppercase tracking-wider text-text-tertiary">
-            {provider === 'kaggle' ? 'Kaggle Inference Endpoint' : 'API Base URL'}
+            {config.provider === 'kaggle' ? 'Kaggle Inference Endpoint' : 'API Base URL'}
           </label>
           <input
             type="text"
-            value={inferenceEndpoint}
-            onChange={(e) => setInferenceEndpoint(e.target.value)}
-            placeholder={PROVIDER_INFO[provider]?.defaultEndpoint || 'https://...'}
+            value={config.endpoint || ''}
+            onChange={(e) => runtimeStore.setConfig(activeAgentId, { endpoint: e.target.value })}
+            placeholder={PROVIDER_INFO[config.provider]?.defaultEndpoint || 'https://...'}
             className="w-full h-8 px-2 bg-bg-elevated border border-border rounded-btn text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-accent-blue"
           />
         </div>
@@ -252,18 +223,18 @@ export const ConnectionPanel: React.FC = () => {
         <div className="space-y-1.5">
           <div className="flex justify-between items-center">
             <label className="text-[10px] uppercase tracking-wider text-text-tertiary">Cycle Speed</label>
-            <span className="text-[10px] font-mono text-text-secondary">{cycleMs}ms</span>
+            <span className="text-[10px] font-mono text-text-secondary">{config.cycleMs}ms</span>
           </div>
           <input
             type="range"
             min="500"
             max="5000"
             step="100"
-            value={cycleMs}
+            value={config.cycleMs}
             onChange={(e) => {
               const newValue = parseInt(e.target.value);
-              setCycleMs(newValue);
-              sendMessage('set_cycle_ms', { agentId: 'agent_a', cycleMs: newValue });
+              runtimeStore.setCycleMsOverride(activeAgentId, newValue);
+              sendMessage('set_cycle_ms', { agentId: activeAgentId, cycleMs: newValue });
             }}
             className="w-full h-1 bg-bg-elevated rounded-lg appearance-none cursor-pointer accent-accent-blue"
           />
@@ -277,7 +248,7 @@ export const ConnectionPanel: React.FC = () => {
           >
             <span className="text-[10px] font-bold uppercase tracking-widest text-text-tertiary">
               {STRINGS.GOD_MODE.DATABASE}
-              {supabaseUrl && <span className="ml-2 text-accent-green/70">●</span>}
+              {config.supabaseUrl && <span className="ml-2 text-accent-green/70">●</span>}
             </span>
             {dbExpanded ? <CaretDown size={12} /> : <CaretUp size={12} />}
           </button>
@@ -291,8 +262,8 @@ export const ConnectionPanel: React.FC = () => {
                 <label className="text-[9px] uppercase text-text-tertiary">Supabase URL</label>
                 <input
                   type="text"
-                  value={supabaseUrl}
-                  onChange={(e) => setSupabaseConfig(e.target.value, supabaseKey)}
+                  value={config.supabaseUrl || ''}
+                  onChange={(e) => runtimeStore.setConfig(activeAgentId, { supabaseUrl: e.target.value })}
                   placeholder="https://xxxx.supabase.co"
                   className="w-full h-7 px-2 bg-bg-elevated border border-border rounded-btn text-[11px] text-text-primary focus:outline-none focus:ring-1 focus:ring-accent-blue"
                 />
@@ -301,8 +272,8 @@ export const ConnectionPanel: React.FC = () => {
                 <label className="text-[9px] uppercase text-text-tertiary">Anon Key</label>
                 <input
                   type="password"
-                  value={supabaseKey}
-                  onChange={(e) => setSupabaseConfig(supabaseUrl, e.target.value)}
+                  value={config.supabaseKey || ''}
+                  onChange={(e) => runtimeStore.setConfig(activeAgentId, { supabaseKey: e.target.value })}
                   placeholder="eyJhbGci…"
                   className="w-full h-7 px-2 bg-bg-elevated border border-border rounded-btn text-[11px] text-text-primary focus:outline-none focus:ring-1 focus:ring-accent-blue"
                 />

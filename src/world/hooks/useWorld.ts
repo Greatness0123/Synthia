@@ -28,9 +28,9 @@ export const useWorld = (containerRef: React.RefObject<HTMLDivElement>) => {
   const physicsEngineRef = useRef<PhysicsEngine | null>(null);
   const audioEngineRef = useRef<AudioEngine | null>(null);
   const objectManagerRef = useRef<ObjectManager | null>(null);
-  const humanoidPhysicsBinderRef = useRef<HumanoidPhysicsBinder | null>(null);
   const humanoidPhysicsBindersRef = useRef<Map<string, HumanoidPhysicsBinder>>(new Map());
   const activeAgentLoopsRef = useRef<Map<string, AgentLoop>>(new Map());
+  const isSpawningRef = useRef(false);
 
   const worldStore = useWorldStore();
   const agentStore = useAgentStore();
@@ -165,17 +165,8 @@ export const useWorld = (containerRef: React.RefObject<HTMLDivElement>) => {
           }
         };
 
-        const humanoidPhysicsBinder = new HumanoidPhysicsBinder(
-          physicsEngine,
-          worldEngine.getScene(),
-          'agent_0'
-        );
-        humanoidPhysicsBinderRef.current = humanoidPhysicsBinder;
-        humanoidPhysicsBindersRef.current.set('agent_0', humanoidPhysicsBinder);
-
         // Expose humanoid binder to window for step-by-step testing
         (window as any).__SYNTHIA_HUMANOID_BINDERS__ = humanoidPhysicsBindersRef.current;
-        (window as any).__SYNTHIA_HUMANOID_BINDER__ = humanoidPhysicsBinder;
         (window as any).__SYNTHIA_PHYSICS_ENGINE__ = physicsEngine;
         (window as any).__SYNTHIA_MUJOCO_MODULE__ = PhysicsEngine.getModule();
         (window as any).__SYNTHIA_CAMERA__ = worldEngineRef.current.getCamera();
@@ -215,7 +206,7 @@ export const useWorld = (containerRef: React.RefObject<HTMLDivElement>) => {
           if (frames.length === 0) {
             console.log('[DIAG] No frames captured yet');
             const pe = physicsEngineRef.current;
-            const hb = humanoidPhysicsBinderRef.current;
+            const hb = humanoidPhysicsBindersRef.current.get(useAgentStore.getState().activeAgentId) || humanoidPhysicsBindersRef.current.get('agent_0');
             console.log('[DIAG DEBUG] physics:', !!pe, 'isReady:', pe?.isReady, 'isStepping:', pe?.isStepping, 'isMutating:', pe?.isMutating);
             console.log('[DIAG DEBUG] humanoidBinder:', !!hb);
             if (hb) {
@@ -386,7 +377,7 @@ export const useWorld = (containerRef: React.RefObject<HTMLDivElement>) => {
         // ── Capture initial state BEFORE any physics step ──
         try {
           const physEng = physicsEngineRef.current;
-          const humBinder = humanoidPhysicsBinderRef.current;
+          const humBinder = humanoidPhysicsBindersRef.current.get(useAgentStore.getState().activeAgentId) || humanoidPhysicsBindersRef.current.get('agent_0');
           if (physEng && physEng.isReady && humBinder) {
             const capId = humBinder.getMultiBodyManager().getCapsuleBody();
             if (capId !== null && capId >= 0) {
@@ -582,7 +573,7 @@ export const useWorld = (containerRef: React.RefObject<HTMLDivElement>) => {
 
             try {
               const physEng = physicsEngineRef.current;
-              const humBinder = humanoidPhysicsBinderRef.current;
+              const humBinder = humanoidPhysicsBindersRef.current.get(useAgentStore.getState().activeAgentId) || humanoidPhysicsBindersRef.current.get('agent_0');
               if (physEng && physEng.isReady && humBinder) {
                 const capId = humBinder.getMultiBodyManager().getCapsuleBody();
                 if (capId !== null && capId >= 0) {
@@ -884,13 +875,6 @@ export const useWorld = (containerRef: React.RefObject<HTMLDivElement>) => {
     });
   }, [worldStore.showDebugJoints]);
 
-  useEffect(() => {
-    if (worldStore.bodyType === 'humanoid') {
-      humanoidPhysicsBindersRef.current.forEach((binder) => {
-        binder.setMode(worldStore.bodyMode);
-      });
-    }
-  }, [worldStore.bodyMode, worldStore.bodyType]);
 
   // Handle floor, grid, and sky state
   useEffect(() => {
@@ -970,7 +954,7 @@ export const useWorld = (containerRef: React.RefObject<HTMLDivElement>) => {
 
   const findSpawnPosition = useCallback((skipHumanoidCheck = false): THREE.Vector3 => {
     const humanoidPos = new THREE.Vector3(0, 0, 5);
-    const binder = humanoidPhysicsBinderRef.current;
+    const binder = humanoidPhysicsBindersRef.current.get(useAgentStore.getState().activeAgentId) || humanoidPhysicsBindersRef.current.get('agent_0');
     if (binder) {
       const headTransform = binder.getHeadTransform();
       if (headTransform) {
@@ -1240,124 +1224,136 @@ export const useWorld = (containerRef: React.RefObject<HTMLDivElement>) => {
   }, [captureWorldStateForAgent]);
 
   const spawnAgent = useCallback(async () => {
-    if (!worldEngineRef.current || !physicsEngineRef.current) return null;
-
-    const physicsEngine = physicsEngineRef.current;
-    const scene = worldEngineRef.current.getScene();
-
-    const offsetIndex = humanoidPhysicsBindersRef.current.size;
-    const agentId = `agent_${offsetIndex}`;
-
-    // Linear offset spaced 1.75 meters apart
-    let spawnX = 0;
-    if (offsetIndex === 1) spawnX = 1.75;
-    else if (offsetIndex === 2) spawnX = -1.75;
-    else if (offsetIndex > 2) {
-      spawnX = offsetIndex % 2 === 1 ? 1.75 * Math.ceil(offsetIndex / 2) : -1.75 * (offsetIndex / 2);
-    }
-    const spawnPoint = new THREE.Vector3(spawnX, 0, 0);
-
-    const binder = new HumanoidPhysicsBinder(physicsEngine, scene, agentId);
-
-    // STEP A: Load model bind pose
-    const probePoint = new THREE.Vector3(0, 0, 0);
-    const stepA = await binder.loadAndVisualizeBindPose(probePoint);
-    if (!stepA) {
-      Logger.error(`useWorld: spawnAgent - STEP A failed for ${agentId}`);
+    if (isSpawningRef.current) {
+      Logger.info("useWorld: spawnAgent - Spawn already in progress, ignoring duplicate request");
       return null;
     }
+    if (!worldEngineRef.current || !physicsEngineRef.current) return null;
 
-    // Fix 1: Set capsuleCenterY BEFORE adding to the map / before generateCombinedMCF.
-    // Without this, capsuleCenterY stays 0, causing the root capsule to be placed at
-    // floor level and catapulting the agent skyward on first contact resolution.
-    binder.ensureCapsuleGeometry();
-
-    binder.repositionModel(spawnPoint.x, spawnPoint.y, spawnPoint.z);
-
-    binder.friction = worldStore.globalFriction;
-    binder.setLerpSpeed(worldStore.movementSmoothing);
-    binder.renderDebugSpheres(worldStore.showDebugJoints);
-    // NOTE: setMode is NOT called here for the new binder — it is called inside
-    // the per-binder loop below (Fix 3), gated to the new binder only.
-
-    humanoidPhysicsBindersRef.current.set(agentId, binder);
-    (window as any).__SYNTHIA_HUMANOID_BINDER__ = binder; // keep active
-    (window as any).__SYNTHIA_HUMANOID_BINDERS__ = humanoidPhysicsBindersRef.current;
-
-    // Rebuild physics world
-    physicsEngine.setMutating(true);
-    physicsEngine.setReady(false);
-
+    isSpawningRef.current = true;
     try {
-      const existingAgentIds = Array.from(humanoidPhysicsBindersRef.current.keys()).filter(id => id !== agentId);
-      const objectsList = objectManagerRef.current ? Array.from(objectManagerRef.current.getObjects().values()) : [];
-      const capturedState = StateRehydrator.capture(physicsEngine, existingAgentIds, objectsList);
+      const physicsEngine = physicsEngineRef.current;
+      const scene = worldEngineRef.current.getScene();
 
-      const baseXml = generateCombinedMCF();
-      physicsEngine.loadMJCFModel(baseXml);
-      physicsEngine.setReady(true);
+      const offsetIndex = humanoidPhysicsBindersRef.current.size;
+      const agentId = `agent_${offsetIndex}`;
 
-      for (const [id, activeBinder] of humanoidPhysicsBindersRef.current.entries()) {
-        const bm = activeBinder.getMultiBodyManager();
-        bm.remapIdsAgainstLoadedWorld(activeBinder.getBoneInfoMap());
-        activeBinder.initMotorController();
+      // Linear offset spaced 1.75 meters apart
+      let spawnX = 0;
+      if (offsetIndex === 1) spawnX = 1.75;
+      else if (offsetIndex === 2) spawnX = -1.75;
+      else if (offsetIndex > 2) {
+        spawnX = offsetIndex % 2 === 1 ? 1.75 * Math.ceil(offsetIndex / 2) : -1.75 * (offsetIndex / 2);
+      }
+      const spawnPoint = new THREE.Vector3(spawnX, 0, 0);
 
-        if (id === agentId) {
-          // Fix 3: Only the NEW agent gets the full pose reset (createJointsWithZeroMotors,
-          // activateMotors, setMode/resetToBindPose). Old agents must NOT have their
-          // currentTargets wiped or their ctrl ramp restarted — doing so causes the
-          // "arms crossed behind back" degradation on every spawn.
-          await activeBinder.createJointsWithZeroMotors();
-          await activeBinder.activateMotorsWithStiffnessAndDamping(80, 10);
-          activeBinder.deactivateMultiBody();
-          if (worldStore.useMultiBodyPD) {
-            await activeBinder.activateMultiBody();
-          }
-          activeBinder.setMode(worldStore.bodyMode);
-        } else {
-          // Old binders: re-bind their multi-body proxies to the new world IDs without
-          // touching currentTargets, ramp, or ctrl.
-          activeBinder.deactivateMultiBody();
-          if (worldStore.useMultiBodyPD) {
-            await activeBinder.activateMultiBody();
+      const binder = new HumanoidPhysicsBinder(physicsEngine, scene, agentId);
+
+      // STEP A: Load model bind pose
+      const probePoint = new THREE.Vector3(0, 0, 0);
+      const stepA = await binder.loadAndVisualizeBindPose(probePoint);
+      if (!stepA) {
+        Logger.error(`useWorld: spawnAgent - STEP A failed for ${agentId}`);
+        return null;
+      }
+
+      // Fix 1: Set capsuleCenterY BEFORE adding to the map / before generateCombinedMCF.
+      // Without this, capsuleCenterY stays 0, causing the root capsule to be placed at
+      // floor level and catapulting the agent skyward on first contact resolution.
+      binder.ensureCapsuleGeometry();
+
+      binder.repositionModel(spawnPoint.x, spawnPoint.y, spawnPoint.z);
+
+      binder.friction = worldStore.globalFriction;
+      binder.setLerpSpeed(worldStore.movementSmoothing);
+      binder.renderDebugSpheres(worldStore.showDebugJoints);
+      // NOTE: setMode is NOT called here for the new binder — it is called inside
+      // the per-binder loop below (Fix 3), gated to the new binder only.
+
+      humanoidPhysicsBindersRef.current.set(agentId, binder);
+      (window as any).__SYNTHIA_HUMANOID_BINDER__ = binder; // keep active
+      (window as any).__SYNTHIA_HUMANOID_BINDERS__ = humanoidPhysicsBindersRef.current;
+
+      // Rebuild physics world
+      physicsEngine.setMutating(true);
+      physicsEngine.setReady(false);
+
+      try {
+        const existingAgentIds = Array.from(humanoidPhysicsBindersRef.current.keys()).filter(id => id !== agentId);
+        const objectsList = objectManagerRef.current ? Array.from(objectManagerRef.current.getObjects().values()) : [];
+        const capturedState = StateRehydrator.capture(physicsEngine, existingAgentIds, objectsList);
+
+        const baseXml = generateCombinedMCF();
+        physicsEngine.loadMJCFModel(baseXml);
+        physicsEngine.setReady(true);
+
+        for (const [id, activeBinder] of humanoidPhysicsBindersRef.current.entries()) {
+          const bm = activeBinder.getMultiBodyManager();
+          bm.remapIdsAgainstLoadedWorld(activeBinder.getBoneInfoMap());
+          activeBinder.initMotorController();
+
+          if (id === agentId) {
+            // Fix 3: Only the NEW agent gets the full pose reset (createJointsWithZeroMotors,
+            // activateMotors, setMode/resetToBindPose). Old agents must NOT have their
+            // currentTargets wiped or their ctrl ramp restarted — doing so causes the
+            // "arms crossed behind back" degradation on every spawn.
+            await activeBinder.createJointsWithZeroMotors();
+            await activeBinder.activateMotorsWithStiffnessAndDamping(80, 10);
+            activeBinder.deactivateMultiBody();
+            if (worldStore.useMultiBodyPD) {
+              await activeBinder.activateMultiBody();
+            }
+            activeBinder.setMode('rigid');
+          } else {
+            // Old binders: re-bind their multi-body proxies to the new world IDs without
+            // touching currentTargets, ramp, or ctrl.
+            activeBinder.deactivateMultiBody();
+            if (worldStore.useMultiBodyPD) {
+              await activeBinder.activateMultiBody();
+            }
           }
         }
+
+        StateRehydrator.restore(physicsEngine, capturedState, objectsList);
+
+        // Fix 4: Re-arm spawn grounding ONLY for the NEW agent.
+        // Existing agents must NOT have targetSpawnGrounded re-armed — doing so causes
+        // syncVisuals() to run a grounding pass against stale Three.js bone positions
+        // (the skeleton hasn't re-rendered yet after MuJoCo world recompile). The stale
+        // positions produce an incorrect vertical delta, setCapsulePosition() teleports the
+        // existing capsule into the floor, and MuJoCo's contact solver catapults it skyward.
+        const newBinder = humanoidPhysicsBindersRef.current.get(agentId);
+        if (newBinder) {
+          (newBinder as any).targetSpawnGrounded = true;
+          (newBinder as any).previousFootPositions?.clear();
+        }
+
+        const newAgentCapsule = binder.getCapsuleBody();
+        if (newAgentCapsule && newAgentCapsule.isValid()) {
+          binder.setCapsulePosition(spawnPoint.x, spawnPoint.y, spawnPoint.z);
+          binder.resetPose(spawnPoint);
+        }
+      } catch (err) {
+        Logger.error(`useWorld: spawnAgent - physics rebuild failed:`, err);
+      } finally {
+        physicsEngine.setMutating(false);
       }
 
-      StateRehydrator.restore(physicsEngine, capturedState, objectsList);
-
-      // Fix 4: Re-arm spawn grounding ONLY for the NEW agent.
-      // Existing agents must NOT have targetSpawnGrounded re-armed — doing so causes
-      // syncVisuals() to run a grounding pass against stale Three.js bone positions
-      // (the skeleton hasn't re-rendered yet after MuJoCo world recompile). The stale
-      // positions produce an incorrect vertical delta, setCapsulePosition() teleports the
-      // existing capsule into the floor, and MuJoCo's contact solver catapults it skyward.
-      const newBinder = humanoidPhysicsBindersRef.current.get(agentId);
-      if (newBinder) {
-        (newBinder as any).targetSpawnGrounded = true;
-        (newBinder as any).previousFootPositions?.clear();
+      // Add agent to Zustand state
+      const { addAgent } = useAgentStore.getState() as any;
+      if (addAgent) {
+        addAgent(agentId);
       }
 
-      const newAgentCapsule = binder.getCapsuleBody();
-      if (newAgentCapsule && newAgentCapsule.isValid()) {
-        binder.setCapsulePosition(spawnPoint.x, spawnPoint.y, spawnPoint.z);
-        binder.resetPose(spawnPoint);
-      }
+      startAgentClientLoop(agentId);
+      Logger.info(`useWorld: Spawned agent ${agentId} at X=${spawnX}`);
+      return binder;
     } catch (err) {
-      Logger.error(`useWorld: spawnAgent - physics rebuild failed:`, err);
+      Logger.error(`useWorld: spawnAgent - outer spawn failed:`, err);
+      return null;
     } finally {
-      physicsEngine.setMutating(false);
+      isSpawningRef.current = false;
     }
-
-    // Add agent to Zustand state
-    const { addAgent } = useAgentStore.getState() as any;
-    if (addAgent) {
-      addAgent(agentId);
-    }
-
-    startAgentClientLoop(agentId);
-    Logger.info(`useWorld: Spawned agent ${agentId} at X=${spawnX}`);
-    return binder;
   }, [worldStore, generateCombinedMCF, startAgentClientLoop]);
 
   // Sync window generators
@@ -1481,8 +1477,10 @@ export const useWorld = (containerRef: React.RefObject<HTMLDivElement>) => {
 
   // ── Reset Pose Event Handler ─────────────────────────────────────────
   useEffect(() => {
-    const handleResetPose = () => {
+    const handleResetPose = (e: Event) => {
+      const targetId = (e as CustomEvent)?.detail?.agentId;
       humanoidPhysicsBindersRef.current.forEach((binder, id) => {
+        if (targetId && id !== targetId) return;
         const offsetIndex = parseInt(id.replace('agent_', '')) || 0;
         let spawnX = 0;
         if (offsetIndex === 1) spawnX = 1.75;
@@ -1495,6 +1493,34 @@ export const useWorld = (containerRef: React.RefObject<HTMLDivElement>) => {
     };
     window.addEventListener('synthia:resetPose', handleResetPose);
     return () => window.removeEventListener('synthia:resetPose', handleResetPose);
+  }, []);
+
+  // ── Agent-Specific Body Mode & Multi-Body PD Event Handlers ─────────
+  useEffect(() => {
+    const handleSetBodyMode = (e: Event) => {
+      const { agentId, mode } = (e as CustomEvent).detail;
+      const binder = humanoidPhysicsBindersRef.current.get(agentId);
+      if (binder) {
+        binder.setMode(mode);
+      }
+    };
+    const handleToggleMultiBodyPD = (e: Event) => {
+      const { agentId, enable } = (e as CustomEvent).detail;
+      const binder = humanoidPhysicsBindersRef.current.get(agentId);
+      if (binder) {
+        if (enable) {
+          binder.activateMultiBody();
+        } else {
+          binder.deactivateMultiBody();
+        }
+      }
+    };
+    window.addEventListener('synthia:setBodyMode', handleSetBodyMode);
+    window.addEventListener('synthia:toggleMultiBodyPD', handleToggleMultiBodyPD);
+    return () => {
+      window.removeEventListener('synthia:setBodyMode', handleSetBodyMode);
+      window.removeEventListener('synthia:toggleMultiBodyPD', handleToggleMultiBodyPD);
+    };
   }, []);
 
   // ── Root Motion Event Handler ────────────────────────────────────────
@@ -1515,66 +1541,11 @@ export const useWorld = (containerRef: React.RefObject<HTMLDivElement>) => {
   }, [worldStore.bodyType]);
 
   useEffect(() => {
-    if (!isReady) return;
-
-    const build = async () => {
-      worldEngineRef.current?.getCameraManager().attachTransform(null);
-
-      if (worldStore.bodyType === 'humanoid' && humanoidPhysicsBinderRef.current) {
-        const binder = humanoidPhysicsBinderRef.current;
-
-        // STEP A: Load model at x=0, z=0, y=0 initially
-        const probePoint = new THREE.Vector3(0, 0, 0);
-        const stepA = await binder.loadAndVisualizeBindPose(probePoint);
-        if (!stepA) { Logger.error('useWorld: STEP A failed'); return; }
-
-        binder.repositionModel(
-          worldStore.spawnPoint.x,
-          worldStore.spawnPoint.y,
-          worldStore.spawnPoint.z
-        );
-
-        binder.renderDebugSpheres(worldStore.showDebugJoints);
-
-        // STEP B: Create single capsule rigid body
-        const stepB = await binder.createRigidBodiesAndColliders();
-        if (!stepB) { Logger.error('useWorld: STEP B failed'); return; }
-        Logger.info('useWorld: STEP B complete — single capsule created');
-
-        // STEP C & D: No-ops for single capsule
-        await binder.createJointsWithZeroMotors();
-        await binder.activateMotorsWithStiffnessAndDamping(80, 10);
-        Logger.info('useWorld: STEP D complete — model is standing');
-
-        if (worldStore.useMultiBodyPD) {
-          const mbSuccess = await binder.activateMultiBody();
-          if (mbSuccess) {
-            Logger.info('useWorld: Multi-body PD motor control activated');
-          } else {
-            Logger.warn('useWorld: Multi-body activation failed, using single capsule');
-          }
-        }
-
-        binder.setMode(worldStore.bodyMode);
-
-        // Start client-side cognitive loop for agent_0
-        startAgentClientLoop('agent_0');
-
-        // Warm-up
-        physicsEngineRef.current?.forward();
-      }
-    };
-
-    build();
-  }, [
-    isReady,
-    worldStore.bodyType,
-    worldStore.spawnPoint,
-    worldStore.useMultiBodyPD,
-    worldStore.bodyMode,
-    worldStore.showDebugJoints,
-    startAgentClientLoop,
-  ]);
+    if (isReady && humanoidPhysicsBindersRef.current.size === 0) {
+      Logger.info("useWorld: Auto-spawning initial agent (agent_0) on load via spawnAgent()");
+      spawnAgent();
+    }
+  }, [isReady, spawnAgent]);
 
   useEffect(() => {
     if (!isReady) return;
