@@ -37,7 +37,7 @@ export const ExportModal: React.FC = () => {
   const { exportModalOpen, setExportModalOpen, exportProgress, setExportProgress } = useUIStore();
   const { sendMessage, onMessage } = useCoordinator();
   const { status, supabaseUrl, supabaseKey } = useConnectionStore();
-  const { memories, heartbeat } = useAgentStore();
+  const { memories, heartbeat, activeAgentId } = useAgentStore();
 
   const [availableSessions, setAvailableSessions] = useState<SessionRow[]>([]);
   const [sessionsLoading, setSessionsLoading] = useState(false);
@@ -69,8 +69,8 @@ export const ExportModal: React.FC = () => {
       return;
     }
     setSessionsLoading(true);
-    sendMessage('fetch_sessions', { agentId: 'agent_a' });
-  }, [exportModalOpen, supabaseUrl, supabaseKey, sendMessage]);
+    sendMessage('fetch_sessions', { agentId: activeAgentId });
+  }, [exportModalOpen, supabaseUrl, supabaseKey, sendMessage, activeAgentId]);
 
   useEffect(() => {
     const unsub = onMessage((msg: any) => {
@@ -146,7 +146,7 @@ export const ExportModal: React.FC = () => {
     const config: ExportConfig = {
       exportType,
       format: exportType === 'dataset' ? format : undefined,
-      agentIds: ['agent_a'],
+      agentIds: [activeAgentId],
       scope,
       includeTiers: includeTiers as any,
       includeFrames,

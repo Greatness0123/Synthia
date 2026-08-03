@@ -63,18 +63,6 @@ function App() {
         <span className="text-xs font-bold tracking-widest text-text-secondary uppercase">Synthia</span>
       </div>
 
-      {/* Theme Toggle - Top Left, under godmode button */}
-      <button
-        onClick={toggleTheme}
-        className="fixed top-[112px] left-4 w-10 h-10 glassmorphism rounded-full flex items-center justify-center hover:bg-white/10 transition-all z-50 group"
-      >
-        {theme === 'dark' ? (
-          <Sun size={20} className="text-text-secondary group-hover:text-accent-amber" />
-        ) : (
-          <Moon size={20} className="text-text-secondary group-hover:text-accent-purple" />
-        )}
-      </button>
-
       {/* Dev Multi-Agent Controller - Top Center */}
       <div className="fixed top-4 left-1/2 -translate-x-1/2 glassmorphism rounded-full flex items-center gap-4 p-2 z-50">
         <button
@@ -106,6 +94,19 @@ function App() {
             </option>
           ))}
         </select>
+
+        {/* Theme Toggle Button */}
+        <button
+          onClick={toggleTheme}
+          className="w-7 h-7 rounded-full flex items-center justify-center hover:bg-white/10 transition-all text-text-secondary group"
+          title={theme === 'dark' ? "Switch to Light Mode" : "Switch to Dark Mode"}
+        >
+          {theme === 'dark' ? (
+            <Sun size={15} className="group-hover:text-accent-amber transition-colors" />
+          ) : (
+            <Moon size={15} className="group-hover:text-accent-purple transition-colors" />
+          )}
+        </button>
       </div>
 
       {/* Camera Controls Pill - Top Right */}

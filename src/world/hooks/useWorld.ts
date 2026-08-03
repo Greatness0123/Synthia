@@ -28,7 +28,6 @@ export const useWorld = (containerRef: React.RefObject<HTMLDivElement>) => {
   const physicsEngineRef = useRef<PhysicsEngine | null>(null);
   const audioEngineRef = useRef<AudioEngine | null>(null);
   const objectManagerRef = useRef<ObjectManager | null>(null);
-  const humanoidPhysicsBinderRef = useRef<HumanoidPhysicsBinder | null>(null);
   const humanoidPhysicsBindersRef = useRef<Map<string, HumanoidPhysicsBinder>>(new Map());
   const activeAgentLoopsRef = useRef<Map<string, AgentLoop>>(new Map());
 
@@ -165,17 +164,8 @@ export const useWorld = (containerRef: React.RefObject<HTMLDivElement>) => {
           }
         };
 
-        const humanoidPhysicsBinder = new HumanoidPhysicsBinder(
-          physicsEngine,
-          worldEngine.getScene(),
-          'agent_0'
-        );
-        humanoidPhysicsBinderRef.current = humanoidPhysicsBinder;
-        humanoidPhysicsBindersRef.current.set('agent_0', humanoidPhysicsBinder);
-
         // Expose humanoid binder to window for step-by-step testing
         (window as any).__SYNTHIA_HUMANOID_BINDERS__ = humanoidPhysicsBindersRef.current;
-        (window as any).__SYNTHIA_HUMANOID_BINDER__ = humanoidPhysicsBinder;
         (window as any).__SYNTHIA_PHYSICS_ENGINE__ = physicsEngine;
         (window as any).__SYNTHIA_MUJOCO_MODULE__ = PhysicsEngine.getModule();
         (window as any).__SYNTHIA_CAMERA__ = worldEngineRef.current.getCamera();
@@ -215,7 +205,7 @@ export const useWorld = (containerRef: React.RefObject<HTMLDivElement>) => {
           if (frames.length === 0) {
             console.log('[DIAG] No frames captured yet');
             const pe = physicsEngineRef.current;
-            const hb = humanoidPhysicsBinderRef.current;
+            const hb = humanoidPhysicsBindersRef.current.get(useAgentStore.getState().activeAgentId) || humanoidPhysicsBindersRef.current.get('agent_0');
             console.log('[DIAG DEBUG] physics:', !!pe, 'isReady:', pe?.isReady, 'isStepping:', pe?.isStepping, 'isMutating:', pe?.isMutating);
             console.log('[DIAG DEBUG] humanoidBinder:', !!hb);
             if (hb) {
@@ -386,7 +376,7 @@ export const useWorld = (containerRef: React.RefObject<HTMLDivElement>) => {
         // ── Capture initial state BEFORE any physics step ──
         try {
           const physEng = physicsEngineRef.current;
-          const humBinder = humanoidPhysicsBinderRef.current;
+          const humBinder = humanoidPhysicsBindersRef.current.get(useAgentStore.getState().activeAgentId) || humanoidPhysicsBindersRef.current.get('agent_0');
           if (physEng && physEng.isReady && humBinder) {
             const capId = humBinder.getMultiBodyManager().getCapsuleBody();
             if (capId !== null && capId >= 0) {
@@ -582,7 +572,7 @@ export const useWorld = (containerRef: React.RefObject<HTMLDivElement>) => {
 
             try {
               const physEng = physicsEngineRef.current;
-              const humBinder = humanoidPhysicsBinderRef.current;
+              const humBinder = humanoidPhysicsBindersRef.current.get(useAgentStore.getState().activeAgentId) || humanoidPhysicsBindersRef.current.get('agent_0');
               if (physEng && physEng.isReady && humBinder) {
                 const capId = humBinder.getMultiBodyManager().getCapsuleBody();
                 if (capId !== null && capId >= 0) {
@@ -884,13 +874,6 @@ export const useWorld = (containerRef: React.RefObject<HTMLDivElement>) => {
     });
   }, [worldStore.showDebugJoints]);
 
-  useEffect(() => {
-    if (worldStore.bodyType === 'humanoid') {
-      humanoidPhysicsBindersRef.current.forEach((binder) => {
-        binder.setMode(worldStore.bodyMode);
-      });
-    }
-  }, [worldStore.bodyMode, worldStore.bodyType]);
 
   // Handle floor, grid, and sky state
   useEffect(() => {
@@ -970,7 +953,7 @@ export const useWorld = (containerRef: React.RefObject<HTMLDivElement>) => {
 
   const findSpawnPosition = useCallback((skipHumanoidCheck = false): THREE.Vector3 => {
     const humanoidPos = new THREE.Vector3(0, 0, 5);
-    const binder = humanoidPhysicsBinderRef.current;
+    const binder = humanoidPhysicsBindersRef.current.get(useAgentStore.getState().activeAgentId) || humanoidPhysicsBindersRef.current.get('agent_0');
     if (binder) {
       const headTransform = binder.getHeadTransform();
       if (headTransform) {
@@ -1313,7 +1296,7 @@ export const useWorld = (containerRef: React.RefObject<HTMLDivElement>) => {
           if (worldStore.useMultiBodyPD) {
             await activeBinder.activateMultiBody();
           }
-          activeBinder.setMode(worldStore.bodyMode);
+          activeBinder.setMode('rigid');
         } else {
           // Old binders: re-bind their multi-body proxies to the new world IDs without
           // touching currentTargets, ramp, or ctrl.
@@ -1481,8 +1464,10 @@ export const useWorld = (containerRef: React.RefObject<HTMLDivElement>) => {
 
   // ── Reset Pose Event Handler ─────────────────────────────────────────
   useEffect(() => {
-    const handleResetPose = () => {
+    const handleResetPose = (e: Event) => {
+      const targetId = (e as CustomEvent)?.detail?.agentId;
       humanoidPhysicsBindersRef.current.forEach((binder, id) => {
+        if (targetId && id !== targetId) return;
         const offsetIndex = parseInt(id.replace('agent_', '')) || 0;
         let spawnX = 0;
         if (offsetIndex === 1) spawnX = 1.75;
@@ -1495,6 +1480,34 @@ export const useWorld = (containerRef: React.RefObject<HTMLDivElement>) => {
     };
     window.addEventListener('synthia:resetPose', handleResetPose);
     return () => window.removeEventListener('synthia:resetPose', handleResetPose);
+  }, []);
+
+  // ── Agent-Specific Body Mode & Multi-Body PD Event Handlers ─────────
+  useEffect(() => {
+    const handleSetBodyMode = (e: Event) => {
+      const { agentId, mode } = (e as CustomEvent).detail;
+      const binder = humanoidPhysicsBindersRef.current.get(agentId);
+      if (binder) {
+        binder.setMode(mode);
+      }
+    };
+    const handleToggleMultiBodyPD = (e: Event) => {
+      const { agentId, enable } = (e as CustomEvent).detail;
+      const binder = humanoidPhysicsBindersRef.current.get(agentId);
+      if (binder) {
+        if (enable) {
+          binder.activateMultiBody();
+        } else {
+          binder.deactivateMultiBody();
+        }
+      }
+    };
+    window.addEventListener('synthia:setBodyMode', handleSetBodyMode);
+    window.addEventListener('synthia:toggleMultiBodyPD', handleToggleMultiBodyPD);
+    return () => {
+      window.removeEventListener('synthia:setBodyMode', handleSetBodyMode);
+      window.removeEventListener('synthia:toggleMultiBodyPD', handleToggleMultiBodyPD);
+    };
   }, []);
 
   // ── Root Motion Event Handler ────────────────────────────────────────
@@ -1515,66 +1528,11 @@ export const useWorld = (containerRef: React.RefObject<HTMLDivElement>) => {
   }, [worldStore.bodyType]);
 
   useEffect(() => {
-    if (!isReady) return;
-
-    const build = async () => {
-      worldEngineRef.current?.getCameraManager().attachTransform(null);
-
-      if (worldStore.bodyType === 'humanoid' && humanoidPhysicsBinderRef.current) {
-        const binder = humanoidPhysicsBinderRef.current;
-
-        // STEP A: Load model at x=0, z=0, y=0 initially
-        const probePoint = new THREE.Vector3(0, 0, 0);
-        const stepA = await binder.loadAndVisualizeBindPose(probePoint);
-        if (!stepA) { Logger.error('useWorld: STEP A failed'); return; }
-
-        binder.repositionModel(
-          worldStore.spawnPoint.x,
-          worldStore.spawnPoint.y,
-          worldStore.spawnPoint.z
-        );
-
-        binder.renderDebugSpheres(worldStore.showDebugJoints);
-
-        // STEP B: Create single capsule rigid body
-        const stepB = await binder.createRigidBodiesAndColliders();
-        if (!stepB) { Logger.error('useWorld: STEP B failed'); return; }
-        Logger.info('useWorld: STEP B complete — single capsule created');
-
-        // STEP C & D: No-ops for single capsule
-        await binder.createJointsWithZeroMotors();
-        await binder.activateMotorsWithStiffnessAndDamping(80, 10);
-        Logger.info('useWorld: STEP D complete — model is standing');
-
-        if (worldStore.useMultiBodyPD) {
-          const mbSuccess = await binder.activateMultiBody();
-          if (mbSuccess) {
-            Logger.info('useWorld: Multi-body PD motor control activated');
-          } else {
-            Logger.warn('useWorld: Multi-body activation failed, using single capsule');
-          }
-        }
-
-        binder.setMode(worldStore.bodyMode);
-
-        // Start client-side cognitive loop for agent_0
-        startAgentClientLoop('agent_0');
-
-        // Warm-up
-        physicsEngineRef.current?.forward();
-      }
-    };
-
-    build();
-  }, [
-    isReady,
-    worldStore.bodyType,
-    worldStore.spawnPoint,
-    worldStore.useMultiBodyPD,
-    worldStore.bodyMode,
-    worldStore.showDebugJoints,
-    startAgentClientLoop,
-  ]);
+    if (isReady && humanoidPhysicsBindersRef.current.size === 0) {
+      Logger.info("useWorld: Auto-spawning initial agent (agent_0) on load via spawnAgent()");
+      spawnAgent();
+    }
+  }, [isReady, spawnAgent]);
 
   useEffect(() => {
     if (!isReady) return;

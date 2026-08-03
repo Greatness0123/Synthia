@@ -21,6 +21,8 @@ export interface SingleAgentState {
   rehydrationSummary: string;
   injectionQueue: string[];
   injectionQueueCount: number;
+  bodyMode: 'rigid' | 'ragdoll';
+  useMultiBodyPD: boolean;
 }
 
 const createDefaultAgent = (agentId: string): SingleAgentState => ({
@@ -38,6 +40,8 @@ const createDefaultAgent = (agentId: string): SingleAgentState => ({
   rehydrationSummary: '',
   injectionQueue: [],
   injectionQueueCount: 0,
+  bodyMode: 'rigid',
+  useMultiBodyPD: true,
 });
 
 interface AgentStoreState {
@@ -61,6 +65,8 @@ interface AgentStoreState {
   masteredSkills: string[];
   injectionQueue: string[];
   injectionQueueCount: number;
+  bodyMode: 'rigid' | 'ragdoll';
+  useMultiBodyPD: boolean;
 
   // ── Per-agent actions ─────────────────────────────
   setActiveAgentId: (id: string) => void;
@@ -83,6 +89,8 @@ interface AgentStoreState {
   setInjectionQueueCountForAgent: (id: string, count: number) => void;
   incrementInjectionQueueCountForAgent: (id: string) => void;
   decrementInjectionQueueCountForAgent: (id: string) => void;
+  setBodyModeForAgent: (id: string, mode: 'rigid' | 'ragdoll') => void;
+  setUseMultiBodyPDForAgent: (id: string, enable: boolean) => void;
 
   // ── Mirrored Actions on the currently active agent ─
   addThought: (thought: Thought) => void;
@@ -104,6 +112,8 @@ interface AgentStoreState {
   setRung: (rung: number) => void;
   incrementHeartbeat: () => void;
   setHeartbeat: (hb: number) => void;
+  setBodyMode: (mode: 'rigid' | 'ragdoll') => void;
+  setUseMultiBodyPD: (enable: boolean) => void;
 }
 
 const initialAgentId = 'agent_0';
@@ -129,6 +139,8 @@ export const useAgentStore = create<AgentStoreState>((set, get) => {
       currentThought: active.currentThought,
       injectionQueue: active.injectionQueue,
       injectionQueueCount: active.injectionQueueCount,
+      bodyMode: active.bodyMode ?? 'rigid',
+      useMultiBodyPD: active.useMultiBodyPD ?? true,
     };
   };
 
@@ -151,6 +163,8 @@ export const useAgentStore = create<AgentStoreState>((set, get) => {
 
     // Initial mirror values
     ...createDefaultAgent(initialAgentId),
+    bodyMode: 'rigid',
+    useMultiBodyPD: true,
     lightState: 'day',
     rehydrationSummary: '',
     hasRehydrated: false,
@@ -234,6 +248,10 @@ export const useAgentStore = create<AgentStoreState>((set, get) => {
       return updateAgent(state, id, { injectionQueueCount: Math.max(0, agent.injectionQueueCount - 1) });
     }),
 
+    setBodyModeForAgent: (id, bodyMode) => set((state) => updateAgent(state, id, { bodyMode })),
+
+    setUseMultiBodyPDForAgent: (id, useMultiBodyPD) => set((state) => updateAgent(state, id, { useMultiBodyPD })),
+
     // ── Mirrored Legacy Actions targeting the active agent ──
     addThought: (thought) => {
       get().addThoughtForAgent(get().activeAgentId, thought);
@@ -286,6 +304,12 @@ export const useAgentStore = create<AgentStoreState>((set, get) => {
     },
     setHeartbeat: (heartbeat) => {
       get().setHeartbeatForAgent(get().activeAgentId, heartbeat);
+    },
+    setBodyMode: (mode) => {
+      get().setBodyModeForAgent(get().activeAgentId, mode);
+    },
+    setUseMultiBodyPD: (enable) => {
+      get().setUseMultiBodyPDForAgent(get().activeAgentId, enable);
     },
   };
 });
