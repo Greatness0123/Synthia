@@ -18,7 +18,10 @@ export class CameraManager {
   private transformControls: TransformControls;
   private renderer: THREE.WebGLRenderer;
 
-  private chaseCamOrigin: THREE.Vector3 = new THREE.Vector3(0, 5, -6);
+  private lastActiveAgentId: string = '';
+  private snapNextFrame: boolean = false;
+  private lastUpdateTime: number = 0;
+  private initializeThirdPersonTarget: boolean = false;
 
   private static readonly AI_VIEW_SIZE = 448;
 
@@ -36,8 +39,6 @@ export class CameraManager {
     this.chaseCam = new THREE.PerspectiveCamera(90, width / height, 0.01, 100);
     this.chaseCam.position.set(0, 5, -6);
     this.chaseCam.lookAt(0, 1.5, 0);
-
-    this.chaseCamOrigin = new THREE.Vector3(0, 5, -6);
 
     this.aiPerceptionCamera = new THREE.PerspectiveCamera(110, 480 / 270, 0.01, 200);
 
@@ -74,7 +75,13 @@ export class CameraManager {
     });
   }
 
-  public update(headMatrix?: THREE.Matrix4, targetPos?: THREE.Vector3, _capsuleQuat?: THREE.Quaternion, capsulePos?: THREE.Vector3): void {
+  public update(
+    headMatrix?: THREE.Matrix4,
+    targetPos?: THREE.Vector3,
+    capsuleQuat?: THREE.Quaternion,
+    capsulePos?: THREE.Vector3,
+    agentId?: string
+  ): void {
     const isValidVector = (v: THREE.Vector3) => Number.isFinite(v.x) && Number.isFinite(v.y) && Number.isFinite(v.z);
 
     if (headMatrix) {
@@ -84,7 +91,6 @@ export class CameraManager {
       headMatrix.decompose(headPos, headQuat, headScale);
 
       if (isValidVector(headPos)) {
-
         this.aiPerceptionCamera.position.copy(headPos);
         this.aiPerceptionCamera.quaternion.copy(headQuat);
         this.aiPerceptionCamera.up.set(0, 1, 0);
@@ -92,7 +98,6 @@ export class CameraManager {
 
       let effectiveLookTarget = capsulePos;
       if (!effectiveLookTarget || !isValidVector(effectiveLookTarget)) {
-
         if (headMatrix) {
           const hPos = new THREE.Vector3();
           const hQuat = new THREE.Quaternion();
@@ -103,19 +108,50 @@ export class CameraManager {
       }
 
       if (effectiveLookTarget && isValidVector(effectiveLookTarget)) {
+        // Compute delta time for frame-time-adjusted exponential smoothing
+        const now = performance.now();
+        if (this.lastUpdateTime === 0) {
+          this.lastUpdateTime = now;
+        }
+        const rawDeltaTime = (now - this.lastUpdateTime) / 1000;
+        this.lastUpdateTime = now;
+        const deltaTime = Math.min(0.1, Math.max(0.001, rawDeltaTime));
 
-        this.chaseCam.position.copy(this.chaseCamOrigin);
+        // Detect active agent selection changes to snap instantly
+        if (agentId && agentId !== this.lastActiveAgentId) {
+          this.lastActiveAgentId = agentId;
+          this.snapNextFrame = true;
+        }
+
+        // Camera trails behind and above the selected agent
+        // Facing direction forward is -Z (0, 0, -1), so "behind" is +Z (0, 0, 1)
+        const heightAbove = 1.8;
+        const distanceBehind = 3.5;
+        const localOffset = new THREE.Vector3(0, heightAbove, distanceBehind);
+
+        if (capsuleQuat) {
+          localOffset.applyQuaternion(capsuleQuat);
+        }
+
+        const targetCamPos = effectiveLookTarget.clone().add(localOffset);
+
+        if (this.snapNextFrame) {
+          this.chaseCam.position.copy(targetCamPos);
+          this.snapNextFrame = false;
+        } else {
+          const speed = 5.0; // Follow speed factor
+          const factor = 1 - Math.exp(-speed * deltaTime);
+          this.chaseCam.position.lerp(targetCamPos, factor);
+        }
 
         this.chaseCam.up.set(0, 1, 0);
-        this.chaseCam.lookAt(effectiveLookTarget.x, effectiveLookTarget.y - 0.5, effectiveLookTarget.z);
+        this.chaseCam.lookAt(effectiveLookTarget.x, effectiveLookTarget.y, effectiveLookTarget.z);
       }
 
     } else if (targetPos) {
-
       this.aiPerceptionCamera.position.set(targetPos.x, targetPos.y + 0.8, targetPos.z + 1.5);
       this.aiPerceptionCamera.lookAt(targetPos);
     } else {
-
       if (this.aiPerceptionCamera.position.length() < 0.1) {
         this.aiPerceptionCamera.position.set(0, 1.8, 0.5);
         this.aiPerceptionCamera.lookAt(0, 1.0, 10);
@@ -123,9 +159,10 @@ export class CameraManager {
     }
 
     if (this.mode === 'third_person') {
-      if (targetPos) {
-        if (isFinite(targetPos.x) && isFinite(targetPos.y) && isFinite(targetPos.z)) {
-          this.controls.target.lerp(targetPos, 0.1);
+      if (this.initializeThirdPersonTarget && targetPos) {
+        if (Number.isFinite(targetPos.x) && Number.isFinite(targetPos.y) && Number.isFinite(targetPos.z)) {
+          this.controls.target.copy(targetPos);
+          this.initializeThirdPersonTarget = false;
         }
       }
       this.controls.update();
@@ -191,10 +228,15 @@ export class CameraManager {
   }
 
   public setMode(mode: CameraMode): void {
+    const prevMode = this.mode;
     this.mode = mode;
     this.controls.enabled = mode === 'third_person';
     this.transformControls.camera = this.getMainCamera();
     Logger.info(`CameraManager: Switched to ${mode}`);
+
+    if (mode === 'third_person' && prevMode !== 'third_person') {
+      this.initializeThirdPersonTarget = true;
+    }
   }
 
   public handleResize(width: number, height: number): void {

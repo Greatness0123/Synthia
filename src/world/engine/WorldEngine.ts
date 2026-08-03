@@ -3,6 +3,7 @@ import { PhysicsEngine } from './PhysicsEngine';
 import { CameraManager } from './CameraManager';
 import { useUIStore } from '../../store/uiStore';
 import { useWorldStore } from '../../store/worldStore';
+import { useAgentStore } from '../../store/agentStore';
 import { logger as Logger } from '../../utils/logger';
 
 export class WorldEngine {
@@ -247,7 +248,13 @@ export class WorldEngine {
         if (frameBase64) {
           this.lastAIFrame = frameBase64;
           const now = performance.now();
-          if (now - this.lastPipUpdateTime > 200) {
+          const currentAgentId = useAgentStore.getState().activeAgentId || 'agent_0';
+
+          if (currentAgentId !== (this as any).lastActiveAgentIdForPiP) {
+            (this as any).lastActiveAgentIdForPiP = currentAgentId;
+            useWorldStore.getState().setLastAIFrameForDisplay(frameBase64);
+            this.lastPipUpdateTime = now;
+          } else if (now - this.lastPipUpdateTime > 200) {
             useWorldStore.getState().setLastAIFrameForDisplay(frameBase64);
             this.lastPipUpdateTime = now;
           }
