@@ -811,7 +811,7 @@ export const useWorld = (containerRef: React.RefObject<HTMLDivElement>) => {
                         capsuleQuat = new THREE.Quaternion(r.x, r.y, r.z, r.w);
                       }
 
-                      worldEngineRef.current?.getCameraManager().update(headMatrix, headTransform.position, capsuleQuat, capsulePos);
+                      worldEngineRef.current?.getCameraManager().update(headMatrix, headTransform.position, capsuleQuat, capsulePos, activeId);
                     }
                   }
 
@@ -951,16 +951,18 @@ export const useWorld = (containerRef: React.RefObject<HTMLDivElement>) => {
     if (activeAgentId !== lastActiveAgentIdRef.current) {
       lastActiveAgentIdRef.current = activeAgentId;
 
-      const binder = humanoidPhysicsBindersRef.current.get(activeAgentId);
-      if (binder) {
-        const headTransform = binder.getHeadTransform();
-        if (headTransform && headTransform.position) {
-          const camManager = worldEngineRef.current.getCameraManager();
-          camManager.getTransformControls().detach();
-          camManager.getMainCamera().lookAt(headTransform.position);
-          (camManager as any).controls.target.copy(headTransform.position);
-          (camManager as any).controls.update();
-          console.log(`[useWorld] Instantly snapped camera focus to selected agent: ${activeAgentId}`);
+      if (useWorldStore.getState().cameraMode !== 'third_person') {
+        const binder = humanoidPhysicsBindersRef.current.get(activeAgentId);
+        if (binder) {
+          const headTransform = binder.getHeadTransform();
+          if (headTransform && headTransform.position) {
+            const camManager = worldEngineRef.current.getCameraManager();
+            camManager.getTransformControls().detach();
+            camManager.getMainCamera().lookAt(headTransform.position);
+            (camManager as any).controls.target.copy(headTransform.position);
+            (camManager as any).controls.update();
+            console.log(`[useWorld] Instantly snapped camera focus to selected agent: ${activeAgentId}`);
+          }
         }
       }
     }
