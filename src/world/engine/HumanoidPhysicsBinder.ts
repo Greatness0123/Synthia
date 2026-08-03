@@ -128,6 +128,8 @@ export class HumanoidPhysicsBinder {
   private skinnedMesh: THREE.SkinnedMesh | null = null;
   private boneInfoMap: Map<string, BoneInfo> = new Map();
   private bindPoseQuaternions: Map<string, THREE.Quaternion> = new Map();
+  private bindPoseWorldPositions: Map<string, THREE.Vector3> = new Map();
+  private bindPoseWorldQuaternions: Map<string, THREE.Quaternion> = new Map();
   private debugSpheres: Map<string, THREE.Mesh> = new Map();
   private cameraHelpers: THREE.Group[] = [];
   private isLoaded: boolean = false;
@@ -498,20 +500,34 @@ export class HumanoidPhysicsBinder {
 
     this.boneInfoMap.clear();
     this.bindPoseQuaternions.clear();
+    this.bindPoseWorldPositions.clear();
+    this.bindPoseWorldQuaternions.clear();
 
     for (const bone of this.skeleton.bones) {
       if (this.isTerminal(bone)) continue;
 
       const worldPos = new THREE.Vector3();
       bone.getWorldPosition(worldPos);
+      const worldQuat = new THREE.Quaternion();
+      bone.getWorldQuaternion(worldQuat);
       const canonicalName = bone.name.toLowerCase().replace(/:/g, '');
 
-      this.boneInfoMap.set(canonicalName, {
+      // Store the bind-pose world quaternion immutably — this is the T-pose orientation
+      // captured at load time and must never change, even as physics drives bone rotations.
+      // Used by generateCombinedMCF / buildBodyTreeXML to always bake T-pose joint structure
+      // into the MJCF regardless of how animated the agent is at world-recompile time.
+      this.bindPoseWorldPositions.set(canonicalName, worldPos.clone());
+      this.bindPoseWorldQuaternions.set(canonicalName, worldQuat.clone());
+
+      const entry = {
         bone,
         worldPosition: worldPos.clone(),
         name: canonicalName,
-      });
+        bindWorldPosition: worldPos.clone(),
+        bindWorldQuaternion: worldQuat.clone(),
+      } as any;
 
+      this.boneInfoMap.set(canonicalName, entry);
       this.bindPoseQuaternions.set(canonicalName, bone.quaternion.clone());
 
       const limits = getAnatomicalLimitForBone(canonicalName);
@@ -558,9 +574,60 @@ export class HumanoidPhysicsBinder {
       const worldPos = new THREE.Vector3();
       info.bone.getWorldPosition(worldPos);
       info.worldPosition.copy(worldPos);
+      // Also update bindWorldPosition so the MJCF uses correct spawn-offset bone positions.
+      // bindWorldQuaternion is intentionally NOT updated — it is immutable T-pose orientation.
+      (info as any).bindWorldPosition = worldPos.clone();
     });
 
     this.calculateModelDimensions();
+  }
+
+  /**
+   * Before world recompile: translates all bindWorldPosition entries by the current capsule
+   * position delta from physics (MuJoCo xpos). This keeps the correct spawn-offset T-pose
+   * bone structure in world space so the MJCF bakes each agent at their current location.
+   * bindWorldQuaternion is intentionally untouched — it is an immutable T-pose snapshot.
+   */
+  public syncBindWorldPositionsFromPhysics(): void {
+    const capsuleBodyId = this.bodyManager.getCapsuleBody();
+    if (capsuleBodyId === null || capsuleBodyId < 0) return;
+
+    const world = this.physicsEngine.getWorld();
+    const data = world.data;
+
+    // Get current capsule center from MuJoCo xpos (world frame)
+    const mjX = data.xpos[capsuleBodyId * 3];
+    const mjY = data.xpos[capsuleBodyId * 3 + 1];
+    const mjZ = data.xpos[capsuleBodyId * 3 + 2];
+    const capsuleThree = PhysicsEngine.mujocoToWorld([mjX, mjY, mjZ] as [number, number, number]);
+
+    // The bindWorldPositions were captured in T-pose at the original spawn point.
+    // Compute the delta from spawn capsule center to current capsule center in Three.js space.
+    const spawnCapsuleCenter = new THREE.Vector3(
+      (this.bindPoseWorldPositions.get('mixamorighips')?.x ?? capsuleThree.x),
+      capsuleThree.y, // we only need X/Z delta — Y is handled by physics/StateRehydrator
+      (this.bindPoseWorldPositions.get('mixamorighips')?.z ?? capsuleThree.z),
+    );
+    const dx = capsuleThree.x - spawnCapsuleCenter.x;
+    const dz = capsuleThree.z - spawnCapsuleCenter.z;
+
+    // Translate every bindWorldPosition by that same X/Z delta
+    this.boneInfoMap.forEach((info) => {
+      const bindPos = (info as any).bindWorldPosition as THREE.Vector3 | undefined;
+      if (bindPos) {
+        bindPos.x += dx;
+        bindPos.z += dz;
+        // Also update worldPosition to match (used by BodyManager remapIds)
+        info.worldPosition.x += dx;
+        info.worldPosition.z += dz;
+      }
+    });
+
+    // Keep bindPoseWorldPositions in sync too
+    this.bindPoseWorldPositions.forEach((pos) => {
+      pos.x += dx;
+      pos.z += dz;
+    });
   }
 
   public renderDebugSpheres(show: boolean = false): void {
@@ -836,23 +903,8 @@ export class HumanoidPhysicsBinder {
     }
     geomIdBuffer.delete();
 
-    // Spawn alignment
-    if (!this.targetSpawnGrounded && dist >= 0) {
-      let lowestFootY = Infinity;
-      for (const [name, info] of this.boneInfoMap) {
-        if (name.includes('foot') || name.includes('toe')) {
-          const worldPos = new THREE.Vector3();
-          info.bone.getWorldPosition(worldPos);
-          if (worldPos.y < lowestFootY) lowestFootY = worldPos.y;
-        }
-      }
-
-      if (lowestFootY < Infinity) {
-        const delta = this.groundSurfaceY - lowestFootY;
-        if (Math.abs(delta) > 0.001) {
-          this.setCapsulePosition(t.x, t.y + delta - this.capsuleCenterY, t.z);
-        }
-      }
+    // Spawn alignment: set targetSpawnGrounded to true to mark grounding initialized
+    if (!this.targetSpawnGrounded) {
       this.targetSpawnGrounded = true;
     }
 
@@ -1373,7 +1425,7 @@ export class HumanoidPhysicsBinder {
 
   public getUprightPreset(): Record<string, any> {
     const preset: Record<string, any> = {
-      arms_down_angle_deg: this.restArmAngleDeg,
+      // arms_down_angle_deg: this.restArmAngleDeg,
     };
     this.currentTargets.forEach((val, key) => {
       preset[key] = (val as any).scalar ?? (val as any).x ?? (typeof val === 'number' ? val : 0);
@@ -1593,7 +1645,7 @@ export class HumanoidPhysicsBinder {
 
     const armsDownAngle = this.restArmAngleDeg * (Math.PI / 180);
 
-    // Reset all hinge qpos values to 0 (which maps perfectly to bind pose in our template!)
+    // Reset all hinge qpos values to 0 (or armsDownAngle for arm roll)
     const joints = this.bodyManager.getRigidBodiesMap();
     for (const [boneName] of joints) {
       const hasYaw = module.mj_name2id(model, module.mjtObj.mjOBJ_JOINT.value, this.prefix + boneName + '_yaw') >= 0;
@@ -1607,11 +1659,11 @@ export class HumanoidPhysicsBinder {
       }
       if (hasPitch) {
         const jntId = module.mj_name2id(model, module.mjtObj.mjOBJ_JOINT.value, this.prefix + boneName + '_pitch');
-        // Fix 5: Pre-seed arm pitch qpos to the arms-down target angle so the servo
-        // doesn't have to sweep 75° through the torso on spawn, eliminating the
-        // arm-deflection-behind-trunk contact artifact.
-        const isArmPitch = boneName === 'mixamorigleftarm' || boneName === 'mixamorigrightarm';
-        qpos[model.jnt_qposadr[jntId]] = isArmPitch ? armsDownAngle : 0;
+        let initialPitch = 0;
+        if (boneName === 'mixamorigleftarm' || boneName === 'mixamorigrightarm') {
+          initialPitch = armsDownAngle;
+        }
+        qpos[model.jnt_qposadr[jntId]] = initialPitch;
         qvel[model.jnt_dofadr[jntId]] = 0;
       }
       if (hasRoll) {
@@ -1621,8 +1673,13 @@ export class HumanoidPhysicsBinder {
       }
     }
 
-    this.currentTargets.set('mixamorigrightarm', { x: armsDownAngle, y: 0, z: 0, isQuaternion: false });
+    // Arm targets: arms down by side at rest (pitch / X = armsDownAngle for both arms)
     this.currentTargets.set('mixamorigleftarm', { x: armsDownAngle, y: 0, z: 0, isQuaternion: false });
+    this.currentTargets.set('mixamorigrightarm', { x: armsDownAngle, y: 0, z: 0, isQuaternion: false });
+    this.currentTargets.set('mixamorigrightforearm', { x: 0, y: 0, z: 0, isQuaternion: false });
+    this.currentTargets.set('mixamorigleftforearm', { x: 0, y: 0, z: 0, isQuaternion: false });
+    this.currentTargets.set('mixamorigrightshoulder', { x: 0, y: 0, z: 0, isQuaternion: false });
+    this.currentTargets.set('mixamorigleftshoulder', { x: 0, y: 0, z: 0, isQuaternion: false });
     // Spine: neutral target in bind pose
     this.currentTargets.set('mixamorigspine', { x: 0, y: 0, z: 0, isQuaternion: false });
     this.currentTargets.set('mixamorigspine1', { x: 0, y: 0, z: 0, isQuaternion: false });

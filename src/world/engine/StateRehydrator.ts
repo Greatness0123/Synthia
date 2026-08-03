@@ -69,12 +69,15 @@ export class StateRehydrator {
       }
 
       // Fix 2: Capture data.ctrl for all actuators belonging to this agent.
-      // Without this, every world reload zeros all ctrl, causing a 20-step ramp from
-      // zero that destabilizes old agents' poses.
+      // Actuator names in the compiled MJCF are prefixed with "act_" in addition to the
+      // agent prefix (e.g. "act_agent_0_mixamorigleftarm_pitch"), so we must check for
+      // 'act_' + prefix. Without this, startsWith(prefix) never matches and ctrl is always
+      // captured as empty — causing a full ctrl reset to 0 on every world reload, which
+      // drives all joints back to T-pose (the 20-step ramp from zero destabilizes old agents).
       const ctrl: Record<string, number> = {};
       for (let ai = 0; ai < model.nu; ai++) {
         const actName = module.mj_id2name(model, module.mjtObj.mjOBJ_ACTUATOR.value, ai);
-        if (actName && actName.startsWith(prefix)) {
+        if (actName && actName.startsWith('act_' + prefix)) {
           ctrl[actName] = data.ctrl[ai];
         }
       }
@@ -87,6 +90,7 @@ export class StateRehydrator {
         jointVels,
         ctrl,
       };
+      console.log(`[STATE_REHYDRATOR] Captured ${agentId}: rootPos=[${rootPos.map(n=>n.toFixed(3)).join(', ')}], jointCount=${Object.keys(jointAngles).length}, ctrlCount=${Object.keys(ctrl).length}`);
     }
 
     // 2. Capture objects' state
@@ -166,6 +170,7 @@ export class StateRehydrator {
           }
         }
       }
+      console.log(`[STATE_REHYDRATOR] Restored ${agentId}: rootPos=[${state.rootPos.map(n=>n.toFixed(3)).join(', ')}] into new world.`);
     }
 
     // 2. Restore objects' state

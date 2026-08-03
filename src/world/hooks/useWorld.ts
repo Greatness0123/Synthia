@@ -1191,9 +1191,19 @@ export const useWorld = (containerRef: React.RefObject<HTMLDivElement>) => {
       // Fix 3 (fallback): For any binder whose capsuleCenterY is still 0 (legacy spawned
       // agents before ensureCapsuleGeometry was added), compute a safe value from modelHeight.
       const capsuleCenterY = binder.getCapsuleCenterY() || (binder as any).modelHeight / 2;
+
+      // Sync the boneInfoMap's bindWorldPosition for this agent to its current capsule world
+      // position. This ensures the MJCF places the agent's body tree at the correct location
+      // in the new world without drifting from their original spawn X/Z or mixing with
+      // another agent's bone positions. bindWorldQuaternion is intentionally NOT updated —
+      // it stays as the immutable T-pose so the MJCF always bakes T-pose joint structure.
+      binder.syncBindWorldPositionsFromPhysics();
+
+      const boneInfoMap = binder.getBoneInfoMap();
+      console.log(`[MCF_GEN] Agent ${id}: prefix=${binder.prefix}, bones=${boneInfoMap.size}, capsuleCenterY=${capsuleCenterY.toFixed(3)}`);
       agentsList.push({
         prefix: binder.prefix,
-        boneInfoMap: binder.getBoneInfoMap(),
+        boneInfoMap,
         capsuleCenterY,
       });
       void id;
@@ -1314,11 +1324,16 @@ export const useWorld = (containerRef: React.RefObject<HTMLDivElement>) => {
 
       StateRehydrator.restore(physicsEngine, capturedState, objectsList);
 
-      // Fix 4: After restoring, re-arm spawn grounding and clear stale GRF history
-      // for ALL binders so they re-align to the new floor and produce no phantom impulses.
-      for (const [, activeBinder] of humanoidPhysicsBindersRef.current.entries()) {
-        (activeBinder as any).targetSpawnGrounded = false;
-        (activeBinder as any).previousFootPositions?.clear();
+      // Fix 4: Re-arm spawn grounding ONLY for the NEW agent.
+      // Existing agents must NOT have targetSpawnGrounded re-armed — doing so causes
+      // syncVisuals() to run a grounding pass against stale Three.js bone positions
+      // (the skeleton hasn't re-rendered yet after MuJoCo world recompile). The stale
+      // positions produce an incorrect vertical delta, setCapsulePosition() teleports the
+      // existing capsule into the floor, and MuJoCo's contact solver catapults it skyward.
+      const newBinder = humanoidPhysicsBindersRef.current.get(agentId);
+      if (newBinder) {
+        (newBinder as any).targetSpawnGrounded = true;
+        (newBinder as any).previousFootPositions?.clear();
       }
 
       const newAgentCapsule = binder.getCapsuleBody();

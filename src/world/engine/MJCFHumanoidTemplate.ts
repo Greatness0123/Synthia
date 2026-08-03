@@ -176,10 +176,12 @@ export function generateAgentSubtreeMJCF(
 
     const bone = boneInfo.bone;
 
-    // Get child absolute position/rotation in Three.js space
-    const threePos = boneInfo.worldPosition.clone();
-    const threeQuat = new THREE.Quaternion();
-    bone.getWorldQuaternion(threeQuat);
+    // Get child absolute position/rotation in Three.js space from bind pose if available
+    const threePos = (boneInfo as any).bindWorldPosition ? (boneInfo as any).bindWorldPosition.clone() : boneInfo.worldPosition.clone();
+    const threeQuat = (boneInfo as any).bindWorldQuaternion ? (boneInfo as any).bindWorldQuaternion.clone() : new THREE.Quaternion();
+    if (!(boneInfo as any).bindWorldQuaternion) {
+      bone.getWorldQuaternion(threeQuat);
+    }
 
     // Convert child absolute position/rotation to MuJoCo space
     const childPosMj = PhysicsEngine.worldToMuJoCo(threePos);
