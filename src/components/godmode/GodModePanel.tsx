@@ -11,7 +11,6 @@ import { PhysicsControls } from './PhysicsControls';
 import { BodyControls } from './BodyControls';
 import { AgentBodyControls } from './AgentBodyControls';
 import { DirectivePanel } from './DirectivePanel';
-import { ConnectionPanel } from './ConnectionPanel';
 import { ObjectSpawner } from './ObjectSpawner';
 import { motion, AnimatePresence } from 'framer-motion';
 import { GearSix, X, Cube, Export, User } from '@phosphor-icons/react';
@@ -97,20 +96,6 @@ export const GodModePanel: React.FC = () => {
               </div>
               <AgentBodyControls />
               <DirectivePanel />
-              <ConnectionPanel />
-
-              {/* Agent Export Quick Action */}
-              <div className="p-4 border-t border-white/10">
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  className="w-full flex items-center justify-center gap-2"
-                  onClick={() => setExportModalOpen(true)}
-                >
-                  <Export size={16} />
-                  <span className="text-[10px] font-bold uppercase tracking-wider">EXPORT AGENT DATA</span>
-                </Button>
-              </div>
             </div>
           </motion.div>
         )}

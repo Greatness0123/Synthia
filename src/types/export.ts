@@ -21,4 +21,5 @@ export interface ExportConfig {
   excludeInjected: boolean
   successfulOnly: boolean
   minReward?: number
+  zipPerAgent?: boolean;
 }

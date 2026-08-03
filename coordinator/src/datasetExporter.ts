@@ -26,26 +26,95 @@ export class DatasetExporter {
     const exportDir = `./exports/synthia_export_${timestamp}`;
     fs.mkdirSync(exportDir, { recursive: true });
 
-    // Route to the correct export method based on exportType
-    switch (config.exportType) {
-      case 'frames_zip':
-        return this.exportFramesZip(config, exportDir, onProgress);
-      case 'thoughts_report':
-        return this.exportThoughtsReport(config, exportDir, onProgress);
-      case 'session_full':
-        return this.exportSessionFull(config, exportDir, onProgress);
-      case 'dataset':
-      default:
-        return this.exportDataset(config, exportDir, onProgress);
+    let rows = 0;
+
+    // Handle zipPerAgent if multiple agents are selected and zipPerAgent is enabled
+    if (config.zipPerAgent && config.agentIds && config.agentIds.length > 1) {
+      for (let i = 0; i < config.agentIds.length; i++) {
+        const aid = config.agentIds[i];
+        const agentDir = path.join(exportDir, aid);
+        fs.mkdirSync(agentDir, { recursive: true });
+
+        const scopedConfig: ExportConfig = {
+          ...config,
+          agentIds: [aid]
+        };
+
+        const subProgress = (pct: number, subRows: number) => {
+          const overallPct = Math.floor((i / config.agentIds.length) * 100 + (pct / config.agentIds.length));
+          onProgress(overallPct, rows + subRows);
+        };
+
+        let result;
+        switch (config.exportType) {
+          case 'frames_zip':
+            result = await this.exportFramesZipRaw(scopedConfig, agentDir, subProgress);
+            break;
+          case 'thoughts_report':
+            result = await this.exportThoughtsReportRaw(scopedConfig, agentDir, subProgress);
+            break;
+          case 'session_full':
+            result = await this.exportSessionFullRaw(scopedConfig, agentDir, subProgress);
+            break;
+          case 'dataset':
+          default:
+            result = await this.exportDatasetRaw(scopedConfig, agentDir, subProgress);
+            break;
+        }
+        rows += result.rows;
+      }
+    } else {
+      // Single agent or combined export
+      let result;
+      switch (config.exportType) {
+        case 'frames_zip':
+          result = await this.exportFramesZipRaw(config, exportDir, onProgress);
+          break;
+        case 'thoughts_report':
+          result = await this.exportThoughtsReportRaw(config, exportDir, onProgress);
+          break;
+        case 'session_full':
+          result = await this.exportSessionFullRaw(config, exportDir, onProgress);
+          break;
+        case 'dataset':
+        default:
+          result = await this.exportDatasetRaw(config, exportDir, onProgress);
+          break;
+      }
+      rows = result.rows;
     }
+
+    // Package the final export directory into a single zip file
+    onProgress(95, rows);
+    const zip = new JSZip();
+    this.addDirectoryToZip(zip, exportDir, exportDir);
+    const content = await zip.generateAsync({ type: 'nodebuffer' });
+
+    let prefix = 'synthia_export';
+    if (config.exportType === 'frames_zip') prefix = 'synthia_frames';
+    else if (config.exportType === 'thoughts_report') prefix = 'synthia_thoughts';
+    else if (config.exportType === 'session_full') prefix = 'synthia_session_full';
+
+    const zipFilename = `${prefix}_${timestamp}.zip`;
+    const zipPath = `./exports/${zipFilename}`;
+    fs.writeFileSync(zipPath, content);
+
+    // Cleanup export directory
+    fs.rmSync(exportDir, { recursive: true, force: true });
+
+    const stats = fs.statSync(zipPath);
+
+    return {
+      filename: zipFilename,
+      rows,
+      sizeBytes: stats.size
+    };
   }
 
-  // ─── Dataset export (existing LeRobot/JSONL/CSV) ───────────────────────────
+  // ─── Raw dataset export (LeRobot/JSONL/CSV) ───────────────────────────
 
-  private async exportDataset(config: ExportConfig, exportDir: string, onProgress: (percent: number, rows: number) => void): Promise<{ filename: string, rows: number, sizeBytes: number }> {
-    const timestamp = Date.now();
-
-    // 1. Query memories
+  private async exportDatasetRaw(config: ExportConfig, exportDir: string, onProgress: (percent: number, rows: number) => void): Promise<{ rows: number }> {
+    // Query memories
     let query = this.supabase.from('memories').select('*').in('agent_id', config.agentIds);
 
     if (config.scope === 'date_range') {
@@ -78,37 +147,19 @@ export class DatasetExporter {
       await this.exportCSV(memories, exportDir);
     }
 
-    // Zip
-    const zip = new JSZip();
-    this.addDirectoryToZip(zip, exportDir, exportDir);
-    const content = await zip.generateAsync({ type: 'nodebuffer' });
-    const zipFilename = `synthia_export_${timestamp}.zip`;
-    const zipPath = `./exports/${zipFilename}`;
-    fs.writeFileSync(zipPath, content);
-
-    // Cleanup exportDir
-    fs.rmSync(exportDir, { recursive: true, force: true });
-
-    const stats = fs.statSync(zipPath);
-
-    return {
-      filename: zipFilename,
-      rows: memories.length,
-      sizeBytes: stats.size
-    };
+    return { rows: memories.length };
   }
 
-  // ─── Frames ZIP export ─────────────────────────────────────────────────────
+  // ─── Raw Frames ZIP export ─────────────────────────────────────────────────────
 
-  private async exportFramesZip(config: ExportConfig, exportDir: string, onProgress: (percent: number, rows: number) => void): Promise<{ filename: string, rows: number, sizeBytes: number }> {
-    const timestamp = Date.now();
+  private async exportFramesZipRaw(config: ExportConfig, exportDir: string, onProgress: (percent: number, rows: number) => void): Promise<{ rows: number }> {
     const framesDir = path.join(exportDir, 'frames');
     fs.mkdirSync(framesDir, { recursive: true });
 
     // Query memories with frame_url
     let query = this.supabase
       .from('memories')
-      .select('id, memory_id, heartbeat, session_id, frame_url, tier')
+      .select('id, memory_id, heartbeat, session_id, frame_url, tier, agent_id')
       .in('agent_id', config.agentIds)
       .not('frame_url', 'is', null);
 
@@ -135,8 +186,9 @@ export class DatasetExporter {
     for (const m of memories) {
       if (!m.frame_url) continue;
 
-      // Organize by session
-      const sessionDir = path.join(framesDir, m.session_id || 'unknown');
+      // Organize by session, optional per-agent subdirectory
+      const agentPrefix = (config.zipPerAgent && config.agentIds.length > 1) ? (m.agent_id || 'agent_0') : '';
+      const sessionDir = path.join(framesDir, agentPrefix, m.session_id || 'unknown');
       fs.mkdirSync(sessionDir, { recursive: true });
 
       const framePath = path.join(sessionDir, `hb_${String(m.heartbeat).padStart(4, '0')}.webp`);
@@ -167,29 +219,12 @@ export class DatasetExporter {
     };
     fs.writeFileSync(path.join(framesDir, 'manifest.json'), JSON.stringify(manifest, null, 2));
 
-    // Zip
-    const zip = new JSZip();
-    this.addDirectoryToZip(zip, exportDir, exportDir);
-    const content = await zip.generateAsync({ type: 'nodebuffer' });
-    const zipFilename = `synthia_frames_${timestamp}.zip`;
-    const zipPath = `./exports/${zipFilename}`;
-    fs.writeFileSync(zipPath, content);
-
-    fs.rmSync(exportDir, { recursive: true, force: true });
-
-    const stats = fs.statSync(zipPath);
-    return {
-      filename: zipFilename,
-      rows: memories.length,
-      sizeBytes: stats.size
-    };
+    return { rows: memories.length };
   }
 
-  // ─── Thoughts Report export ────────────────────────────────────────────────
+  // ─── Raw Thoughts Report export ────────────────────────────────────────────────
 
-  private async exportThoughtsReport(config: ExportConfig, exportDir: string, onProgress: (percent: number, rows: number) => void): Promise<{ filename: string, rows: number, sizeBytes: number }> {
-    const timestamp = Date.now();
-
+  private async exportThoughtsReportRaw(config: ExportConfig, exportDir: string, onProgress: (percent: number, rows: number) => void): Promise<{ rows: number }> {
     // Query memories
     let query = this.supabase.from('memories').select('*').in('agent_id', config.agentIds);
 
@@ -239,7 +274,8 @@ export class DatasetExporter {
     let sessionIndex = 0;
     for (const [sessionId, sessionMemories] of sessionGroups) {
       sessionIndex++;
-      lines.push(`${sessionIndex}. [Session ${sessionId}](#session-${sessionIndex}) — ${sessionMemories.length} memories`);
+      const agentId = sessionMemories[0]?.agent_id || 'agent_0';
+      lines.push(`${sessionIndex}. [Session ${sessionId} (${agentId})](#session-${sessionIndex}) — ${sessionMemories.length} memories`);
     }
     lines.push('');
     lines.push('---');
@@ -251,8 +287,9 @@ export class DatasetExporter {
       sessionIndex++;
       const firstMemory = sessionMemories[0];
       const lastMemory = sessionMemories[sessionMemories.length - 1];
+      const agentId = firstMemory?.agent_id || 'agent_0';
 
-      lines.push(`## Session ${sessionIndex} — ${sessionId}`);
+      lines.push(`## Session ${sessionIndex} — ${sessionId} [Agent: ${agentId}]`);
       lines.push('');
       lines.push(`- **Heartbeats:** ${firstMemory.heartbeat} → ${lastMemory.heartbeat}`);
       lines.push(`- **Memories:** ${sessionMemories.length}`);
@@ -271,7 +308,7 @@ export class DatasetExporter {
 
       // Memories
       for (const m of sessionMemories) {
-        lines.push(`### Heartbeat ${m.heartbeat} — Tier ${m.tier}`);
+        lines.push(`### Heartbeat ${m.heartbeat} — Tier ${m.tier} [Agent: ${m.agent_id || 'agent_0'}]`);
         lines.push('');
         lines.push(`**Thought:**`);
         lines.push('');
@@ -310,31 +347,12 @@ export class DatasetExporter {
 
     fs.writeFileSync(path.join(exportDir, 'thoughts_report.md'), lines.join('\n'));
 
-    onProgress(90, memories.length);
-
-    // Zip
-    const zip = new JSZip();
-    this.addDirectoryToZip(zip, exportDir, exportDir);
-    const content = await zip.generateAsync({ type: 'nodebuffer' });
-    const zipFilename = `synthia_thoughts_${timestamp}.zip`;
-    const zipPath = `./exports/${zipFilename}`;
-    fs.writeFileSync(zipPath, content);
-
-    fs.rmSync(exportDir, { recursive: true, force: true });
-
-    const stats = fs.statSync(zipPath);
-    return {
-      filename: zipFilename,
-      rows: memories.length,
-      sizeBytes: stats.size
-    };
+    return { rows: memories.length };
   }
 
-  // ─── Session Full export ───────────────────────────────────────────────────
+  // ─── Raw Session Full export ───────────────────────────────────────────────────
 
-  private async exportSessionFull(config: ExportConfig, exportDir: string, onProgress: (percent: number, rows: number) => void): Promise<{ filename: string, rows: number, sizeBytes: number }> {
-    const timestamp = Date.now();
-
+  private async exportSessionFullRaw(config: ExportConfig, exportDir: string, onProgress: (percent: number, rows: number) => void): Promise<{ rows: number }> {
     // Determine which sessions to export
     let sessionIds: string[] = [];
     if (config.sessionIds && config.sessionIds.length > 0) {
@@ -486,24 +504,7 @@ export class DatasetExporter {
       fs.writeFileSync(path.join(exportDir, 'sessions.json'), JSON.stringify(sessionMeta, null, 2));
     }
 
-    onProgress(90, memories?.length || 0);
-
-    // Zip
-    const zip = new JSZip();
-    this.addDirectoryToZip(zip, exportDir, exportDir);
-    const content = await zip.generateAsync({ type: 'nodebuffer' });
-    const zipFilename = `synthia_session_full_${timestamp}.zip`;
-    const zipPath = `./exports/${zipFilename}`;
-    fs.writeFileSync(zipPath, content);
-
-    fs.rmSync(exportDir, { recursive: true, force: true });
-
-    const stats = fs.statSync(zipPath);
-    return {
-      filename: zipFilename,
-      rows: memories?.length || 0,
-      sizeBytes: stats.size
-    };
+    return { rows: memories?.length || 0 };
   }
 
   // ─── Shared format methods ─────────────────────────────────────────────────
@@ -512,9 +513,9 @@ export class DatasetExporter {
     const dataDir = path.join(exportDir, 'data');
     const videoDir = path.join(exportDir, 'videos');
     const metaDir = path.join(exportDir, 'meta');
-    fs.mkdirSync(dataDir);
-    fs.mkdirSync(videoDir);
-    fs.mkdirSync(metaDir);
+    fs.mkdirSync(dataDir, { recursive: true });
+    fs.mkdirSync(videoDir, { recursive: true });
+    fs.mkdirSync(metaDir, { recursive: true });
 
     // Assemble Parquet data
     const observationJoints: number[][] = [];
@@ -604,12 +605,13 @@ export class DatasetExporter {
   }
 
   private async exportCSV(memories: any[], exportDir: string) {
-    const header = 'heartbeat,tier,thought,action_json,outcome,reward,session_id\n';
+    const header = 'agent_id,heartbeat,tier,thought,action_json,outcome,reward,session_id\n';
     const rows = memories.map((m) => {
       const actionJson = JSON.stringify(m.action_taken || {}).replace(/"/g, '""');
       const thought = (m.thought || '').replace(/"/g, '""');
       const outcome = m.outcome || '';
-      return `${m.heartbeat},${m.tier},"${thought}","${actionJson}",${outcome},${m.reward_signal ?? 0},${m.session_id ?? ''}`;
+      const agentId = m.agent_id || 'agent_0';
+      return `${agentId},${m.heartbeat},${m.tier},"${thought}","${actionJson}",${outcome},${m.reward_signal ?? 0},${m.session_id ?? ''}`;
     });
     fs.writeFileSync(path.join(exportDir, 'export.csv'), header + rows.join('\n'));
   }
@@ -617,6 +619,7 @@ export class DatasetExporter {
   private async exportJSONL(memories: any[], exportDir: string) {
     const lines = memories.map(m => {
       return JSON.stringify({
+        agent_id: m.agent_id || 'agent_0',
         session_id: m.session_id ?? null,
         messages: [
           { role: 'system', content: 'You are SYNTHIA, an AI embodiment.' },

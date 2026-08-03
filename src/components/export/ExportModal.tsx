@@ -1,5 +1,6 @@
 /**
  * Modal for exporting simulation data with side-panel preview.
+ * Enhanced in Phase 5 for single-agent vs multi-agent export scoping.
  */
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -42,6 +43,10 @@ export const ExportModal: React.FC = () => {
   const [availableSessions, setAvailableSessions] = useState<SessionRow[]>([]);
   const [sessionsLoading, setSessionsLoading] = useState(false);
 
+  // Phase 5 Multi-agent scoping states
+  const [exportScope, setExportScope] = useState<'single' | 'all'>('single');
+  const [zipPerAgent, setZipPerAgent] = useState(false);
+
   const [exportType, setExportType] = useState<ExportType>('dataset');
   const [format, setFormat] = useState<ExportFormat>('LeRobot');
   const [scope, setScope] = useState<ExportConfig['scope']>('all');
@@ -62,6 +67,13 @@ export const ExportModal: React.FC = () => {
   const [minReward, setMinReward] = useState(0);
   const [tierInfoOpen, setTierInfoOpen] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+
+  // Keep hbTo updated as simulation goes forward
+  useEffect(() => {
+    if (!isExporting) {
+      setHbTo(heartbeat);
+    }
+  }, [heartbeat, isExporting]);
 
   useEffect(() => {
     if (!exportModalOpen || !supabaseUrl || !supabaseKey) {
@@ -90,8 +102,24 @@ export const ExportModal: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [setExportModalOpen]);
 
+  // Handle illegal session scope if exportScope transitions to 'all'
+  useEffect(() => {
+    if (exportScope === 'all' && scope === 'session') {
+      setScope('all');
+    }
+  }, [exportScope, scope]);
+
+  // Dynamically resolve memories across targeted agents for real-time preview
+  const targetedMemories = useMemo(() => {
+    if (exportScope === 'single') {
+      return memories;
+    }
+    const allAgents = Object.values(useAgentStore.getState().agents);
+    return allAgents.flatMap(a => a.memories || []);
+  }, [memories, exportScope, exportModalOpen]);
+
   const filteredCount = useMemo(() => {
-    let filtered = memories.filter(memory => includeTiers.includes(memory.tier));
+    let filtered = targetedMemories.filter(memory => includeTiers.includes(memory.tier));
     if (excludeInjected) filtered = filtered.filter(memory => !memory.isInjected);
     if (successfulOnly) filtered = filtered.filter(memory => memory.rewardSignal > 0.5);
     if (minReward > 0) filtered = filtered.filter(memory => memory.rewardSignal >= minReward);
@@ -101,7 +129,7 @@ export const ExportModal: React.FC = () => {
       filtered = filtered.filter((memory) => selectedSessions.includes(memory.sessionId ?? ''));
     }
     return filtered.length;
-  }, [memories, includeTiers, excludeInjected, successfulOnly, minReward, scope, hbFrom, hbTo, selectedSessions]);
+  }, [targetedMemories, includeTiers, excludeInjected, successfulOnly, minReward, scope, hbFrom, hbTo, selectedSessions]);
 
   const estimatedSize = useMemo(() => {
     const bytesPerRow = includeFrames ? 52 * 1024 : 2 * 1024;
@@ -125,7 +153,6 @@ export const ExportModal: React.FC = () => {
     if (scope === 'session' && selectedSessionData.length > 0) {
       return selectedSessionData.reduce((sum, s) => sum + (s.estimated_size_bytes || 0), 0);
     }
-    // Fallback: estimate from filtered count
     const bytesPerRow = includeFrames ? 52 * 1024 : 2 * 1024;
     return filteredCount * bytesPerRow;
   }, [scope, selectedSessionData, filteredCount, includeFrames]);
@@ -146,7 +173,8 @@ export const ExportModal: React.FC = () => {
     const config: ExportConfig = {
       exportType,
       format: exportType === 'dataset' ? format : undefined,
-      agentIds: [activeAgentId],
+      agentIds: exportScope === 'single' ? [activeAgentId] : Object.keys(useAgentStore.getState().agents),
+      zipPerAgent: exportScope === 'all' ? zipPerAgent : undefined,
       scope,
       includeTiers: includeTiers as any,
       includeFrames,
@@ -197,7 +225,7 @@ export const ExportModal: React.FC = () => {
   const scopeOptions = [
     { id: 'all', label: 'All Sessions' },
     { id: 'date_range', label: 'Date Range' },
-    { id: 'session', label: 'Session Picker', disabled: !supabaseUrl || !supabaseKey },
+    { id: 'session', label: 'Session Picker', disabled: !supabaseUrl || !supabaseKey || exportScope === 'all' },
     { id: 'heartbeat_range', label: 'Heartbeat Range' },
   ];
 
@@ -206,7 +234,7 @@ export const ExportModal: React.FC = () => {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="w-[780px] max-h-[90vh] flex flex-col"
+        className="w-[820px] max-h-[90vh] flex flex-col"
       >
         <Panel className="border-border-subtle shadow-2xl overflow-hidden flex flex-col">
           <div className="p-4 border-b border-border flex items-center justify-between bg-bg-panel shrink-0">
@@ -216,9 +244,68 @@ export const ExportModal: React.FC = () => {
             </button>
           </div>
 
-          <div className="flex overflow-hidden" style={{ minHeight: '460px' }}>
+          <div className="flex overflow-hidden" style={{ minHeight: '480px' }}>
             {/* LEFT PANEL — Configuration */}
-            <div className="flex-1 p-6 space-y-5 overflow-y-auto border-r border-border-subtle">
+            <div className="flex-1 p-6 space-y-5 overflow-y-auto border-r border-border-subtle custom-scrollbar">
+              {/* Scoping Selector - Single Agent vs All Active Agents */}
+              <div className="space-y-3">
+                <label className="text-[10px] font-bold uppercase tracking-widest text-text-tertiary">Export Target Scope</label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => setExportScope('single')}
+                    className={`flex items-center gap-3 p-2.5 border rounded-btn transition-all text-left ${
+                      exportScope === 'single'
+                        ? "border-accent-blue bg-accent-blue/5 text-text-primary"
+                        : "border-border text-text-tertiary hover:border-text-secondary"
+                    }`}
+                  >
+                    <Icons.User size={18} weight={exportScope === 'single' ? "bold" : "light"} />
+                    <div className="flex flex-col">
+                      <span className="text-[10px] font-bold">Active Agent only</span>
+                      <span className="text-[9px] text-text-tertiary">Scoped to {activeAgentId}</span>
+                    </div>
+                  </button>
+
+                  <button
+                    onClick={() => setExportScope('all')}
+                    className={`flex items-center gap-3 p-2.5 border rounded-btn transition-all text-left ${
+                      exportScope === 'all'
+                        ? "border-accent-blue bg-accent-blue/5 text-text-primary"
+                        : "border-border text-text-tertiary hover:border-text-secondary"
+                    }`}
+                  >
+                    <Icons.Users size={18} weight={exportScope === 'all' ? "bold" : "light"} />
+                    <div className="flex flex-col">
+                      <span className="text-[10px] font-bold">All Active Agents</span>
+                      <span className="text-[9px] text-text-tertiary">Downloads combined telemetry</span>
+                    </div>
+                  </button>
+                </div>
+              </div>
+
+              {/* Zip Isolation checkbox - only visible when exporting all agents */}
+              <AnimatePresence>
+                {exportScope === 'all' && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    className="overflow-hidden bg-white/[0.01] border border-border-subtle p-3 rounded-btn"
+                  >
+                    <label className="flex items-center gap-3 cursor-pointer group">
+                      <div className={`w-4 h-4 border rounded-[4px] flex items-center justify-center transition-colors ${zipPerAgent ? 'border-accent-blue bg-accent-blue/10' : 'border-border bg-bg-elevated'}`}>
+                        {zipPerAgent && <div className="w-2 h-2 bg-accent-blue rounded-[1px]" />}
+                      </div>
+                      <div className="flex flex-col text-left">
+                        <span className="text-[11px] font-bold text-text-secondary group-hover:text-text-primary transition-colors">Isolate files inside Zip Archive</span>
+                        <span className="text-[9px] text-text-tertiary">Creates dedicated per-agent folders (e.g. /agent_0/export.csv) instead of merging into one dataset.</span>
+                      </div>
+                      <input type="checkbox" className="hidden" checked={zipPerAgent} onChange={() => setZipPerAgent(!zipPerAgent)} />
+                    </label>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
               {/* Export Type Selector */}
               <div className="space-y-3">
                 <label className="text-[10px] font-bold uppercase tracking-widest text-text-tertiary">{STRINGS.EXPORT.EXPORT_TYPE}</label>
@@ -503,7 +590,25 @@ export const ExportModal: React.FC = () => {
                   <span className="text-[10px] text-text-tertiary text-center">{STRINGS.EXPORT.NO_SELECTION}</span>
                 </div>
               ) : (
-                <div className="space-y-4 flex-1">
+                <div className="space-y-4 flex-1 text-left">
+                  {/* Scoped Agent indicator */}
+                  <div className="space-y-1">
+                    <span className="text-[9px] uppercase text-text-tertiary">Scope Target</span>
+                    <span className="text-xs font-bold text-text-primary flex items-center gap-1.5">
+                      {exportScope === 'single' ? (
+                        <>
+                          <Icons.User size={13} className="text-accent-blue" />
+                          {activeAgentId} (Active Agent)
+                        </>
+                      ) : (
+                        <>
+                          <Icons.Users size={13} className="text-accent-blue" />
+                          All Active Agents ({Object.keys(useAgentStore.getState().agents).length})
+                        </>
+                      )}
+                    </span>
+                  </div>
+
                   {/* Export Type */}
                   <div className="space-y-1">
                     <span className="text-[9px] uppercase text-text-tertiary">Type</span>
