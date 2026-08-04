@@ -184,8 +184,8 @@ IMPORTANT: contacts=1 means ONE surface (the floor) is touching me. This is NORM
     // --- FIX 1: Strip data URL prefix from frame ---
     // Frontend sends raw WebP base64 (from 448×448 offscreen capture) — providers expect raw base64 only
     // If a data URL prefix is present (legacy format), strip it
-    let rawFrame: string = worldState.frame || '';
-    if (rawFrame.includes(',')) {
+    let rawFrame: string = typeof worldState.frame === 'string' ? worldState.frame : '';
+    if (rawFrame && rawFrame.includes(',')) {
       rawFrame = rawFrame.split(',')[1];
     }
 

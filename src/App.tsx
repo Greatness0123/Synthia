@@ -15,8 +15,9 @@ import { GodModePanel } from './components/godmode/GodModePanel';
 import { useUIStore } from './store/uiStore';
 import { useWorldStore } from './store/worldStore';
 import { useAgentStore } from './store/agentStore';
-import { Brain, Database, Cube, ListChecks, TreeStructure, Camera, VideoCamera, Monitor, X, Sun, Moon } from '@phosphor-icons/react';
+import { Brain, Database, Cube, ListChecks, TreeStructure, Camera, VideoCamera, Monitor, X, Sun, Moon, Gear } from '@phosphor-icons/react';
 import { ExportModal } from './components/export/ExportModal';
+import { AgentSettingsModal } from './components/agent/AgentSettingsModal';
 import { LogViewer } from './components/agent/LogViewer';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useEffect } from 'react';
@@ -25,7 +26,7 @@ import { cn } from './components/ui/Panel';
 import type { CameraMode } from './types/world';
 
 function App() {
-  const { activeRightPanelTab, setActiveRightPanelTab, rightPanelOpen, setRightPanelOpen, theme, toggleTheme } = useUIStore();
+  const { activeRightPanelTab, setActiveRightPanelTab, rightPanelOpen, setRightPanelOpen, theme, toggleTheme, settingsModalOpen, setSettingsModalOpen } = useUIStore();
   const { cameraMode, setCameraMode } = useWorldStore();
 
   useEffect(() => {
@@ -94,6 +95,18 @@ function App() {
             </option>
           ))}
         </select>
+
+        {/* Agent Settings Button (Gear) */}
+        <button
+          onClick={() => setSettingsModalOpen(!settingsModalOpen)}
+          className={cn(
+            "w-7 h-7 rounded-full flex items-center justify-center hover:bg-white/10 transition-all text-text-secondary group",
+            settingsModalOpen && "bg-white/10 text-accent-blue"
+          )}
+          title="Agent Settings"
+        >
+          <Gear size={15} className="group-hover:rotate-45 transition-transform" />
+        </button>
 
         {/* Theme Toggle Button */}
         <button
@@ -220,6 +233,7 @@ function App() {
 
       {/* Existing Modals */}
       <ExportModal />
+      <AgentSettingsModal />
       <RehydrationModal />
     </AppShell>
   );

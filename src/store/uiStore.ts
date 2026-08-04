@@ -9,6 +9,7 @@ interface UIState {
   rightPanelOpen: boolean;
   theme: 'dark' | 'light';
   exportModalOpen: boolean;
+  settingsModalOpen: boolean;
   objectSpawnerOpen: boolean;
   rehydrationModalOpen: boolean;
   exportProgress: number;
@@ -20,6 +21,7 @@ interface UIState {
   toggleTheme: () => void;
   setSelectedEntityId: (id: string | null) => void;
   setExportModalOpen: (open: boolean) => void;
+  setSettingsModalOpen: (open: boolean) => void;
   setObjectSpawnerOpen: (open: boolean) => void;
   setRehydrationModalOpen: (open: boolean) => void;
   setExportProgress: (progress: number) => void;
@@ -30,6 +32,7 @@ export const useUIStore = create<UIState>((set) => ({
   rightPanelOpen: false,
   theme: 'dark',
   exportModalOpen: false,
+  settingsModalOpen: false,
   objectSpawnerOpen: false,
   rehydrationModalOpen: false,
   exportProgress: 0,
@@ -40,6 +43,7 @@ export const useUIStore = create<UIState>((set) => ({
   toggleTheme: () => set((state) => ({ theme: state.theme === 'dark' ? 'light' : 'dark' })),
   setSelectedEntityId: (selectedEntityId) => set({ selectedEntityId }),
   setExportModalOpen: (exportModalOpen) => set({ exportModalOpen }),
+  setSettingsModalOpen: (settingsModalOpen) => set({ settingsModalOpen }),
   setObjectSpawnerOpen: (objectSpawnerOpen) => set({ objectSpawnerOpen }),
   setRehydrationModalOpen: (rehydrationModalOpen) => set({ rehydrationModalOpen }),
   setExportProgress: (exportProgress) => set({ exportProgress }),

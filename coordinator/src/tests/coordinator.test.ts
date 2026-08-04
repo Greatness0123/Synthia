@@ -30,7 +30,7 @@ describe('PayloadBuilder', () => {
       heartbeat: 100,
       frame: 1000,
       lightState: 'day',
-      goal: 'test goal',
+      currentGoal: 'test goal',
       objects: [{ name: 'cube' }],
       joints: { head: 0 },
       audio: {}
