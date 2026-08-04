@@ -15,7 +15,7 @@ import { GodModePanel } from './components/godmode/GodModePanel';
 import { useUIStore } from './store/uiStore';
 import { useWorldStore } from './store/worldStore';
 import { useAgentStore } from './store/agentStore';
-import { Brain, Database, Cube, ListChecks, TreeStructure, Camera, VideoCamera, Monitor, X, Sun, Moon, Gear } from '@phosphor-icons/react';
+import { Brain, Database, Cube, ListChecks, TreeStructure, Camera, VideoCamera, Monitor, X, Sun, Moon, Gear, SpeakerHigh, SpeakerSlash } from '@phosphor-icons/react';
 import { ExportModal } from './components/export/ExportModal';
 import { AgentSettingsModal } from './components/agent/AgentSettingsModal';
 import { LogViewer } from './components/agent/LogViewer';
@@ -24,10 +24,18 @@ import { useEffect } from 'react';
 import * as Tone from 'tone';
 import { cn } from './components/ui/Panel';
 import type { CameraMode } from './types/world';
+import { useSpeechStore } from './store/speechStore';
+import { initSpeech } from './utils/speech';
 
 function App() {
   const { activeRightPanelTab, setActiveRightPanelTab, rightPanelOpen, setRightPanelOpen, theme, toggleTheme, settingsModalOpen, setSettingsModalOpen } = useUIStore();
   const { cameraMode, setCameraMode } = useWorldStore();
+  const { globalTtsEnabled, setGlobalTtsEnabled } = useSpeechStore();
+
+  // Initialize browser-native Web Speech synthesis voices
+  useEffect(() => {
+    initSpeech();
+  }, []);
 
   useEffect(() => {
     const resumeAudio = async () => {
@@ -106,6 +114,19 @@ function App() {
           title="Agent Settings"
         >
           <Gear size={15} className="group-hover:rotate-45 transition-transform" />
+        </button>
+
+        {/* Global TTS Speaker Toggle Button */}
+        <button
+          onClick={() => setGlobalTtsEnabled(!globalTtsEnabled)}
+          className="w-7 h-7 rounded-full flex items-center justify-center hover:bg-white/10 transition-all text-text-secondary group"
+          title={globalTtsEnabled ? "Mute Global TTS Voice" : "Unmute Global TTS Voice"}
+        >
+          {globalTtsEnabled ? (
+            <SpeakerHigh size={15} className="group-hover:text-accent-blue transition-colors" />
+          ) : (
+            <SpeakerSlash size={15} className="text-text-tertiary group-hover:text-accent-red transition-colors" />
+          )}
         </button>
 
         {/* Theme Toggle Button */}

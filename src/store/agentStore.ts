@@ -5,6 +5,7 @@
 
 import { create } from 'zustand';
 import type { Thought, Memory, AgentStatus, DirectiveMode } from '../types/agent';
+import { speakAgentThought } from '../utils/speech';
 
 export interface SingleAgentState {
   agentId: string;
@@ -186,9 +187,15 @@ export const useAgentStore = create<AgentStoreState>((set, get) => {
       return { agents: newAgents };
     }),
 
-    addThoughtForAgent: (id, thought) => set((state) => updateAgent(state, id, {
-      thoughts: [...(state.agents[id]?.thoughts || []), thought],
-    })),
+    addThoughtForAgent: (id, thought) => {
+      // Trigger TTS speech synthesis as a side-effect
+      speakAgentThought(id, thought.text).catch((err) =>
+        console.error(`Error in speakAgentThought for ${id}:`, err)
+      );
+      return set((state) => updateAgent(state, id, {
+        thoughts: [...(state.agents[id]?.thoughts || []), thought],
+      }));
+    },
 
     addMemoryForAgent: (id, memory) => set((state) => updateAgent(state, id, {
       memories: [...(state.agents[id]?.memories || []), memory],

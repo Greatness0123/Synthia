@@ -31,9 +31,13 @@ import {
   WifiHigh,
   MagnifyingGlass,
   Bookmark,
-  Sparkle
+  Sparkle,
+  SpeakerHigh,
+  SpeakerSlash
 } from '@phosphor-icons/react';
 import { synthiaToast } from '../ui/Toast';
+import { useSpeechStore } from '../../store/speechStore';
+import { getSystemVoiceForAgent, ttsProvider } from '../../utils/speech';
 
 const PROVIDER_INFO: Record<ProviderType, { label: string; defaultEndpoint: string; defaultModel: string; needsKey: boolean }> = {
   kaggle:     { label: 'Kaggle / Cloudflare', defaultEndpoint: 'http://localhost:8000/infer', defaultModel: 'Qwen2.5-VL-3B-Instruct', needsKey: false },
@@ -58,7 +62,22 @@ export const AgentSettingsModal: React.FC = () => {
     status: 'idle',
   };
 
-  const [activeTab, setActiveTab] = useState<'infra' | 'cognition' | 'export'>('infra');
+  const [activeTab, setActiveTab] = useState<'infra' | 'cognition' | 'voice' | 'export'>('infra');
+
+  // Speech configurations
+  const {
+    agentVoiceURIs,
+    agentTtsEnabled,
+    availableVoices,
+    nonActiveBehavior,
+    setVoiceForAgent,
+    setTtsEnabledForAgent,
+    setNonActiveBehavior
+  } = useSpeechStore();
+
+  const isAgentTtsEnabled = agentTtsEnabled[activeAgentId] !== false;
+  const selectedVoiceURI = agentVoiceURIs[activeAgentId] || '';
+  const defaultVoice = getSystemVoiceForAgent(activeAgentId);
 
   // Infrastructure state
   const { endpoint, setEndpoint, status, rtt } = useConnectionStore();
@@ -210,6 +229,19 @@ export const AgentSettingsModal: React.FC = () => {
               >
                 <Brain size={16} />
                 Cognition
+              </button>
+
+              <button
+                onClick={() => setActiveTab('voice')}
+                className={cn(
+                  "flex items-center gap-2.5 px-3 py-2.5 rounded-btn text-xs font-bold uppercase tracking-wider transition-all text-left",
+                  activeTab === 'voice'
+                    ? "bg-accent-teal/10 text-accent-teal font-black"
+                    : "text-text-tertiary hover:bg-white/5 hover:text-text-secondary"
+                )}
+              >
+                <SpeakerHigh size={16} />
+                Voice & TTS
               </button>
 
               <button
@@ -566,6 +598,133 @@ export const AgentSettingsModal: React.FC = () => {
                           );
                         })
                       )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {activeTab === 'voice' && (
+                <div className="space-y-5 max-w-[540px]">
+                  <div>
+                    <h3 className="text-xs font-bold text-text-primary uppercase tracking-wider">Agent Voice & TTS Synthesis</h3>
+                    <p className="text-[11px] text-text-tertiary leading-normal mt-1">
+                      Configure text-to-speech settings, choose custom browser-native system voices, and tune playback behavior for {activeAgentId}.
+                    </p>
+                  </div>
+
+                  {/* Enable/Disable Agent TTS */}
+                  <div className="flex items-center justify-between p-4 rounded-btn border border-border bg-white/[0.01]">
+                    <div className="space-y-0.5">
+                      <label className="text-xs font-bold text-text-primary uppercase tracking-wider">Enable Voice Playback</label>
+                      <p className="text-[10px] text-text-tertiary leading-normal">
+                        Toggle text-to-speech voice generation specifically for this agent's thoughts.
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => setTtsEnabledForAgent(activeAgentId, !isAgentTtsEnabled)}
+                      className={cn(
+                        "px-4 h-8 rounded-btn text-[10px] font-bold uppercase tracking-wider border transition-all",
+                        isAgentTtsEnabled
+                          ? "border-accent-teal bg-accent-teal/10 text-text-primary font-bold"
+                          : "border-border text-text-tertiary hover:border-text-secondary"
+                      )}
+                    >
+                      {isAgentTtsEnabled ? 'Enabled' : 'Disabled'}
+                    </button>
+                  </div>
+
+                  {/* Voice Selector Dropdown */}
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] uppercase tracking-wider text-text-tertiary font-bold flex justify-between">
+                      <span>Select Speech Voice</span>
+                      <span className="text-text-tertiary/50 font-normal">Browser-Native Web Speech API</span>
+                    </label>
+                    <div className="relative">
+                      <select
+                        value={selectedVoiceURI}
+                        onChange={(e) => setVoiceForAgent(activeAgentId, e.target.value)}
+                        disabled={!isAgentTtsEnabled}
+                        className="w-full h-9 pl-2.5 pr-8 bg-bg-elevated border border-border rounded-btn text-xs text-text-primary appearance-none cursor-pointer focus:outline-none focus:ring-1 focus:ring-accent-blue disabled:opacity-50 disabled:cursor-not-allowed font-sans"
+                      >
+                        <option value="">System Default (Deterministic Sequential: {defaultVoice?.name || 'Loading...'})</option>
+                        {availableVoices.map((voice) => (
+                          <option key={voice.voiceURI} value={voice.voiceURI}>
+                            {voice.name} ({voice.lang}) {voice.localService ? '[Local]' : ''}
+                          </option>
+                        ))}
+                      </select>
+                      <CaretDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-text-tertiary pointer-events-none" />
+                    </div>
+                    {availableVoices.length === 0 && (
+                      <p className="text-[9px] text-accent-amber mt-1">
+                        No system voices detected yet. Ensure your device audio output is active or wait for browser voices to load.
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Test Voice Button */}
+                  <div className="pt-2">
+                    <Button
+                      variant="outline"
+                      disabled={!isAgentTtsEnabled}
+                      onClick={async () => {
+                        const voice = getSystemVoiceForAgent(activeAgentId);
+                        const testText = "Hello! This is my synthesized voice. I am ready to think and learn in this simulation.";
+                        try {
+                          await ttsProvider.speak(testText, {
+                            voiceURI: voice?.voiceURI,
+                            volume: 1.0,
+                          });
+                        } catch (err) {
+                          synthiaToast.error("Failed to play voice test.");
+                        }
+                      }}
+                      className="w-full h-9 text-[10px] font-bold uppercase tracking-widest flex items-center justify-center gap-2"
+                    >
+                      <SpeakerHigh size={14} />
+                      Test Synthesized Voice
+                    </Button>
+                  </div>
+
+                  {/* Multi-agent Audio Behavior (Global Option presented here for convenience) */}
+                  <div className="space-y-3 border-t border-border-subtle pt-4">
+                    <div>
+                      <h4 className="text-[10px] font-bold text-text-secondary uppercase tracking-wider">Multi-Agent Concurrent Speech</h4>
+                      <p className="text-[10px] text-text-tertiary leading-normal mt-1">
+                        Configure how the application handles concurrent thoughts from non-active background agents.
+                      </p>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <button
+                        onClick={() => setNonActiveBehavior('mute')}
+                        className={cn(
+                          "p-3 rounded-btn border text-left flex flex-col justify-between min-h-[70px] transition-all",
+                          nonActiveBehavior === 'mute'
+                            ? "border-accent-blue bg-accent-blue/5 text-text-primary"
+                            : "border-border text-text-tertiary hover:border-text-secondary bg-white/[0.01]"
+                        )}
+                      >
+                        <span className="text-[10px] font-bold uppercase tracking-wider">Mute Background (Option A)</span>
+                        <span className="text-[9px] text-text-tertiary/80 leading-tight mt-1">
+                          Only the active agent is spoken. Background thoughts are skipped to avoid browser queue lag.
+                        </span>
+                      </button>
+
+                      <button
+                        onClick={() => setNonActiveBehavior('attenuate')}
+                        className={cn(
+                          "p-3 rounded-btn border text-left flex flex-col justify-between min-h-[70px] transition-all",
+                          nonActiveBehavior === 'attenuate'
+                            ? "border-accent-blue bg-accent-blue/5 text-text-primary"
+                            : "border-border text-text-tertiary hover:border-text-secondary bg-white/[0.01]"
+                        )}
+                      >
+                        <span className="text-[10px] font-bold uppercase tracking-wider">Attenuate (Duck Volume)</span>
+                        <span className="text-[9px] text-text-tertiary/80 leading-tight mt-1">
+                          Background thoughts speak at 10% volume, queued behind the active agent's thoughts.
+                        </span>
+                      </button>
                     </div>
                   </div>
                 </div>
