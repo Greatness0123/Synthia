@@ -4,29 +4,26 @@
 
 import React from 'react';
 import { useAgentStore } from '../../store/agentStore';
-import { useCoordinator } from '../../world/hooks/useCoordinator';
 import { Toggle } from '../ui/Toggle';
 import { Button } from '../ui/Button';
 import { STRINGS } from '../../constants/strings';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export const DirectivePanel: React.FC = () => {
-  const { activeAgentId, directiveMode, setDirectiveMode, currentGoal, setCurrentGoal } = useAgentStore();
-  const { sendMessage } = useCoordinator();
+  const { directiveMode, setDirectiveMode, currentGoal, setCurrentGoal } = useAgentStore();
 
   const handleToggle = (enabled: boolean) => {
     const mode = enabled ? 'training' : 'free_will';
     setDirectiveMode(mode);
-    sendMessage('set_directive', { mode, goal: currentGoal, agentId: activeAgentId });
   };
 
   const handleSetGoal = () => {
-    sendMessage('set_directive', { mode: 'training', goal: currentGoal, agentId: activeAgentId });
+    // Stores update immediately. The client loop picks it up on its next cycle.
   };
 
   const handleClearGoal = () => {
     setCurrentGoal(null);
-    sendMessage('set_directive', { mode: 'free_will', goal: null, agentId: activeAgentId });
+    setDirectiveMode('free_will');
   };
 
   return (

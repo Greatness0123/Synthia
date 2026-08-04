@@ -14,17 +14,8 @@ const Metric = ({ label, value, colorClass = "text-text-secondary" }: { label: s
  * Floating glassmorphic metrics pill at bottom-center of viewport.
  */
 export const StatusBar: React.FC = () => {
-  const { status, rtt, inferenceTime, frameSize, fps, cycleMs } = useConnectionStore();
+  const { rtt, inferenceTime, frameSize, fps, cycleMs } = useConnectionStore();
   const { heartbeat, lightState } = useAgentStore();
-
-  const getStatusColor = () => {
-    switch (status) {
-      case 'connected': return 'bg-accent-green';
-      case 'connecting': return 'bg-accent-amber';
-      case 'error': return 'bg-accent-red';
-      default: return 'bg-text-tertiary';
-    }
-  };
 
   const getMetricColor = (val: number) => {
     if (val > 4000) return 'text-accent-red';
@@ -35,8 +26,8 @@ export const StatusBar: React.FC = () => {
   return (
     <div className="fixed bottom-4 left-1/2 -translate-x-1/2 glassmorphism rounded-full flex items-center h-9 px-1 z-50">
       <div className="flex items-center gap-1.5 px-2.5 border-r border-white/10 h-full">
-        <div className={cn("w-1.5 h-1.5 rounded-full", getStatusColor())} />
-        <span className="text-[9px] font-mono text-text-secondary uppercase">{status}</span>
+        <div className="w-1.5 h-1.5 rounded-full bg-accent-green" />
+        <span className="text-[9px] font-mono text-text-secondary uppercase">Active</span>
       </div>
 
       <Metric

@@ -26,11 +26,15 @@ import { cn } from './components/ui/Panel';
 import type { CameraMode } from './types/world';
 import { useSpeechStore } from './store/speechStore';
 import { initSpeech } from './utils/speech';
+import { useSupabaseKeepalive } from './world/hooks/useSupabaseKeepalive';
 
 function App() {
   const { activeRightPanelTab, setActiveRightPanelTab, rightPanelOpen, setRightPanelOpen, theme, toggleTheme, settingsModalOpen, setSettingsModalOpen } = useUIStore();
   const { cameraMode, setCameraMode } = useWorldStore();
   const { globalTtsEnabled, setGlobalTtsEnabled } = useSpeechStore();
+
+  // Run client-side Supabase keepalive pings
+  useSupabaseKeepalive();
 
   // Initialize browser-native Web Speech synthesis voices
   useEffect(() => {

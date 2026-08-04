@@ -4,19 +4,17 @@
 
 import React, { useEffect, useState } from 'react';
 import { useAgentStore } from '../../store/agentStore';
-import { useConnectionStore } from '../../store/connectionStore';
 import { motion } from 'framer-motion';
 
 export const RehydrationModal: React.FC = () => {
   const { rehydrationSummary, hasRehydrated } = useAgentStore();
-  const { status } = useConnectionStore();
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
-    if (status === 'connected' && !hasRehydrated) {
+    if (!hasRehydrated && rehydrationSummary) {
       setIsVisible(true);
     }
-  }, [status, hasRehydrated]);
+  }, [rehydrationSummary, hasRehydrated]);
 
   useEffect(() => {
     if (hasRehydrated) {

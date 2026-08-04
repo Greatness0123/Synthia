@@ -4,7 +4,6 @@
 
 import { useState, useEffect } from 'react';
 import { useAgentStore } from '../../store/agentStore';
-import { useCoordinator } from '../../world/hooks/useCoordinator';
 import { STRINGS } from '../../constants/strings';
 import { Syringe, ArrowRight, Microphone } from '@phosphor-icons/react';
 import { synthiaToast } from '../ui/Toast';
@@ -22,7 +21,6 @@ export const InjectionInput: React.FC = () => {
   const activeAgentId = useAgentStore((state) => state.activeAgentId) || 'agent_0';
   const injectionQueue = useAgentStore((state) => state.agents?.[activeAgentId]?.injectionQueue) || [];
   const { setPendingInjectionForAgent } = useAgentStore();
-  const { sendMessage } = useCoordinator();
 
   useEffect(() => {
     if (!SpeechRecognitionAPI) return;
@@ -76,10 +74,6 @@ export const InjectionInput: React.FC = () => {
     // Client path: per-agent pendingInjection — the client-side AgentLoop for this
     // agent reads pendingInjection from store.agents[targetId] and consumes it.
     setPendingInjectionForAgent(targetId, value.trim());
-
-    // Server path (optional, if the coordinator is connected): send with the real
-    // active agent id instead of the legacy hardcoded 'agent_a'.
-    sendMessage('inject_thought', { text: value.trim(), agentId: targetId });
 
     synthiaToast.info(STRINGS.TOASTS.THOUGHT_INJECTED);
     setValue('');

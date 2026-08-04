@@ -8,14 +8,12 @@ import React, { useState, useMemo } from 'react';
 import { useUIStore } from '../../store/uiStore';
 import { useAgentStore } from '../../store/agentStore';
 import { useAgentRuntimeStore, type AgentRuntimeConfig } from '../../store/agentRuntimeStore';
-import { useConnectionStore, type ProviderType } from '../../store/connectionStore';
-import { useCoordinator } from '../../world/hooks/useCoordinator';
+import { type ProviderType } from '../../store/connectionStore';
 import { SKILL_RUNGS } from '../../constants/progressionLadder';
-import { STRINGS } from '../../constants/strings';
 import { Panel, cn } from '../ui/Panel';
 import { Button } from '../ui/Button';
 import { Badge } from '../ui/Badge';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import {
   X,
   Cpu,
@@ -32,8 +30,7 @@ import {
   MagnifyingGlass,
   Bookmark,
   Sparkle,
-  SpeakerHigh,
-  SpeakerSlash
+  SpeakerHigh
 } from '@phosphor-icons/react';
 import { synthiaToast } from '../ui/Toast';
 import { useSpeechStore } from '../../store/speechStore';
@@ -80,10 +77,8 @@ export const AgentSettingsModal: React.FC = () => {
   const defaultVoice = getSystemVoiceForAgent(activeAgentId);
 
   // Infrastructure state
-  const { endpoint, setEndpoint, status, rtt } = useConnectionStore();
   const runtimeStore = useAgentRuntimeStore();
   const config = runtimeStore.getConfig(activeAgentId);
-  const { sendMessage } = useCoordinator();
 
   const [dbExpanded, setDbExpanded] = useState(false);
   const [isSending, setIsSending] = useState(false);
@@ -108,10 +103,6 @@ export const AgentSettingsModal: React.FC = () => {
   };
 
   const handleConnect = async () => {
-    if (status !== 'connected') {
-      synthiaToast.error('Not connected to coordinator. Check the Endpoint URL above.');
-      return;
-    }
     if (!config.endpoint && config.provider !== 'custom') {
       synthiaToast.error('Please enter an inference endpoint URL.');
       return;
@@ -125,34 +116,10 @@ export const AgentSettingsModal: React.FC = () => {
     setSentOk(false);
     await new Promise(resolve => setTimeout(resolve, 600));
 
-    // Send provider config for active agent to coordinator
-    sendMessage('set_provider', {
-      agentId: activeAgentId,
-      type: config.provider,
-      endpoint: config.endpoint,
-      apiKey: config.apiKey || undefined,
-      model: config.model || undefined,
-    });
-    sendMessage('set_supabase', { url: config.supabaseUrl, key: config.supabaseKey, agentId: activeAgentId });
-
     setIsSending(false);
     setSentOk(true);
-    synthiaToast.success(`Connected ${activeAgentId} to ${PROVIDER_INFO[config.provider].label}`);
+    synthiaToast.success(`Applied settings successfully for ${activeAgentId}`);
     setTimeout(() => setSentOk(false), 5000);
-  };
-
-  const statusColors: Record<string, string> = {
-    connected: 'text-accent-green',
-    connecting: 'text-accent-amber',
-    disconnected: 'text-text-tertiary',
-    error: 'text-accent-red',
-  };
-
-  const statusBg: Record<string, string> = {
-    connected: 'bg-accent-green/10 border-accent-green/30',
-    connecting: 'bg-accent-amber/10 border-accent-amber/30',
-    disconnected: 'bg-bg-elevated border-border',
-    error: 'bg-accent-red/10 border-accent-red/30',
   };
 
   const showApiKey = PROVIDER_INFO[config.provider].needsKey;
@@ -274,20 +241,6 @@ export const AgentSettingsModal: React.FC = () => {
                     </p>
                   </div>
 
-                  {/* Coordinator WebSocket URL - Shared World Level */}
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] uppercase tracking-wider text-text-tertiary font-bold flex justify-between">
-                      <span>COORDINATOR ENDPOINT</span>
-                      <span className="text-text-tertiary/50 font-normal">ws:// [GLOBAL]</span>
-                    </label>
-                    <input
-                      type="text"
-                      value={endpoint}
-                      onChange={(e) => setEndpoint(e.target.value)}
-                      placeholder="ws://localhost:3001/ws"
-                      className="w-full h-8 px-2.5 bg-bg-elevated border border-border rounded-btn text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-accent-blue"
-                    />
-                  </div>
 
                   <div className="grid grid-cols-2 gap-4">
                     {/* Provider dropdown */}
@@ -373,7 +326,7 @@ export const AgentSettingsModal: React.FC = () => {
                         {isSending ? (
                           <>
                             <ArrowsClockwise size={12} className="animate-spin" />
-                            Sending Configuration…
+                            Applying Config…
                           </>
                         ) : sentOk ? (
                           <>
@@ -389,12 +342,11 @@ export const AgentSettingsModal: React.FC = () => {
                       </button>
                     </div>
 
-                    <div className={`flex items-center justify-between h-9 px-4 rounded-btn border min-w-[140px] ${statusBg[status]}`}>
+                    <div className="flex items-center justify-between h-9 px-4 rounded-btn border min-w-[140px] bg-bg-elevated border-border">
                       <div className="flex items-center gap-2">
-                        <Circle size={6} weight="fill" className={`${statusColors[status]} ${status === 'connecting' ? 'animate-pulse' : ''}`} />
-                        <span className="text-[9px] font-mono text-text-secondary uppercase">{status}</span>
+                        <Circle size={6} weight="fill" className="text-accent-green" />
+                        <span className="text-[9px] font-mono text-text-secondary uppercase">Local Agent Active</span>
                       </div>
-                      <span className="text-[9px] font-mono text-text-tertiary">{rtt > 0 ? `${rtt}ms` : '—'}</span>
                     </div>
                   </div>
 
@@ -413,7 +365,6 @@ export const AgentSettingsModal: React.FC = () => {
                       onChange={(e) => {
                         const newValue = parseInt(e.target.value);
                         runtimeStore.setCycleMsOverride(activeAgentId, newValue);
-                        sendMessage('set_cycle_ms', { agentId: activeAgentId, cycleMs: newValue });
                       }}
                       className="w-full h-1 bg-bg-elevated rounded-lg appearance-none cursor-pointer accent-accent-blue"
                     />
@@ -559,7 +510,7 @@ export const AgentSettingsModal: React.FC = () => {
                         </div>
                       ) : (
                         filteredMemories.map((m) => {
-                          const reward = m.rewardSignal ?? m.reward_signal ?? 0;
+                          const reward = m.rewardSignal ?? 0;
                           return (
                             <div key={m.id} className="p-3 bg-bg-panel/40 space-y-2 text-left relative group hover:bg-white/[0.01]">
                               <div className="flex items-center justify-between">
@@ -665,7 +616,7 @@ export const AgentSettingsModal: React.FC = () => {
                   {/* Test Voice Button */}
                   <div className="pt-2">
                     <Button
-                      variant="outline"
+                      variant="secondary"
                       disabled={!isAgentTtsEnabled}
                       onClick={async () => {
                         const voice = getSystemVoiceForAgent(activeAgentId);
@@ -735,7 +686,7 @@ export const AgentSettingsModal: React.FC = () => {
                   <div>
                     <h3 className="text-xs font-bold text-text-primary uppercase tracking-wider">Dataset Export Scoping</h3>
                     <p className="text-[11px] text-text-tertiary leading-normal mt-1">
-                      Download compiled cognition records, state logs, and video sequences specifically for this active agent.
+                      Download compiled cognition records and state logs specifically for this active agent.
                     </p>
                   </div>
 
@@ -745,7 +696,7 @@ export const AgentSettingsModal: React.FC = () => {
                       Active Selection Export Ready
                     </h4>
                     <p className="text-[11px] text-text-secondary leading-normal">
-                      Click below to open the export wizard. The session records, thoughts list, and frames will be filtered automatically to download <strong>only</strong> the data belonging to <strong className="text-accent-blue font-mono">{activeAgentId}</strong>.
+                      Click below to open the export wizard. The session records and thoughts list will be filtered automatically to download <strong>only</strong> the data belonging to <strong className="text-accent-blue font-mono">{activeAgentId}</strong>.
                     </p>
 
                     <div className="pt-2">
