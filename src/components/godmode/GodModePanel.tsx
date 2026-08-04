@@ -13,13 +13,13 @@ import { AgentBodyControls } from './AgentBodyControls';
 import { DirectivePanel } from './DirectivePanel';
 import { ObjectSpawner } from './ObjectSpawner';
 import { motion, AnimatePresence } from 'framer-motion';
-import { GearSix, X, Cube, Export, User } from '@phosphor-icons/react';
+import { GearSix, X, Cube, User } from '@phosphor-icons/react';
 import { Button } from '../ui/Button';
 import { STRINGS } from '../../constants/strings';
 
 export const GodModePanel: React.FC = () => {
   const { godModeOpen, setGodModeOpen } = useWorldStore();
-  const { setObjectSpawnerOpen, setExportModalOpen } = useUIStore();
+  const { setObjectSpawnerOpen } = useUIStore();
   const activeAgentId = useAgentStore((state) => state.activeAgentId);
 
   return (
