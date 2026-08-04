@@ -263,7 +263,10 @@ export class AgentLoop {
       light_state: worldState.lightState || 'day',
       tier: actionData.memory_write.tier || 3,
       visual_description: actionData.memory_write.summary || "No summary provided",
-      audio_state: JSON.stringify(worldState.audio || {}),
+      audio_state: JSON.stringify({
+        ...(worldState.audio || {}),
+        overheard_speech: worldState.overheard_speech || [],
+      }),
       joint_state_summary: JSON.stringify(worldState.joints || {}),
       self_questions: {},
       thought: result.thoughtTokens,

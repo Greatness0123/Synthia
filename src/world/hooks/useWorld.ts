@@ -14,6 +14,7 @@ import { AgentLoop } from "../agent/AgentLoop";
 import { useWorldStore } from "../../store/worldStore";
 import { useAgentStore } from "../../store/agentStore";
 import { useConnectionStore } from "../../store/connectionStore";
+import { useSpeechStore } from "../../store/speechStore";
 import { useAgentRuntimeStore } from "../../store/agentRuntimeStore";
 import { useUIStore } from "../../store/uiStore";
 import { synthiaToast } from "../../components/ui/Toast";
@@ -1153,6 +1154,65 @@ export const useWorld = (containerRef: React.RefObject<HTMLDivElement>) => {
 
     const agentState = useAgentStore.getState().agents[agentId] || { heartbeat: 0, currentRung: 0, currentGoal: '' };
 
+    // ── Overheard Speech (Agent-to-Agent text tunnel) ────────────────────
+    const MAX_HEARING_DISTANCE = 15; // 15 meters
+    const UTTERANCE_EXPIRY_MS = 10000; // 10 seconds expiry
+
+    // Clean up expired utterances
+    useSpeechStore.getState().clearExpiredUtterances(UTTERANCE_EXPIRY_MS);
+
+    const activeUtterances = useSpeechStore.getState().utterances || [];
+    const listenerHeadTransform = binder.getHeadTransform();
+    const listenerHeadPos = listenerHeadTransform?.position || new THREE.Vector3(0, 1.6, 0);
+
+    const overheard: Array<{ speakerId: string; distance: number; occluded: boolean; text: string }> = [];
+
+    for (const u of activeUtterances) {
+      if (u.speakerId === agentId) continue;
+      if (u.deliveredTo.includes(agentId)) continue;
+
+      const speakerPosVec = new THREE.Vector3(u.position.x, u.position.y, u.position.z);
+      const distance = listenerHeadPos.distanceTo(speakerPosVec);
+
+      if (distance <= MAX_HEARING_DISTANCE) {
+        let occluded = false;
+        const currentScene = worldEngineRef.current?.getScene();
+        if (currentScene) {
+          const raycaster = new THREE.Raycaster();
+          const direction = new THREE.Vector3().subVectors(speakerPosVec, listenerHeadPos).normalize();
+          raycaster.set(listenerHeadPos, direction);
+          raycaster.far = distance;
+
+          const intersects = raycaster.intersectObjects(currentScene.children, true);
+          const speakerBinder = humanoidPhysicsBindersRef.current.get(u.speakerId);
+          const speakerModelRoot = speakerBinder?.getModelRoot();
+          const listenerModelRoot = binder.getModelRoot();
+          const floorMesh = (window as any).__SYNTHIA_FLOOR_MESH__;
+
+          occluded = intersects.some((intersect) => {
+            let p: THREE.Object3D | null = intersect.object;
+            while (p) {
+              if (p === speakerModelRoot || p === listenerModelRoot || p === floorMesh) {
+                return false; // ignore self, speaker, and floor mesh
+              }
+              p = p.parent;
+            }
+            return true; // it's a real obstacle in between!
+          });
+        }
+
+        overheard.push({
+          speakerId: u.speakerId,
+          distance,
+          occluded,
+          text: u.text,
+        });
+
+        // Mark this utterance as delivered to this listener agentId
+        useSpeechStore.getState().markUtteranceDelivered(u.id, agentId);
+      }
+    }
+
     return {
       frame,
       joints,
@@ -1168,6 +1228,7 @@ export const useWorld = (containerRef: React.RefObject<HTMLDivElement>) => {
       currentGoal: agentState.currentGoal,
       lightState: useWorldStore.getState().lightState,
       timestamp: Date.now(),
+      overheard_speech: overheard,
     };
   }, []);
 
@@ -1493,6 +1554,40 @@ export const useWorld = (containerRef: React.RefObject<HTMLDivElement>) => {
     };
     window.addEventListener('synthia:resetPose', handleResetPose);
     return () => window.removeEventListener('synthia:resetPose', handleResetPose);
+  }, []);
+
+  // ── Agent Spoke perception event handler ─────────────────────────────
+  useEffect(() => {
+    const handleAgentSpoke = (e: Event) => {
+      const { agentId, text } = (e as CustomEvent).detail;
+      const binder = humanoidPhysicsBindersRef.current.get(agentId);
+      const position = new THREE.Vector3(0, 1.6, 0); // fallback
+
+      if (binder) {
+        const headTransform = binder.getHeadTransform();
+        if (headTransform && headTransform.position) {
+          position.copy(headTransform.position);
+        } else {
+          const capBody = binder.getCapsuleBody();
+          if (capBody && capBody.isValid()) {
+            const t = capBody.translation();
+            position.set(t.x, t.y + 1.6, t.z);
+          }
+        }
+      }
+
+      useSpeechStore.getState().addUtterance({
+        id: Math.random().toString(36).substr(2, 9),
+        speakerId: agentId,
+        text,
+        position: { x: position.x, y: position.y, z: position.z },
+        timestamp: Date.now(),
+        deliveredTo: [],
+      });
+    };
+
+    window.addEventListener('synthia:agent_spoke', handleAgentSpoke);
+    return () => window.removeEventListener('synthia:agent_spoke', handleAgentSpoke);
   }, []);
 
   // ── Agent-Specific Body Mode & Multi-Body PD Event Handlers ─────────

@@ -6,6 +6,16 @@
 import { MemoryManager } from './memoryManager';
 import { embeddingEngine } from './embeddingEngine';
 
+function degradeSpeech(text: string, lossPercentage: number): string {
+  const words = text.split(' ');
+  return words.map(word => {
+    if (Math.random() < lossPercentage * 0.6) {
+      return '[inaudible]';
+    }
+    return word;
+  }).join(' ');
+}
+
 export class PayloadBuilder {
   private memoryManager: MemoryManager;
 
@@ -85,6 +95,20 @@ export class PayloadBuilder {
       situationBlock = `SITUATION: I am lying flat on the FLOOR (hip height ${bodyHeight.toFixed(2)}m). I am NOT inverted or pressed against a ceiling. This is ground contact. PRIORITY ACTION: execute 'get_up_from_front' or 'get_up_from_back' to stand up.`;
     }
 
+    // Overheard speech context
+    let overheardSection = '';
+    const overheardList = payload.overheard_speech || [];
+    if (overheardList.length > 0) {
+      const lines = overheardList.map((entry: any) => {
+        const baseLoss = entry.distance / 15.0;
+        const penalty = entry.occluded ? 0.4 : 0.0;
+        const lossPercentage = Math.max(0.0, Math.min(1.0, baseLoss + penalty));
+        const degradedText = degradeSpeech(entry.text, lossPercentage);
+        return `- From ${entry.speakerId} (distance: ${entry.distance.toFixed(1)}m, occluded: ${entry.occluded ? 'yes' : 'no'}): "${degradedText}"`;
+      });
+      overheardSection = `\nOVERHEARD SPEECH:\n${lines.join('\n')}\n`;
+    }
+
     // Nearby objects (within 5m of head)
     const headPos = head.position || [0, 1.6, 0];
     const nearbyObjects = (payload.objects_in_world || [])
@@ -130,7 +154,7 @@ Current heartbeat: ${payload.heartbeat}
 Time of day: ${payload.light_state}
 
 ${situationBlock}
-
+${overheardSection}
 OBJECTS WITHIN 5 METRES:
 ${objectLines}
 
@@ -218,6 +242,7 @@ IMPORTANT: contacts=1 means ONE surface (the floor) is touching me. This is NORM
       directive_mode: options.mode || 'free_will',
       agent_id: agentId,
       contact_forces: contactForces,
+      overheard_speech: worldState.overheard_speech || [],
     };
 
     payload.tactile_context = this.buildTactileContext(contactForces);
