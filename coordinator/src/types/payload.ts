@@ -30,6 +30,7 @@ export interface InferPayload {
   gaze_context?: string;
   perception_summary?: string;
   physical_feedback?: string | null;
+  overheard_speech?: any[];
 }
 
 export interface InferResponse {

@@ -97,7 +97,14 @@ export function getSystemVoiceForAgent(agentId: string): SpeechSynthesisVoice | 
  * Coordinates and plays Speech Synthesis for an agent's completed thought.
  */
 export async function speakAgentThought(agentId: string, text: string): Promise<void> {
-  if (typeof window === 'undefined' || !window.speechSynthesis) return;
+  if (typeof window === 'undefined') return;
+
+  // Dispatch custom event for client-side agent perception (overhearing) tunnel
+  window.dispatchEvent(new CustomEvent('synthia:agent_spoke', {
+    detail: { agentId, text }
+  }));
+
+  if (!window.speechSynthesis) return;
 
   const { globalTtsEnabled, agentTtsEnabled, nonActiveBehavior } = useSpeechStore.getState();
 
