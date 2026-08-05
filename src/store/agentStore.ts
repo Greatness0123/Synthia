@@ -5,7 +5,7 @@
 
 import { create } from 'zustand';
 import type { Thought, Memory, AgentStatus, DirectiveMode } from '../types/agent';
-import { speakAgentThought } from '../utils/speech';
+import { speakAgentThought, stripSpeechTags } from '../utils/speech';
 
 export interface SingleAgentState {
   agentId: string;
@@ -188,12 +188,13 @@ export const useAgentStore = create<AgentStoreState>((set, get) => {
     }),
 
     addThoughtForAgent: (id, thought) => {
-      // Trigger TTS speech synthesis as a side-effect
+      // Trigger TTS speech synthesis as a side-effect. Only <speak> tagged
+      // content is spoken/broadcast — the full thought stays silent.
       speakAgentThought(id, thought.text).catch((err) =>
         console.error(`Error in speakAgentThought for ${id}:`, err)
       );
       return set((state) => updateAgent(state, id, {
-        thoughts: [...(state.agents[id]?.thoughts || []), thought],
+        thoughts: [...(state.agents[id]?.thoughts || []), { ...thought, text: stripSpeechTags(thought.text) }],
       }));
     },
 

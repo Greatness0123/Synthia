@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import JSZip from 'jszip';
 import { ExportConfig } from '../types/export';
+import { useAgentStore } from '../store/agentStore';
 
 // Simple function to trigger browser download of a Blob
 function triggerDownload(blob: Blob, filename: string) {
@@ -20,69 +21,106 @@ export async function runClientSideExport(
   supabaseKey: string,
   onProgress: (percent: number) => void
 ): Promise<void> {
-  if (!supabaseUrl || !supabaseKey) {
-    throw new Error('Supabase credentials are required for export.');
-  }
-
-  const supabase = createClient(supabaseUrl, supabaseKey);
   onProgress(5);
+  let memories: any[] = [];
 
-  // 1. Gather memories
-  let query = supabase.from('memories').select('*').in('agent_id', config.agentIds);
+  // 1. Gather memories from Supabase if configured, otherwise fallback to local store
+  if (supabaseUrl && supabaseKey) {
+    try {
+      const supabase = createClient(supabaseUrl, supabaseKey);
+      let query = supabase.from('memories').select('*').in('agent_id', config.agentIds);
 
-  if (config.scope === 'date_range') {
-    if (config.dateFrom) query = query.gte('created_at', config.dateFrom);
-    if (config.dateTo) query = query.lte('created_at', config.dateTo);
-  } else if (config.scope === 'session') {
-    if (config.sessionIds && config.sessionIds.length > 0) {
-      query = query.in('session_id', config.sessionIds);
+      if (config.scope === 'date_range') {
+        if (config.dateFrom) query = query.gte('created_at', config.dateFrom);
+        if (config.dateTo) query = query.lte('created_at', config.dateTo);
+      } else if (config.scope === 'session') {
+        if (config.sessionIds && config.sessionIds.length > 0) {
+          query = query.in('session_id', config.sessionIds);
+        }
+      } else if (config.scope === 'heartbeat_range') {
+        if (config.heartbeatFrom !== undefined) query = query.gte('heartbeat', config.heartbeatFrom);
+        if (config.heartbeatTo !== undefined) query = query.lte('heartbeat', config.heartbeatTo);
+      }
+
+      if (config.includeTiers && config.includeTiers.length > 0) {
+        query = query.in('tier', config.includeTiers);
+      }
+      if (config.excludeInjected) {
+        query = query.not('injected', 'eq', true);
+      }
+      if (config.successfulOnly) {
+        query = query.neq('outcome', 'failure');
+      }
+
+      const { data, error } = await query.order('created_at', { ascending: true });
+      if (!error && data && data.length > 0) {
+        memories = data;
+      }
+    } catch (err) {
+      console.warn('[ClientExport] Supabase query failed, falling back to local memory store:', err);
     }
-  } else if (config.scope === 'heartbeat_range') {
-    if (config.heartbeatFrom !== undefined) query = query.gte('heartbeat', config.heartbeatFrom);
-    if (config.heartbeatTo !== undefined) query = query.lte('heartbeat', config.heartbeatTo);
   }
 
-  if (config.includeTiers && config.includeTiers.length > 0) {
-    query = query.in('tier', config.includeTiers);
-  }
-  if (config.excludeInjected) {
-    query = query.not('injected', 'eq', true);
-  }
-  if (config.successfulOnly) {
-    query = query.neq('outcome', 'failure');
-  }
-  if (config.minReward !== undefined) {
-    query = query.gte('reward_signal', config.minReward);
+  // Local fallback if Supabase unavailable or yielded no records
+  if (memories.length === 0) {
+    const agents = useAgentStore.getState().agents;
+    const targetAgents = config.agentIds.flatMap(id => agents[id] ? [agents[id]] : []);
+    const rawMemories = targetAgents.flatMap(a => (a.memories || []).map(m => ({
+      agent_id: m.agentId || 'agent_0',
+      id: m.id,
+      heartbeat: m.heartbeat,
+      tier: m.tier,
+      thought: m.thought,
+      summary: m.summary,
+      visual_description: m.summary || '',
+      action_taken: m.actionTaken || '',
+      reward_signal: m.rewardSignal,
+      injected: m.isInjected,
+      goal_at_time: m.goalAtTime,
+      session_id: m.sessionId || 'local_session',
+      created_at: new Date().toISOString(),
+    })));
+
+    memories = rawMemories.filter(m => {
+      if (config.includeTiers && !config.includeTiers.includes(m.tier as any)) return false;
+      if (config.excludeInjected && m.injected) return false;
+      if (config.successfulOnly && (m.reward_signal || 0) < 0.5) return false;
+      if (config.scope === 'heartbeat_range') {
+        if (config.heartbeatFrom !== undefined && m.heartbeat < config.heartbeatFrom) return false;
+        if (config.heartbeatTo !== undefined && m.heartbeat > config.heartbeatTo) return false;
+      }
+      return true;
+    });
   }
 
-  const { data: memories, error: memoriesError } = await query.order('created_at', { ascending: true });
-  if (memoriesError) {
-    throw new Error(`Database error fetching memories: ${memoriesError.message}`);
+  // Apply taskFilter if specified
+  if (config.taskFilter && config.taskFilter.length > 0) {
+    memories = memories.filter(m => m.goal_at_time && config.taskFilter!.includes(m.goal_at_time));
   }
+
   if (!memories || memories.length === 0) {
-    throw new Error('No memories found matching criteria');
+    throw new Error('No memories found matching the export criteria');
   }
 
   onProgress(40);
 
-  // Fetch session meta if session_full is chosen
+  // Fetch session meta if session_full is chosen and Supabase is configured
   let sessionsMeta: any[] = [];
   let skillsMeta: any[] = [];
-  if (config.exportType === 'session_full') {
-    const sessionIds = [...new Set(memories.map((m) => m.session_id))].filter(Boolean);
-    if (sessionIds.length > 0) {
-      const { data: sessions } = await supabase
-        .from('sessions')
-        .select('*')
-        .in('id', sessionIds);
-      if (sessions) sessionsMeta = sessions;
-    }
+  if (config.exportType === 'session_full' && supabaseUrl && supabaseKey) {
+    try {
+      const supabase = createClient(supabaseUrl, supabaseKey);
+      const sessionIds = [...new Set(memories.map((m) => m.session_id))].filter(Boolean);
+      if (sessionIds.length > 0) {
+        const { data: sessions } = await supabase.from('sessions').select('*').in('id', sessionIds);
+        if (sessions) sessionsMeta = sessions;
+      }
 
-    const { data: skills } = await supabase
-      .from('skills')
-      .select('*')
-      .in('agent_id', config.agentIds);
-    if (skills) skillsMeta = skills;
+      const { data: skills } = await supabase.from('skills').select('*').in('agent_id', config.agentIds);
+      if (skills) skillsMeta = skills;
+    } catch (e) {
+      console.warn('[ClientExport] Fetch session meta warning:', e);
+    }
   }
 
   onProgress(60);
@@ -92,13 +130,11 @@ export async function runClientSideExport(
 
   // 2. Perform formatting based on ExportType
   if (config.exportType === 'dataset') {
-    const format = config.format || 'CSV';
+    const format = config.format || 'JSONL';
 
     if (config.zipPerAgent && config.agentIds.length > 1) {
-      // Create a ZIP containing a folder per agent
       const zip = new JSZip();
 
-      // Group memories by agent
       const agentGroups: Record<string, any[]> = {};
       config.agentIds.forEach((id) => {
         agentGroups[id] = memories.filter((m) => m.agent_id === id);
@@ -108,11 +144,11 @@ export async function runClientSideExport(
         if (agentMemories.length === 0) return;
 
         if (format === 'CSV') {
-          const csvContent = formatCSV(agentMemories);
-          zip.file(`${agentId}/export.csv`, csvContent);
+          zip.file(`${agentId}/export.csv`, formatCSV(agentMemories));
+        } else if (format === 'LeRobot') {
+          zip.file(`${agentId}/lerobot_dataset.jsonl`, formatLeRobot(agentMemories));
         } else {
-          const jsonlContent = formatJSONL(agentMemories);
-          zip.file(`${agentId}/data.jsonl`, jsonlContent);
+          zip.file(`${agentId}/data.jsonl`, formatJSONL(agentMemories));
         }
       });
 
@@ -120,11 +156,14 @@ export async function runClientSideExport(
       const content = await zip.generateAsync({ type: 'blob' });
       triggerDownload(content, `${baseFilename}.zip`);
     } else {
-      // Download single file directly
       if (format === 'CSV') {
         const csvContent = formatCSV(memories);
         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
         triggerDownload(blob, `${baseFilename}.csv`);
+      } else if (format === 'LeRobot') {
+        const leRobotContent = formatLeRobot(memories);
+        const blob = new Blob([leRobotContent], { type: 'application/x-jsonlines;charset=utf-8;' });
+        triggerDownload(blob, `${baseFilename}_lerobot.jsonl`);
       } else {
         const jsonlContent = formatJSONL(memories);
         const blob = new Blob([jsonlContent], { type: 'application/x-jsonlines;charset=utf-8;' });
@@ -143,8 +182,7 @@ export async function runClientSideExport(
 
       Object.entries(agentGroups).forEach(([agentId, agentMemories]) => {
         if (agentMemories.length === 0) return;
-        const agentReport = formatThoughtsReport(agentMemories);
-        zip.file(`${agentId}/thoughts_report.md`, agentReport);
+        zip.file(`${agentId}/thoughts_report.md`, formatThoughtsReport(agentMemories));
       });
 
       onProgress(85);
@@ -164,7 +202,6 @@ export async function runClientSideExport(
       sessions: sessionsMeta,
       memories: memories.map(m => ({
         ...m,
-        // Strip binary frame data to keep JSON export lightweight
         frame_buffer: undefined
       })),
       skills: skillsMeta,
@@ -242,6 +279,36 @@ function formatJSONL(memories: any[]): string {
     .join('\n');
 }
 
+// Helper: LeRobot Hugging Face Dataset Format
+function formatLeRobot(memories: any[]): string {
+  let episodeIndex = 0;
+  let currentSession = '';
+  return memories
+    .map((m, idx) => {
+      const sessionId = m.session_id || m.sessionId || 'session_0';
+      if (sessionId !== currentSession) {
+        currentSession = sessionId;
+        episodeIndex++;
+      }
+      return JSON.stringify({
+        episode_index: episodeIndex,
+        frame_index: m.heartbeat || idx,
+        timestamp: (m.heartbeat || idx) * 0.1,
+        task: m.goal_at_time || m.goalAtTime || 'general_embodied_task',
+        observation: {
+          thought: m.thought || '',
+          visual_description: m.visual_description || m.visualDescription || '',
+          audio_state: m.audio_state || m.audioState || '',
+        },
+        state: m.joint_states || m.jointStates || [],
+        action: m.action_taken || m.action || [],
+        reward: m.reward_signal ?? m.rewardSignal ?? 0,
+        done: m.outcome === 'success' || m.outcome === 'failure',
+      });
+    })
+    .join('\n');
+}
+
 // Helper: Thoughts Report format
 function formatThoughtsReport(memories: any[]): string {
   const lines: string[] = [];
@@ -251,7 +318,6 @@ function formatThoughtsReport(memories: any[]): string {
   lines.push(`Total Memories: ${memories.length}`);
   lines.push('');
 
-  // Group by session
   const sessionGroups = new Map<string, any[]>();
   memories.forEach((m) => {
     const sId = m.session_id || 'unknown';
@@ -261,7 +327,6 @@ function formatThoughtsReport(memories: any[]): string {
     sessionGroups.get(sId)!.push(m);
   });
 
-  // Table of contents
   lines.push('## Table of Contents');
   lines.push('');
   let sessionIndex = 0;
@@ -274,7 +339,6 @@ function formatThoughtsReport(memories: any[]): string {
   lines.push('---');
   lines.push('');
 
-  // Each session
   sessionIndex = 0;
   for (const [sessionId, sessionMemories] of sessionGroups) {
     sessionIndex++;
@@ -289,7 +353,6 @@ function formatThoughtsReport(memories: any[]): string {
     lines.push(`- **Started:** ${firstMemory.created_at || 'N/A'}`);
     lines.push('');
 
-    // Tier breakdown
     const tier1 = sessionMemories.filter((m) => m.tier === 1);
     const tier2 = sessionMemories.filter((m) => m.tier === 2);
     const tier3 = sessionMemories.filter((m) => m.tier === 3);
@@ -299,7 +362,6 @@ function formatThoughtsReport(memories: any[]): string {
     lines.push(`- Tier 3 (Long-term): ${tier3.length}`);
     lines.push('');
 
-    // Memories
     for (const m of sessionMemories) {
       lines.push(`### Heartbeat ${m.heartbeat} — Tier ${m.tier} [Agent: ${m.agent_id || 'agent_0'}]`);
       lines.push('');
@@ -328,7 +390,6 @@ function formatThoughtsReport(memories: any[]): string {
     }
   }
 
-  // Summary stats
   lines.push('## Summary Statistics');
   lines.push('');
   const avgReward = memories.reduce((sum, m) => sum + (m.reward_signal || 0), 0) / memories.length;

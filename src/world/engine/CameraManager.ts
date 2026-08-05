@@ -18,12 +18,21 @@ export class CameraManager {
   private transformControls: TransformControls;
   private renderer: THREE.WebGLRenderer;
 
+  private static readonly DEFAULT_AI_VIEW_SIZE = 448;
+  private static readonly DEFAULT_AI_VIEW_FOV = 110;
+
+  private aiViewSize: number = CameraManager.DEFAULT_AI_VIEW_SIZE;
+
   private lastActiveAgentId: string = '';
   private snapNextFrame: boolean = false;
   private lastUpdateTime: number = 0;
   private initializeThirdPersonTarget: boolean = false;
 
-  private static readonly AI_VIEW_SIZE = 448;
+  // Arrow key axial motion
+  private keysPressed = new Set<string>();
+  private boundKeyDown: (e: KeyboardEvent) => void;
+  private boundKeyUp: (e: KeyboardEvent) => void;
+  private static readonly CAMERA_MOVE_SPEED = 5.0;
 
   public onDragEnd?: (object: THREE.Object3D) => void;
   public onDragChanged?: (dragging: boolean, object: THREE.Object3D | null) => void;
@@ -40,14 +49,14 @@ export class CameraManager {
     this.chaseCam.position.set(0, 5, -6);
     this.chaseCam.lookAt(0, 1.5, 0);
 
-    this.aiPerceptionCamera = new THREE.PerspectiveCamera(110, 480 / 270, 0.01, 200);
+    this.aiPerceptionCamera = new THREE.PerspectiveCamera(CameraManager.DEFAULT_AI_VIEW_FOV, 480 / 270, 0.01, 200);
 
     this.aiPerceptionCamera.position.set(0, 1.8, 0.5);
     this.aiPerceptionCamera.lookAt(0, 1.0, 10);
 
     this.renderTarget = new THREE.WebGLRenderTarget(480, 270);
 
-    const size = CameraManager.AI_VIEW_SIZE;
+    const size = this.aiViewSize;
     this.aiRenderTarget = new THREE.WebGLRenderTarget(size, size, {
       minFilter: THREE.LinearFilter,
       magFilter: THREE.LinearFilter,
@@ -73,6 +82,42 @@ export class CameraManager {
         this.onDragEnd(obj);
       }
     });
+
+    // Arrow key listeners for axial camera motion
+    this.boundKeyDown = (e: KeyboardEvent) => {
+      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+        this.keysPressed.add(e.key);
+      }
+    };
+    this.boundKeyUp = (e: KeyboardEvent) => {
+      this.keysPressed.delete(e.key);
+    };
+    window.addEventListener('keydown', this.boundKeyDown);
+    window.addEventListener('keyup', this.boundKeyUp);
+  }
+
+  /**
+   * Rebuilds the AI perception camera FOV and render target size at runtime.
+   * Higher sizes increase per-frame cost (and API payload size) — used by the
+   * Agent Settings "Vision" section.
+   */
+  public setAIVisionConfig(fov: number, size: number): void {
+    const clampedFov = Math.max(60, Math.min(180, fov));
+    const clampedSize = Math.max(224, Math.min(896, size));
+
+    this.aiPerceptionCamera.fov = clampedFov;
+    this.aiPerceptionCamera.updateProjectionMatrix();
+
+    if (clampedSize !== this.aiViewSize) {
+      this.aiViewSize = clampedSize;
+      this.aiRenderTarget.dispose();
+      this.aiRenderTarget = new THREE.WebGLRenderTarget(clampedSize, clampedSize, {
+        minFilter: THREE.LinearFilter,
+        magFilter: THREE.LinearFilter,
+        format: THREE.RGBAFormat,
+        type: THREE.UnsignedByteType,
+      });
+    }
   }
 
   public update(
@@ -165,6 +210,32 @@ export class CameraManager {
           this.initializeThirdPersonTarget = false;
         }
       }
+
+      // Arrow key axial motion
+      if (this.keysPressed.size > 0) {
+        const now = performance.now();
+        const dt = this.lastUpdateTime > 0 ? Math.min(0.1, (now - this.lastUpdateTime) / 1000) : 0.016;
+        const moveSpeed = CameraManager.CAMERA_MOVE_SPEED * dt;
+
+        const forward = new THREE.Vector3();
+        this.thirdPersonCamera.getWorldDirection(forward);
+        forward.y = 0;
+        forward.normalize();
+
+        const right = new THREE.Vector3();
+        right.crossVectors(forward, new THREE.Vector3(0, 1, 0)).normalize();
+
+        const moveDelta = new THREE.Vector3(0, 0, 0);
+
+        if (this.keysPressed.has('ArrowUp')) moveDelta.add(forward.clone().multiplyScalar(moveSpeed));
+        if (this.keysPressed.has('ArrowDown')) moveDelta.add(forward.clone().multiplyScalar(-moveSpeed));
+        if (this.keysPressed.has('ArrowLeft')) moveDelta.add(right.clone().multiplyScalar(-moveSpeed));
+        if (this.keysPressed.has('ArrowRight')) moveDelta.add(right.clone().multiplyScalar(moveSpeed));
+
+        this.thirdPersonCamera.position.add(moveDelta);
+        this.controls.target.add(moveDelta);
+      }
+
       this.controls.update();
     }
   }
@@ -177,11 +248,12 @@ export class CameraManager {
   }
 
   /**
-   * Render the scene from an arbitrary camera into the 448x448 AI render target
-   * and encode as a base64 webp string. Used for per-agent first-person vision.
+   * Render the scene from an arbitrary camera into the configurable AI render
+   * target and encode as a base64 webp string. Used for per-agent first-person
+   * vision.
    */
   public captureFrameFromCamera(scene: THREE.Scene, camera: THREE.PerspectiveCamera): string {
-    const size = CameraManager.AI_VIEW_SIZE;
+    const size = this.aiViewSize;
     const previousTarget = this.renderer.getRenderTarget();
     const previousAspect = camera.aspect;
 
@@ -297,5 +369,13 @@ export class CameraManager {
 
   public getTransformControls(): TransformControls {
     return this.transformControls;
+  }
+
+  public dispose(): void {
+    window.removeEventListener('keydown', this.boundKeyDown);
+    window.removeEventListener('keyup', this.boundKeyUp);
+    this.keysPressed.clear();
+    this.controls.dispose();
+    this.transformControls.dispose();
   }
 }

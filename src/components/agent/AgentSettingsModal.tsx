@@ -1,7 +1,7 @@
 /**
  * AgentSettingsModal component.
  * Driven entirely by useAgentStore's activeAgentId selection.
- * Covers: Connection/provider settings, memory explorer, skill/rung progression ladder, and per-agent export trigger.
+ * Covers: Connection/provider settings, memory explorer, per-agent voice/TTS, vision settings, and connection testing.
  */
 
 import React, { useState, useMemo } from 'react';
@@ -9,7 +9,6 @@ import { useUIStore } from '../../store/uiStore';
 import { useAgentStore } from '../../store/agentStore';
 import { useAgentRuntimeStore, type AgentRuntimeConfig } from '../../store/agentRuntimeStore';
 import { type ProviderType } from '../../store/connectionStore';
-import { SKILL_RUNGS } from '../../constants/progressionLadder';
 import { Panel, cn } from '../ui/Panel';
 import { Button } from '../ui/Button';
 import { Badge } from '../ui/Badge';
@@ -19,8 +18,6 @@ import {
   Cpu,
   Brain,
   Database,
-  ChartLineUp,
-  Export,
   CaretDown,
   CaretUp,
   Circle,
@@ -29,25 +26,75 @@ import {
   WifiHigh,
   MagnifyingGlass,
   Bookmark,
-  Sparkle,
-  SpeakerHigh
+  SpeakerHigh,
+  Eye,
+  WarningCircle,
+  PlugsConnected,
+  Pause,
+  Play
 } from '@phosphor-icons/react';
 import { synthiaToast } from '../ui/Toast';
 import { useSpeechStore } from '../../store/speechStore';
 import { getSystemVoiceForAgent, ttsProvider } from '../../utils/speech';
+import { useWorldStore } from '../../store/worldStore';
+import { InferenceClient } from '../../world/agent/InferenceClient';
 
-const PROVIDER_INFO: Record<ProviderType, { label: string; defaultEndpoint: string; defaultModel: string; needsKey: boolean }> = {
+const PROVIDER_INFO: Record<ProviderType, { label: string; defaultEndpoint: string; defaultModel: string; needsKey: boolean; models?: string[] }> = {
   kaggle:     { label: 'Kaggle / Cloudflare', defaultEndpoint: 'http://localhost:8000/infer', defaultModel: 'Qwen2.5-VL-3B-Instruct', needsKey: false },
-  gemini:     { label: 'Google Gemini',        defaultEndpoint: 'https://generativelanguage.googleapis.com', defaultModel: 'gemini-2.0-flash', needsKey: true },
-  nim:        { label: 'NVIDIA NIM',           defaultEndpoint: 'https://integrate.api.nvidia.com/v1', defaultModel: 'meta/llama-3.1-8b-instruct', needsKey: true },
-  openrouter: { label: 'OpenRouter',           defaultEndpoint: 'https://openrouter.ai/api/v1', defaultModel: 'meta-llama/llama-3.1-8b-instruct', needsKey: true },
-  groq:       { label: 'Groq',                 defaultEndpoint: 'https://api.groq.com/openai/v1', defaultModel: 'llama-3.1-8b-instant', needsKey: true },
+  gemini:     { label: 'Google Gemini', defaultEndpoint: 'https://generativelanguage.googleapis.com/v1beta/openai', defaultModel: 'gemini-2.0-flash', needsKey: true,
+    models: ['gemini-2.0-flash', 'gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-1.5-flash', 'gemini-1.5-pro'] },
+  groq:       { label: 'Groq', defaultEndpoint: 'https://api.groq.com/openai/v1', defaultModel: 'llama-3.2-90b-vision-preview', needsKey: true,
+    models: ['llama-3.2-90b-vision-preview', 'llama-3.2-11b-vision-preview', 'llama-3.1-8b-instant', 'mixtral-8x7b-32768'] },
+  openrouter: { label: 'OpenRouter', defaultEndpoint: 'https://openrouter.ai/api/v1', defaultModel: 'meta-llama/llama-3.2-90b-vision-instruct', needsKey: true,
+    models: ['meta-llama/llama-3.2-90b-vision-instruct', 'qwen/qwen-2-vl-72b-instruct', 'google/gemini-2.0-flash-exp:free', 'anthropic/claude-3.5-sonnet', 'meta-llama/llama-3.1-8b-instruct'] },
+  nim:        { label: 'NVIDIA NIM', defaultEndpoint: 'https://integrate.api.nvidia.com/v1', defaultModel: 'meta/llama-3.2-90b-vision-instruct', needsKey: true,
+    models: ['meta/llama-3.2-90b-vision-instruct', 'meta/llama-3.2-11b-vision-instruct', 'nvidia/llama-3.1-nemotron-nano-vl-8b-v1', 'meta/llama-4-scout-17b-16e-instruct', 'qwen/qwen3.5-397b-a17b'] },
+  qwen:       { label: 'Qwen (DashScope)', defaultEndpoint: 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1', defaultModel: 'qwen3-vl-plus', needsKey: true,
+    models: ['qwen3-vl-plus', 'qwen3-vl-flash', 'qwen-vl-max', 'qwen-vl-plus', 'qwen2.5-vl-72b-instruct', 'qwen2.5-vl-32b-instruct', 'qwen3-omni-flash'] },
+  cerebras:   { label: 'Cerebras', defaultEndpoint: 'https://api.cerebras.ai/v1', defaultModel: 'gemma-4-31b', needsKey: true,
+    models: ['gemma-4-31b'] },
+  minimax:    { label: 'MiniMax', defaultEndpoint: 'https://api.minimax.io/v1', defaultModel: 'MiniMax-M3', needsKey: true,
+    models: ['MiniMax-M3', 'MiniMax-M2.7', 'MiniMax-M2.5'] },
+  moonshot:   { label: 'Moonshot AI (Kimi)', defaultEndpoint: 'https://api.moonshot.ai/v1', defaultModel: 'kimi-k2.6', needsKey: true,
+    models: ['kimi-k2.6', 'kimi-k3', 'moonshot-v1-8k-vision-preview'] },
+  mistral:    { label: 'Mistral', defaultEndpoint: 'https://api.mistral.ai/v1', defaultModel: 'mistral-large-latest', needsKey: true,
+    models: ['mistral-large-latest', 'mistral-medium-latest', 'mistral-small-latest', 'pixtral-large-latest', 'ministral-14b-latest', 'ministral-8b-latest'] },
+  nvidia:     { label: 'NVIDIA', defaultEndpoint: 'https://integrate.api.nvidia.com/v1', defaultModel: 'meta/llama-3.2-90b-vision-instruct', needsKey: true,
+    models: ['meta/llama-3.2-90b-vision-instruct', 'meta/llama-3.2-11b-vision-instruct', 'nvidia/llama-3.1-nemotron-nano-vl-8b-v1', 'meta/llama-4-scout-17b-16e-instruct', 'meta/llama-4-maverick-17b-128e-instruct'] },
+  xai:        { label: 'xAI (Grok)', defaultEndpoint: 'https://api.x.ai/v1', defaultModel: 'grok-4.5', needsKey: true,
+    models: ['grok-4.5', 'grok-4.3', 'grok-4.20'] },
+  zai:        { label: 'Z AI (Zhipu)', defaultEndpoint: 'https://api.z.ai/api/paas/v4', defaultModel: 'glm-5v-turbo', needsKey: true,
+    models: ['glm-5v-turbo', 'glm-5.2', 'glm-5.1', 'glm-4.7', 'glm-4.6v', 'glm-4.6v-flash'] },
+  anthropic:  { label: 'Anthropic', defaultEndpoint: 'https://api.anthropic.com/v1', defaultModel: 'claude-sonnet-4-20250514', needsKey: true,
+    models: ['claude-sonnet-4-20250514', 'claude-3-5-sonnet-20241022', 'claude-3-5-haiku-20241022'] },
+  openai:     { label: 'OpenAI', defaultEndpoint: 'https://api.openai.com/v1', defaultModel: 'gpt-4o', needsKey: true,
+    models: ['gpt-4o', 'gpt-4o-mini', 'o1-mini', 'o1-preview'] },
+  deepseek:   { label: 'DeepSeek', defaultEndpoint: 'https://api.deepseek.com/v1', defaultModel: 'deepseek-chat', needsKey: true,
+    models: ['deepseek-chat', 'deepseek-reasoner'] },
+  together:   { label: 'Together AI', defaultEndpoint: 'https://api.together.xyz/v1', defaultModel: 'Qwen/Qwen2.5-VL-72B-Instruct-Turbo', needsKey: true,
+    models: ['Qwen/Qwen2.5-VL-72B-Instruct-Turbo', 'meta-llama/Llama-Vision-Free', 'meta-llama/Llama-3.2-11B-Vision-Instruct-Turbo'] },
+  fireworks:  { label: 'Fireworks AI', defaultEndpoint: 'https://api.fireworks.ai/inference/v1', defaultModel: 'accounts/fireworks/models/llama-v3p2-90b-vision-instruct', needsKey: true,
+    models: ['accounts/fireworks/models/llama-v3p2-90b-vision-instruct', 'accounts/fireworks/models/qwen-vl-72b-instruct'] },
+  huggingface:{ label: 'Hugging Face', defaultEndpoint: 'https://api-inference.huggingface.co/v1', defaultModel: 'Qwen/Qwen2.5-VL-72B-Instruct', needsKey: true,
+    models: ['Qwen/Qwen2.5-VL-72B-Instruct', 'meta-llama/Llama-3.2-11B-Vision-Instruct', 'mistralai/Mistral-Small-3.1-24B-Instruct-2503'] },
+  ollama:     { label: 'Ollama (Local)', defaultEndpoint: 'http://localhost:11434/v1', defaultModel: 'llava', needsKey: false,
+    models: ['llava', 'llama3.2-vision', 'moondream', 'minicpm-v'] },
+  lmstudio:   { label: 'LM Studio', defaultEndpoint: 'http://localhost:1234/v1', defaultModel: '', needsKey: false },
   custom:     { label: 'Custom (OpenAI-compat)', defaultEndpoint: '', defaultModel: '', needsKey: true },
 };
 
+const VISION_SIZES = [224, 336, 448, 672, 896];
+
+interface ConnectionTestState {
+  status: 'idle' | 'testing' | 'ok' | 'fail';
+  latencyMs?: number;
+  error?: string;
+}
+
 export const AgentSettingsModal: React.FC = () => {
-  const { settingsModalOpen, setSettingsModalOpen, setExportModalOpen } = useUIStore();
+  const { settingsModalOpen, setSettingsModalOpen } = useUIStore();
   const { activeAgentId, agents } = useAgentStore();
+  const { aiVisionFov, aiVisionSize, setAiVisionFov, setAiVisionSize } = useWorldStore();
 
   // Use current agent state specifically, to ensure reactive updates if agent selection switches
   const currentAgent = agents[activeAgentId] || {
@@ -59,7 +106,7 @@ export const AgentSettingsModal: React.FC = () => {
     status: 'idle',
   };
 
-  const [activeTab, setActiveTab] = useState<'infra' | 'cognition' | 'voice' | 'export'>('infra');
+  const [activeTab, setActiveTab] = useState<'infra' | 'memory' | 'voice' | 'vision'>('infra');
 
   // Speech configurations
   const {
@@ -83,6 +130,8 @@ export const AgentSettingsModal: React.FC = () => {
   const [dbExpanded, setDbExpanded] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [sentOk, setSentOk] = useState(false);
+  const [connectionTest, setConnectionTest] = useState<ConnectionTestState>({ status: 'idle' });
+  const [showCustomModel, setShowCustomModel] = useState(false);
 
   // Cognition state (Memory explorer filtering)
   const [memorySearch, setMemorySearch] = useState('');
@@ -99,6 +148,7 @@ export const AgentSettingsModal: React.FC = () => {
         patch.model = info.defaultModel;
       }
     }
+    setShowCustomModel(false);
     runtimeStore.setConfig(activeAgentId, patch);
   };
 
@@ -122,7 +172,50 @@ export const AgentSettingsModal: React.FC = () => {
     setTimeout(() => setSentOk(false), 5000);
   };
 
+  const handleTestConnection = async () => {
+    if (!config.endpoint && config.provider !== 'custom') {
+      synthiaToast.error('Please enter an inference endpoint URL.');
+      return;
+    }
+    if (PROVIDER_INFO[config.provider].needsKey && !config.apiKey) {
+      synthiaToast.error(`API key required for ${PROVIDER_INFO[config.provider].label}.`);
+      return;
+    }
+
+    setConnectionTest({ status: 'testing' });
+    const client = new InferenceClient();
+    client.setProvider(config.provider, config.endpoint, config.apiKey, config.model);
+    const result = await client.testConnection();
+    setConnectionTest(
+      result.ok
+        ? { status: 'ok', latencyMs: result.latencyMs }
+        : { status: 'fail', latencyMs: result.latencyMs, error: result.error }
+    );
+  };
+
   const showApiKey = PROVIDER_INFO[config.provider].needsKey;
+
+  // Live status chip: derive from whether the loop can actually run
+  const loopState = runtimeStore.getLoopState(activeAgentId);
+  const hasProviderConfig = PROVIDER_INFO[config.provider].needsKey
+    ? !!config.apiKey && !!config.endpoint
+    : !!config.endpoint;
+
+  const statusChip = !hasProviderConfig
+    ? { color: 'text-accent-red', dot: 'bg-accent-red', label: 'No Provider Configured' }
+    : loopState === 'running'
+      ? { color: 'text-accent-green', dot: 'bg-accent-green', label: 'Agent Loop Active' }
+      : loopState === 'paused'
+        ? { color: 'text-accent-amber', dot: 'bg-accent-amber', label: 'Paused' }
+        : { color: 'text-accent-amber', dot: 'bg-accent-amber', label: 'Not Started' };
+
+  const handlePauseResume = () => {
+    if (loopState === 'running') {
+      window.__synthia?.pauseAgent?.(activeAgentId);
+    } else if (loopState === 'paused' || loopState === 'stopped') {
+      window.__synthia?.resumeAgent?.(activeAgentId);
+    }
+  };
 
   // Filtered Memories for detailed memory explorer
   const filteredMemories = useMemo(() => {
@@ -186,16 +279,16 @@ export const AgentSettingsModal: React.FC = () => {
               </button>
 
               <button
-                onClick={() => setActiveTab('cognition')}
+                onClick={() => setActiveTab('memory')}
                 className={cn(
                   "flex items-center gap-2.5 px-3 py-2.5 rounded-btn text-xs font-bold uppercase tracking-wider transition-all text-left",
-                  activeTab === 'cognition'
+                  activeTab === 'memory'
                     ? "bg-accent-purple/10 text-accent-purple font-black"
                     : "text-text-tertiary hover:bg-white/5 hover:text-text-secondary"
                 )}
               >
                 <Brain size={16} />
-                Cognition
+                Memory
               </button>
 
               <button
@@ -212,16 +305,16 @@ export const AgentSettingsModal: React.FC = () => {
               </button>
 
               <button
-                onClick={() => setActiveTab('export')}
+                onClick={() => setActiveTab('vision')}
                 className={cn(
                   "flex items-center gap-2.5 px-3 py-2.5 rounded-btn text-xs font-bold uppercase tracking-wider transition-all text-left",
-                  activeTab === 'export'
-                    ? "bg-accent-green/10 text-accent-green font-black"
+                  activeTab === 'vision'
+                    ? "bg-accent-blue/10 text-accent-blue font-black"
                     : "text-text-tertiary hover:bg-white/5 hover:text-text-secondary"
                 )}
               >
-                <Export size={16} />
-                Data & Export
+                <Eye size={16} />
+                Vision
               </button>
 
               <div className="mt-auto p-2 bg-white/[0.02] border border-white/5 rounded-btn text-[9px] text-text-tertiary text-center leading-normal">
@@ -231,7 +324,7 @@ export const AgentSettingsModal: React.FC = () => {
             </div>
 
             {/* Main Content Area */}
-            <div className="flex-1 p-6 overflow-y-auto bg-bg-panel/20">
+            <div className="flex-1 p-6 overflow-y-auto bg-bg-panel/20 custom-scrollbar">
               {activeTab === 'infra' && (
                 <div className="space-y-5 max-w-[540px]">
                   <div>
@@ -240,7 +333,6 @@ export const AgentSettingsModal: React.FC = () => {
                       Configure how this specific agent's cognition loops connect to Large Language Model backends and persistent storage.
                     </p>
                   </div>
-
 
                   <div className="grid grid-cols-2 gap-4">
                     {/* Provider dropdown */}
@@ -266,15 +358,40 @@ export const AgentSettingsModal: React.FC = () => {
                     {config.provider !== 'kaggle' && (
                       <div className="space-y-1.5">
                         <label className="text-[10px] uppercase tracking-wider text-text-tertiary font-bold">
-                          Model ID
+                          Model
                         </label>
-                        <input
-                          type="text"
-                          value={config.model || ''}
-                          onChange={(e) => runtimeStore.setConfig(activeAgentId, { model: e.target.value })}
-                          placeholder={PROVIDER_INFO[config.provider]?.defaultModel || 'model-name'}
-                          className="w-full h-8 px-2.5 bg-bg-elevated border border-border rounded-btn text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-accent-blue"
-                        />
+                        {PROVIDER_INFO[config.provider]?.models?.length ? (
+                          <div className="relative">
+                            <select
+                              value={showCustomModel ? '__custom__' : (config.model || '')}
+                              onChange={(e) => {
+                                if (e.target.value === '__custom__') {
+                                  setShowCustomModel(true);
+                                  runtimeStore.setConfig(activeAgentId, { model: '' });
+                                } else {
+                                  setShowCustomModel(false);
+                                  runtimeStore.setConfig(activeAgentId, { model: e.target.value });
+                                }
+                              }}
+                              className="w-full h-8 pl-2.5 pr-8 bg-bg-elevated border border-border rounded-btn text-xs text-text-primary appearance-none cursor-pointer focus:outline-none focus:ring-1 focus:ring-accent-blue"
+                            >
+                              {PROVIDER_INFO[config.provider].models!.map(m => (
+                                <option key={m} value={m}>{m}</option>
+                              ))}
+                              <option value="__custom__">Custom...</option>
+                            </select>
+                            <CaretDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-text-tertiary pointer-events-none" />
+                          </div>
+                        ) : null}
+                        {(showCustomModel || !PROVIDER_INFO[config.provider]?.models?.length) && (
+                          <input
+                            type="text"
+                            value={config.model || ''}
+                            onChange={(e) => runtimeStore.setConfig(activeAgentId, { model: e.target.value })}
+                            placeholder={PROVIDER_INFO[config.provider]?.defaultModel || 'model-name'}
+                            className="w-full h-8 px-2.5 bg-bg-elevated border border-border rounded-btn text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-accent-blue"
+                          />
+                        )}
                       </div>
                     )}
                   </div>
@@ -310,7 +427,7 @@ export const AgentSettingsModal: React.FC = () => {
                     />
                   </div>
 
-                  {/* Connection Button and Status Row */}
+                  {/* Connection Buttons and Status Row */}
                   <div className="flex items-center gap-3">
                     <div className="flex-1">
                       <button
@@ -342,13 +459,72 @@ export const AgentSettingsModal: React.FC = () => {
                       </button>
                     </div>
 
-                    <div className="flex items-center justify-between h-9 px-4 rounded-btn border min-w-[140px] bg-bg-elevated border-border">
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      className="h-9 px-3 text-[10px] font-bold uppercase tracking-widest flex items-center justify-center gap-2"
+                      onClick={handleTestConnection}
+                      disabled={connectionTest.status === 'testing' || !hasProviderConfig}
+                      title={!hasProviderConfig ? 'Configure a provider + key first' : 'Send a test request to the provider'}
+                    >
+                      {connectionTest.status === 'testing' ? (
+                        <ArrowsClockwise size={12} className="animate-spin" />
+                      ) : (
+                        <PlugsConnected size={14} />
+                      )}
+                      Test
+                    </Button>
+
+                    <div className={cn(
+                      "flex items-center justify-between h-9 px-4 rounded-btn border min-w-[140px]",
+                      "bg-bg-elevated border-border"
+                    )}>
                       <div className="flex items-center gap-2">
-                        <Circle size={6} weight="fill" className="text-accent-green" />
-                        <span className="text-[9px] font-mono text-text-secondary uppercase">Local Agent Active</span>
+                        <Circle size={6} weight="fill" className={statusChip.dot} />
+                        <span className={cn("text-[9px] font-mono uppercase", statusChip.color)}>{statusChip.label}</span>
                       </div>
                     </div>
+
+                    {(loopState === 'running' || loopState === 'paused' || loopState === 'stopped') && hasProviderConfig && (
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        className="h-9 px-3 text-[10px] font-bold uppercase tracking-widest flex items-center justify-center gap-2"
+                        onClick={handlePauseResume}
+                        title={loopState === 'running' ? 'Pause agent loop' : 'Resume agent loop'}
+                      >
+                        {loopState === 'running' ? (
+                          <>
+                            <Pause size={14} />
+                            Pause
+                          </>
+                        ) : (
+                          <>
+                            <Play size={14} />
+                            Resume
+                          </>
+                        )}
+                      </Button>
+                    )}
                   </div>
+
+                  {/* Connection Test Result */}
+                  {connectionTest.status === 'ok' && (
+                    <div className="flex items-center gap-2 p-3 rounded-btn border border-accent-green/30 bg-accent-green/5 text-accent-green">
+                      <CheckCircle size={14} weight="fill" />
+                      <span className="text-[10px] font-mono">
+                        Connection OK — {connectionTest.latencyMs}ms round-trip
+                      </span>
+                    </div>
+                  )}
+                  {connectionTest.status === 'fail' && connectionTest.error && (
+                    <div className="flex items-start gap-2 p-3 rounded-btn border border-accent-red/30 bg-accent-red/5 text-accent-red">
+                      <WarningCircle size={14} weight="fill" className="mt-0.5 shrink-0" />
+                      <span className="text-[10px] font-mono break-all">
+                        Failed: {connectionTest.error}
+                      </span>
+                    </div>
+                  )}
 
                   {/* Cycle speed */}
                   <div className="space-y-2 border-t border-border-subtle pt-4">
@@ -419,44 +595,8 @@ export const AgentSettingsModal: React.FC = () => {
                 </div>
               )}
 
-              {activeTab === 'cognition' && (
+              {activeTab === 'memory' && (
                 <div className="space-y-6 flex flex-col h-full">
-                  {/* Skill Rungs Progression */}
-                  <div>
-                    <div className="flex items-center gap-1.5 mb-2">
-                      <ChartLineUp size={16} className="text-accent-purple" />
-                      <h3 className="text-xs font-bold text-text-primary uppercase tracking-wider">Skill & Progression Ladder</h3>
-                    </div>
-
-                    <div className="grid grid-cols-5 gap-2">
-                      {SKILL_RUNGS.map((rung) => {
-                        const isMastered = currentAgent.currentRung >= rung.id;
-                        return (
-                          <div
-                            key={rung.id}
-                            className={cn(
-                              "p-2.5 rounded-btn border text-center flex flex-col items-center justify-between min-h-[90px] transition-all relative",
-                              isMastered
-                                ? "border-accent-purple bg-accent-purple/5 text-text-primary shadow-sm"
-                                : "border-border text-text-tertiary bg-white/[0.01]"
-                            )}
-                          >
-                            <span className="text-[9px] font-bold font-mono uppercase text-text-tertiary/80 block">RUNG {rung.id}</span>
-                            <div className="my-1.5 flex flex-col items-center">
-                              <span className="text-[10px] font-bold leading-tight line-clamp-2">{rung.name}</span>
-                            </div>
-                            <span className="text-[8px] font-mono opacity-80 uppercase tracking-tighter truncate max-w-full">
-                              {rung.criteria}
-                            </span>
-                            {isMastered && (
-                              <Sparkle size={12} weight="fill" className="absolute top-1 right-1 text-accent-purple animate-pulse" />
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-
                   {/* Detailed Memory Explorer */}
                   <div className="border-t border-border-subtle pt-5 flex flex-col flex-1 min-h-0">
                     <div className="flex items-center justify-between mb-3">
@@ -568,7 +708,7 @@ export const AgentSettingsModal: React.FC = () => {
                     <div className="space-y-0.5">
                       <label className="text-xs font-bold text-text-primary uppercase tracking-wider">Enable Voice Playback</label>
                       <p className="text-[10px] text-text-tertiary leading-normal">
-                        Toggle text-to-speech voice generation specifically for this agent's thoughts.
+                        Only text wrapped in <code className="text-accent-teal">{"<speak>...</speak>"}</code> tags is spoken aloud. Internal thoughts stay silent.
                       </p>
                     </div>
                     <button
@@ -626,7 +766,7 @@ export const AgentSettingsModal: React.FC = () => {
                             voiceURI: voice?.voiceURI,
                             volume: 1.0,
                           });
-                        } catch (err) {
+                        } catch {
                           synthiaToast.error("Failed to play voice test.");
                         }
                       }}
@@ -681,45 +821,61 @@ export const AgentSettingsModal: React.FC = () => {
                 </div>
               )}
 
-              {activeTab === 'export' && (
+              {activeTab === 'vision' && (
                 <div className="space-y-5 max-w-[540px]">
                   <div>
-                    <h3 className="text-xs font-bold text-text-primary uppercase tracking-wider">Dataset Export Scoping</h3>
+                    <h3 className="text-xs font-bold text-text-primary uppercase tracking-wider">AI Perception Vision</h3>
                     <p className="text-[11px] text-text-tertiary leading-normal mt-1">
-                      Download compiled cognition records and state logs specifically for this active agent.
+                      Tune how the agent's eyes work — wider FOV behaves like a first-person shooter's field of view, higher resolution costs more per frame.
                     </p>
                   </div>
 
-                  <div className="p-5 bg-accent-blue/5 border border-accent-blue/10 rounded-btn space-y-3">
-                    <h4 className="text-[11px] font-bold text-text-primary uppercase tracking-wider flex items-center gap-2">
-                      <Bookmark size={14} className="text-accent-blue" />
-                      Active Selection Export Ready
-                    </h4>
-                    <p className="text-[11px] text-text-secondary leading-normal">
-                      Click below to open the export wizard. The session records and thoughts list will be filtered automatically to download <strong>only</strong> the data belonging to <strong className="text-accent-blue font-mono">{activeAgentId}</strong>.
-                    </p>
-
-                    <div className="pt-2">
-                      <Button
-                        variant="primary"
-                        className="w-full py-2.5 font-bold uppercase tracking-widest text-xs flex items-center justify-center gap-2 shadow-lg"
-                        onClick={() => {
-                          setSettingsModalOpen(false);
-                          setExportModalOpen(true);
-                        }}
-                      >
-                        <Export size={16} />
-                        Configure Scoped Export
-                      </Button>
+                  {/* FOV Slider */}
+                  <div className="space-y-2 p-4 rounded-btn border border-border bg-white/[0.01]">
+                    <div className="flex justify-between items-center">
+                      <label className="text-[10px] uppercase tracking-wider text-text-tertiary font-bold">Field of View (FOV)</label>
+                      <span className="text-xs font-mono font-bold text-accent-blue">{aiVisionFov}°</span>
                     </div>
+                    <input
+                      type="range"
+                      min="60"
+                      max="180"
+                      step="1"
+                      value={aiVisionFov}
+                      onChange={(e) => setAiVisionFov(parseInt(e.target.value))}
+                      className="w-full h-1 bg-bg-elevated rounded-lg appearance-none cursor-pointer accent-accent-blue"
+                    />
+                    <p className="text-[9px] text-text-tertiary leading-relaxed">
+                      Higher FOV = wider view like FPS games (default 110°). Lower = tighter, more focused shots.
+                    </p>
                   </div>
 
-                  <div className="p-4 border border-border rounded-btn bg-white/[0.01]">
-                    <span className="text-[10px] font-bold text-text-tertiary uppercase tracking-wider block mb-1">
-                      Multi-Agent Export
-                    </span>
-                    <p className="text-[10px] text-text-tertiary leading-relaxed">
-                      If you need to archive datasets across all simulation bodies simultaneously, you can choose "All Active Agents" in the scope picker inside the export wizard. This will produce indexing files grouped under an <code>agent_id</code> column or separate subfolders automatically.
+                  {/* Resolution Picker */}
+                  <div className="space-y-2 p-4 rounded-btn border border-border bg-white/[0.01]">
+                    <div className="flex justify-between items-center">
+                      <label className="text-[10px] uppercase tracking-wider text-text-tertiary font-bold">Render Resolution</label>
+                      <span className="text-xs font-mono font-bold text-accent-blue">{aiVisionSize}×{aiVisionSize}</span>
+                    </div>
+                    <div className="flex gap-2">
+                      {VISION_SIZES.map((size) => (
+                        <button
+                          key={size}
+                          onClick={() => setAiVisionSize(size)}
+                          className={cn(
+                            "flex-1 h-9 rounded-btn border text-[10px] font-bold transition-all",
+                            aiVisionSize === size
+                              ? "border-accent-blue bg-accent-blue/10 text-text-primary"
+                              : "border-border text-text-tertiary hover:border-text-secondary"
+                          )}
+                        >
+                          {size}
+                        </button>
+                      ))}
+                    </div>
+                    <p className={cn("text-[9px] leading-relaxed", aiVisionSize > 448 ? 'text-accent-amber' : 'text-text-tertiary')}>
+                      {aiVisionSize > 448
+                        ? `⚠ Higher resolutions increase API token/cost per frame significantly.`
+                        : 'Default 448×448. Lower sizes reduce API cost; higher sizes improve detail but cost more.'}
                     </p>
                   </div>
                 </div>

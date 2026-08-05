@@ -15,7 +15,7 @@ import { GodModePanel } from './components/godmode/GodModePanel';
 import { useUIStore } from './store/uiStore';
 import { useWorldStore } from './store/worldStore';
 import { useAgentStore } from './store/agentStore';
-import { Brain, Database, Cube, ListChecks, TreeStructure, Camera, VideoCamera, Monitor, X, Sun, Moon, Gear, SpeakerHigh, SpeakerSlash } from '@phosphor-icons/react';
+import { Brain, Database, Cube, ListChecks, TreeStructure, Camera, VideoCamera, Monitor, X, Sun, Moon, Gear, SpeakerHigh, SpeakerSlash, Export } from '@phosphor-icons/react';
 import { ExportModal } from './components/export/ExportModal';
 import { AgentSettingsModal } from './components/agent/AgentSettingsModal';
 import { LogViewer } from './components/agent/LogViewer';
@@ -29,9 +29,10 @@ import { initSpeech } from './utils/speech';
 import { useSupabaseKeepalive } from './world/hooks/useSupabaseKeepalive';
 
 function App() {
-  const { activeRightPanelTab, setActiveRightPanelTab, rightPanelOpen, setRightPanelOpen, theme, toggleTheme, settingsModalOpen, setSettingsModalOpen } = useUIStore();
+  const { activeRightPanelTab, setActiveRightPanelTab, rightPanelOpen, setRightPanelOpen, theme, toggleTheme, settingsModalOpen, setSettingsModalOpen, setExportModalOpen } = useUIStore();
   const { cameraMode, setCameraMode } = useWorldStore();
   const { globalTtsEnabled, setGlobalTtsEnabled } = useSpeechStore();
+  const activeAgentId = useAgentStore((state) => state.activeAgentId);
 
   // Run client-side Supabase keepalive pings
   useSupabaseKeepalive();
@@ -94,7 +95,7 @@ function App() {
 
         {/* Agent Selector Dropdown */}
         <select
-          value={useAgentStore((state) => state.activeAgentId)}
+          value={activeAgentId}
           onChange={(e) => {
             const nextAgentId = e.target.value;
             useAgentStore.getState().setActiveAgentId(nextAgentId);
@@ -176,6 +177,15 @@ function App() {
       {/* GodMode Panel (trigger button + modal handled inside) */}
       <GodModePanel />
 
+      {/* Circular Export Trigger Button - Top Left, below GodMode button */}
+      <button
+        onClick={() => setExportModalOpen(true)}
+        className="fixed top-[116px] left-4 w-10 h-10 glassmorphism rounded-full flex items-center justify-center hover:bg-white/10 transition-all z-50 group"
+        title="Export Data"
+      >
+        <Export size={20} className="text-text-secondary group-hover:text-accent-blue" />
+      </button>
+
       {/* Right Panel Trigger Button - Top Right, under camera pill */}
       {!rightPanelOpen && (
         <button
@@ -186,25 +196,24 @@ function App() {
         </button>
       )}
 
-      {/* No backdrop - user can see through to viewport */}
-
       {/* Right Panel Modal */}
       <AnimatePresence>
         {rightPanelOpen && (
           <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.95 }}
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
             drag
             dragMomentum={false}
             dragElastic={0}
+            style={{ isolation: 'isolate' }}
             className="fixed top-[10vh] right-[15%] w-[380px] h-[80vh] glassmorphism rounded-modal z-[60] flex flex-col overflow-hidden cursor-grab active:cursor-grabbing"
           >
             {/* Header */}
             <div className="flex items-center justify-between px-4 py-2 border-b border-white/10 shrink-0 cursor-grab">
               <span className="text-[10px] font-bold uppercase tracking-widest text-text-secondary select-none">
-                Agent
+                Agent ({activeAgentId})
               </span>
               <button
                 onClick={() => setRightPanelOpen(false)}

@@ -7,6 +7,20 @@ const PROVIDER_ENDPOINTS: Record<string, string> = {
   groq: 'https://api.groq.com/openai/v1',
   openrouter: 'https://openrouter.ai/api/v1',
   nim: 'https://integrate.api.nvidia.com/v1',
+  qwen: 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1',
+  cerebras: 'https://api.cerebras.ai/v1',
+  minimax: 'https://api.minimax.io/v1',
+  moonshot: 'https://api.moonshot.ai/v1',
+  mistral: 'https://api.mistral.ai/v1',
+  nvidia: 'https://integrate.api.nvidia.com/v1',
+  xai: 'https://api.x.ai/v1',
+  zai: 'https://api.z.ai/api/paas/v4',
+  anthropic: 'https://api.anthropic.com/v1',
+  openai: 'https://api.openai.com/v1',
+  deepseek: 'https://api.deepseek.com/v1',
+  together: 'https://api.together.xyz/v1',
+  fireworks: 'https://api.fireworks.ai/inference/v1',
+  huggingface: 'https://api-inference.huggingface.co/v1',
 };
 
 // Corresponding environment variable keys for keys
@@ -14,6 +28,20 @@ const PROVIDER_ENV_KEYS: Record<string, string> = {
   groq: 'GROQ_API_KEY',
   openrouter: 'OPENROUTER_API_KEY',
   nim: 'NVIDIA_NIM_API_KEY',
+  qwen: 'DASHSCOPE_API_KEY',
+  cerebras: 'CEREBRAS_API_KEY',
+  minimax: 'MINIMAX_API_KEY',
+  moonshot: 'MOONSHOT_API_KEY',
+  mistral: 'MISTRAL_API_KEY',
+  nvidia: 'NVIDIA_API_KEY',
+  xai: 'XAI_API_KEY',
+  zai: 'ZAI_API_KEY',
+  anthropic: 'ANTHROPIC_API_KEY',
+  openai: 'OPENAI_API_KEY',
+  deepseek: 'DEEPSEEK_API_KEY',
+  together: 'TOGETHER_API_KEY',
+  fireworks: 'FIREWORKS_API_KEY',
+  huggingface: 'HF_API_KEY',
 };
 
 export default async function handler(req: Request): Promise<Response> {

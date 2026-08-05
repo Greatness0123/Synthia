@@ -94,5 +94,8 @@
   .glassmorphism {
     @apply backdrop-blur-xl border border-white/10 shadow-lg shadow-black/20;
     background: rgba(17, 17, 17, 0.8);
+    transform: translateZ(0);
+    contain: paint;
+    isolation: isolate;
   }
 }

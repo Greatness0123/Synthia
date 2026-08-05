@@ -927,6 +927,12 @@ export const useWorld = (containerRef: React.RefObject<HTMLDivElement>) => {
     worldEngineRef.current?.getCameraManager().setMode(worldStore.cameraMode);
   }, [worldStore.cameraMode]);
 
+  // Vision settings: relay the configurable AI perception FOV + render size
+  // to the CameraManager whenever they change.
+  useEffect(() => {
+    worldEngineRef.current?.getCameraManager().setAIVisionConfig(worldStore.aiVisionFov, worldStore.aiVisionSize);
+  }, [worldStore.aiVisionFov, worldStore.aiVisionSize]);
+
   // Instant Camera target snap on active agent change
   const activeAgentId = useAgentStore((state) => state.activeAgentId);
   const lastActiveAgentIdRef = useRef<string>('agent_0');
@@ -1283,6 +1289,31 @@ export const useWorld = (containerRef: React.RefObject<HTMLDivElement>) => {
     activeAgentLoopsRef.current.set(agentId, loop);
     console.log(`[useWorld] Started client-side cognitive loop for ${agentId} (provider=${runtime.provider})`);
   }, [captureWorldStateForAgent]);
+
+  const pauseAgentClientLoop = useCallback((agentId: string) => {
+    const loop = activeAgentLoopsRef.current.get(agentId);
+    if (loop) {
+      loop.pause();
+      console.log(`[useWorld] Paused client-side cognitive loop for ${agentId}`);
+    }
+  }, []);
+
+  const resumeAgentClientLoop = useCallback((agentId: string) => {
+    const loop = activeAgentLoopsRef.current.get(agentId);
+    if (loop) {
+      loop.resume();
+      console.log(`[useWorld] Resumed client-side cognitive loop for ${agentId}`);
+    }
+  }, []);
+
+  // Expose pause/resume on window for settings modal access
+  useEffect(() => {
+    window.__synthia = {
+      ...(window.__synthia || {}),
+      pauseAgent: pauseAgentClientLoop,
+      resumeAgent: resumeAgentClientLoop,
+    };
+  }, [pauseAgentClientLoop, resumeAgentClientLoop]);
 
   const spawnAgent = useCallback(async () => {
     if (isSpawningRef.current) {
@@ -1747,5 +1778,17 @@ export const useWorld = (containerRef: React.RefObject<HTMLDivElement>) => {
     },
     captureWorldState,
     detectOutcomes,
+    pauseAgentClientLoop,
+    resumeAgentClientLoop,
   };
 };
+
+// Expose pause/resume globally so settings modal can access them
+declare global {
+  interface Window {
+    __synthia?: {
+      pauseAgent?: (agentId: string) => void;
+      resumeAgent?: (agentId: string) => void;
+    };
+  }
+}

@@ -7,6 +7,8 @@ import { PayloadBuilder } from './payloadBuilder';
 import { InferenceClient } from './InferenceClient';
 import { MemoryManager, MemoryEntry } from './memoryManager';
 import { useAgentStore } from '../../store/agentStore';
+import { useAgentRuntimeStore } from '../../store/agentRuntimeStore';
+import { stripSpeechTags } from '../../utils/speech';
 
 interface AgentLoopConfig {
   agentId: string;
@@ -71,6 +73,8 @@ export class AgentLoop {
 
     this.currentSessionId = `session_${Date.now()}_${this.config.agentId}`;
 
+    useAgentRuntimeStore.getState().setLoopState(this.config.agentId, 'running');
+
     const rehydrationSummary = "Reconnecting to neural lattice... archives accessed... current status: operational.";
     const store = useAgentStore.getState() as any;
     const agentId = this.config.agentId;
@@ -103,12 +107,36 @@ export class AgentLoop {
       this.memoryManager.endSession(this.currentSessionId);
       this.currentSessionId = null;
     }
+    useAgentRuntimeStore.getState().setLoopState(this.config.agentId, 'stopped');
     console.log(`[AgentLoop (${this.config.agentId})] stopped`);
+  }
+
+  public pause() {
+    if (this.interval) {
+      clearInterval(this.interval);
+      this.interval = null;
+    }
+    useAgentRuntimeStore.getState().setLoopState(this.config.agentId, 'paused');
+    console.log(`[AgentLoop (${this.config.agentId})] paused`);
+  }
+
+  public resume() {
+    if (this.interval) return; // already running
+    useAgentRuntimeStore.getState().setLoopState(this.config.agentId, 'running');
+    this.interval = setInterval(() => this.cycle(), this.config.cycleMs || 2000);
+    console.log(`[AgentLoop (${this.config.agentId})] resumed`);
   }
 
   private async cycle() {
     if (this.isProcessing) {
       console.log(`[AgentLoop (${this.config.agentId})] Skipping cycle: previous inference is still in-flight.`);
+      return;
+    }
+
+    // Nothing configured — do not run cycles. This prevents the status badge
+    // from flickering thinking → acting → idle when no provider/key is set.
+    if (!this.inferenceClient.hasCredentials()) {
+      useAgentRuntimeStore.getState().setLoopState(this.config.agentId, 'not_started');
       return;
     }
 
@@ -269,7 +297,7 @@ export class AgentLoop {
       }),
       joint_state_summary: JSON.stringify(worldState.joints || {}),
       self_questions: {},
-      thought: result.thoughtTokens,
+      thought: stripSpeechTags(result.thoughtTokens),
       action_taken: actionData.actions,
       outcome: outcome.description || outcome || 'unknown',
       reward_signal: outcome.reward || 0,

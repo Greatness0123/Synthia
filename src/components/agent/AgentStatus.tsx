@@ -1,72 +1,36 @@
 /**
- * Header for the agent panel showing status and progression.
+ * Header for the agent panel showing the active agent's name + status.
  */
 
 import { useAgentStore } from '../../store/agentStore';
-import { SKILL_RUNGS } from '../../constants/progressionLadder';
+import { useAgentRuntimeStore } from '../../store/agentRuntimeStore';
 import { Badge } from '../ui/Badge';
-import { Brain, ChartLineUp, Pulse } from '@phosphor-icons/react';
-import { motion, useAnimation } from 'framer-motion';
-import { useEffect } from 'react';
+import { Brain } from '@phosphor-icons/react';
+import { cn } from '../ui/Panel';
 import { STRINGS } from '../../constants/strings';
 
 export const AgentStatus: React.FC = () => {
-  const { status, currentRung, heartbeat, masteredSkills } = useAgentStore();
-  const rung = SKILL_RUNGS[currentRung];
-  const controls = useAnimation();
+  const activeAgentId = useAgentStore((state) => state.activeAgentId);
+  const loopState = useAgentRuntimeStore((state) => state.loopStates[activeAgentId] || 'not_started');
 
-  useEffect(() => {
-    controls.start({
-      boxShadow: [
-        '0 0 0px 0px rgba(168, 85, 247, 0)',
-        '0 0 15px 2px rgba(168, 85, 247, 0.4)',
-        '0 0 0px 0px rgba(168, 85, 247, 0)'
-      ],
-      scale: [1, 1.02, 1],
-      transition: { duration: 0.6 }
-    });
-  }, [currentRung, controls]);
+  const statusLabel = loopState === 'running' ? 'thinking'
+    : loopState === 'paused' ? 'paused'
+    : loopState === 'stopped' ? 'stopped'
+    : loopState === 'error' ? 'error'
+    : 'idle';
 
   return (
-    <motion.div
-      animate={controls}
-      className="p-3 border-b border-border space-y-2 shrink-0 bg-bg-panel"
-    >
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Brain size={20} className="text-accent-purple" weight="light" />
-          <h2 className="text-sm font-medium">{STRINGS.AGENT.NAME_LABEL}</h2>
-        </div>
-        <Badge variant={status === 'thinking' ? 'accent' : 'default'} className="animate-pulse">
-          {status}
-        </Badge>
+    <div className="p-3 border-b border-border flex items-center justify-between shrink-0 bg-bg-panel">
+      <div className="flex items-center gap-2">
+        <Brain size={20} className="text-accent-purple" weight="light" />
+        <h2 className="text-sm font-medium">{STRINGS.AGENT.NAME_LABEL || activeAgentId}</h2>
       </div>
-
-      <div className="flex flex-col gap-2">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-1.5 text-text-tertiary">
-            <ChartLineUp size={14} />
-            <span className="text-[10px] uppercase font-bold tracking-wider">{STRINGS.AGENT.RUNG_LABEL} {currentRung}</span>
-          </div>
-          <span className="text-[11px] font-medium text-text-secondary">{rung.name}</span>
-        </div>
-        <div className="w-full h-1 bg-bg-elevated rounded-full overflow-hidden">
-          <div
-            className="h-full bg-accent-purple transition-all duration-500"
-            style={{ width: `${(currentRung / 9) * 100}%` }}
-          />
-        </div>
-      </div>
-
-      <div className="flex items-center gap-4">
-        <div className="flex items-center gap-1 text-text-tertiary">
-          <Pulse size={12} />
-          <span className="text-[10px] font-mono">{heartbeat} HB</span>
-        </div>
-        <div className="flex items-center gap-1 text-text-tertiary">
-          <Badge variant="outline" className="lowercase">{STRINGS.AGENT.SKILLS_LOWER(masteredSkills.length)}</Badge>
-        </div>
-      </div>
-    </motion.div>
+      <Badge
+        variant={loopState === 'running' ? 'accent' : 'default'}
+        className={cn(loopState === 'running' && 'animate-pulse')}
+      >
+        {statusLabel}
+      </Badge>
+    </div>
   );
 };

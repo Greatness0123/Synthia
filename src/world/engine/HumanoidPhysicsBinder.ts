@@ -911,6 +911,35 @@ export class HumanoidPhysicsBinder {
     const capsuleBottomY = t.y - this.capsuleCenterY;
     this._isGrounded = capsuleBottomY <= (this.groundSurfaceY + this.GROUND_SNAP_THRESHOLD);
 
+    // Static friction enforcement: kill residual horizontal micro-drift when grounded.
+    // MuJoCo's soft-constraint friction can leave tiny velocities that accumulate into
+    // visible gliding. Damp them aggressively while the agent is on the ground.
+    if (this._isGrounded) {
+      const dofAdr = model.body_dofadr[capsuleBodyId];
+      if (dofAdr !== undefined && dofAdr >= 0) {
+        const qvel = data.qvel;
+        // MuJoCo free joint: qvel[dofAdr+0..2] = linear (X,Y,Z in MuJoCo = X,Z,-Y in Three)
+        // qvel[dofAdr+3..5] = angular
+        const vx = qvel[dofAdr];
+        const vy = qvel[dofAdr + 1];
+        const lateralSpeed = Math.sqrt(vx * vx + vy * vy);
+        // If lateral speed is below 0.08 m/s, dampen hard — this is near-stationary micro-drift
+        if (lateralSpeed < 0.08) {
+          qvel[dofAdr] *= 0.85;
+          qvel[dofAdr + 1] *= 0.85;
+        } else if (lateralSpeed < 0.25) {
+          // Moderate damping at low speeds to prevent slow-creep
+          qvel[dofAdr] *= 0.94;
+          qvel[dofAdr + 1] *= 0.94;
+        }
+        // Also damp angular yaw drift (Z-axis in MuJoCo)
+        const wz = qvel[dofAdr + 5];
+        if (Math.abs(wz) < 0.05) {
+          qvel[dofAdr + 5] *= 0.80;
+        }
+      }
+    }
+
     // Kinematic ground reaction forces
     this.applyKinematicGroundReactionForces();
 
@@ -1684,7 +1713,15 @@ export class HumanoidPhysicsBinder {
     this.currentTargets.set('mixamorigspine', { x: 0, y: 0, z: 0, isQuaternion: false });
     this.currentTargets.set('mixamorigspine1', { x: 0, y: 0, z: 0, isQuaternion: false });
     this.currentTargets.set('mixamorigspine2', { x: 0, y: 0, z: 0, isQuaternion: false });
-    // Hips: neutral target in bind pose
+    // Hips: neutral target in bind pose. Explicitly zero the right hip roll
+    // qpos/qvel as a safety net — a lingering non-zero roll here manifests as
+    // the right leg drifting backward right after spawn.
+    const rightHipRollJoint = this.prefix + 'mixamorigrightupleg_roll';
+    const rightHipRollId = module.mj_name2id(model, module.mjtObj.mjOBJ_JOINT.value, rightHipRollJoint);
+    if (rightHipRollId >= 0) {
+      qpos[model.jnt_qposadr[rightHipRollId]] = 0;
+      qvel[model.jnt_dofadr[rightHipRollId]] = 0;
+    }
     this.currentTargets.set('mixamorigleftupleg', { x: 0, y: 0, z: 0, isQuaternion: false });
     this.currentTargets.set('mixamorigrightupleg', { x: 0, y: 0, z: 0, isQuaternion: false });
     // Knees: target = 0 (straight leg)
@@ -1699,6 +1736,15 @@ export class HumanoidPhysicsBinder {
     this.currentStiffness = stiffness;
     this.currentDamping = damping;
     return true;
+  }
+
+  /**
+   * Multiplies the active servo gains without rewriting base gains. Used for the
+   * brief "stiffness lock" after spawn so contact forces don't kick a leg loose
+   * before the pose is fully settled. Pass 1.0 to restore normal stiffness.
+   */
+  public setStiffnessScale(scale: number): void {
+    this.motorController.setGainScale(scale, 1.0);
   }
 
   public getModelRoot(): THREE.Group | null {

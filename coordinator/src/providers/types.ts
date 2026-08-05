@@ -5,7 +5,13 @@
 
 import { InferPayload } from '../types/payload';
 
-export type ProviderType = 'kaggle' | 'gemini' | 'nim' | 'openrouter' | 'groq' | 'custom';
+export type ProviderType =
+  | 'kaggle' | 'gemini' | 'nim' | 'openrouter' | 'groq'
+  | 'qwen' | 'cerebras' | 'minimax' | 'moonshot' | 'mistral'
+  | 'nvidia' | 'xai' | 'zai'
+  | 'anthropic' | 'openai' | 'deepseek' | 'together' | 'fireworks' | 'huggingface'
+  | 'ollama' | 'lmstudio'
+  | 'custom';
 
 export interface ProviderConfig {
   type: ProviderType;

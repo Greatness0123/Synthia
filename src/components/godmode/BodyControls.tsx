@@ -13,18 +13,12 @@ export const BodyControls: React.FC = () => {
   const {
     bodyType,
     setBodyType,
-    simplifiedSkeleton,
-    setSimplifiedSkeleton,
-    showDebugJoints,
-    setShowDebugJoints,
     showAICameraHelper,
     setShowAICameraHelper,
     showAIPiP,
     setShowAIPiP,
     movementSmoothing,
     setMovementSmoothing,
-    useProcedural,
-    setUseProcedural,
   } = useWorldStore();
 
   return (
@@ -58,26 +52,6 @@ export const BodyControls: React.FC = () => {
         </div>
 
         <div className="flex items-center justify-between py-1">
-          <label className="text-[10px] uppercase tracking-wider text-text-tertiary">Full Skeleton (Experimental)</label>
-          <button
-            onClick={() => setSimplifiedSkeleton(!simplifiedSkeleton)}
-            className={`w-8 h-4 rounded-full transition-colors relative ${!simplifiedSkeleton ? 'bg-accent-blue' : 'bg-bg-elevated'}`}
-          >
-            <div className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all ${!simplifiedSkeleton ? 'left-[18px]' : 'left-0.5'}`} />
-          </button>
-        </div>
-
-        <div className="flex items-center justify-between py-1">
-          <label className="text-[10px] uppercase tracking-wider text-text-tertiary">Joint Debug Markers</label>
-          <button
-            onClick={() => setShowDebugJoints(!showDebugJoints)}
-            className={`w-8 h-4 rounded-full transition-colors relative ${showDebugJoints ? 'bg-accent-blue' : 'bg-bg-elevated'}`}
-          >
-            <div className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all ${showDebugJoints ? 'left-[18px]' : 'left-0.5'}`} />
-          </button>
-        </div>
-
-        <div className="flex items-center justify-between py-1">
           <label className="text-[10px] uppercase tracking-wider text-text-tertiary">Show All Cameras</label>
           <button
             onClick={() => setShowAICameraHelper(!showAICameraHelper)}
@@ -94,16 +68,6 @@ export const BodyControls: React.FC = () => {
             className={`w-8 h-4 rounded-full transition-colors relative ${showAIPiP ? 'bg-accent-blue' : 'bg-bg-elevated'}`}
           >
             <div className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all ${showAIPiP ? 'left-[18px]' : 'left-0.5'}`} />
-          </button>
-        </div>
-
-        <div className="flex items-center justify-between py-1">
-          <label className="text-[10px] uppercase tracking-wider text-text-tertiary">Procedural Model</label>
-          <button
-            onClick={() => setUseProcedural(!useProcedural)}
-            className={`w-8 h-4 rounded-full transition-colors relative ${useProcedural ? 'bg-accent-blue' : 'bg-bg-elevated'}`}
-          >
-            <div className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all ${useProcedural ? 'left-[18px]' : 'left-0.5'}`} />
           </button>
         </div>
 

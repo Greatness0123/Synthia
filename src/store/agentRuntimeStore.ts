@@ -24,6 +24,9 @@ export interface AgentRuntimeConfig {
 
 export type AgentRuntimeConfigKey = keyof AgentRuntimeConfig;
 
+/** Runtime state of an agent's cognitive loop. */
+export type AgentLoopState = 'not_started' | 'running' | 'stopped' | 'paused' | 'error';
+
 const OVERRIDABLE_KEYS: AgentRuntimeConfigKey[] = [
   'provider',
   'endpoint',
@@ -97,12 +100,16 @@ interface AgentRuntimeStoreState {
   configs: Record<string, AgentRuntimeConfig>;
   /** Subset of keys that were explicitly overridden per agentId. */
   overrides: Record<string, Partial<Record<AgentRuntimeConfigKey, boolean>>>;
+  /** Live loop state per agentId (drives the connection status chip). */
+  loopStates: Record<string, AgentLoopState>;
 
   getConfig: (agentId: string) => AgentRuntimeConfig;
   hasOverride: (agentId: string, key: AgentRuntimeConfigKey) => boolean;
   setConfig: (agentId: string, patch: Partial<AgentRuntimeConfig>) => void;
   setApiKey: (agentId: string, apiKey: string) => void;
   setCycleMsOverride: (agentId: string, cycleMs: number) => void;
+  setLoopState: (agentId: string, state: AgentLoopState) => void;
+  getLoopState: (agentId: string) => AgentLoopState;
   resetToGlobal: (agentId: string, ...keys: AgentRuntimeConfigKey[]) => void;
   resetAgent: (agentId: string) => void;
 }
@@ -110,6 +117,7 @@ interface AgentRuntimeStoreState {
 export const useAgentRuntimeStore = create<AgentRuntimeStoreState>((set, get) => ({
   configs: {},
   overrides: {},
+  loopStates: {},
 
   getConfig: (agentId) => {
     const state = get();
@@ -161,6 +169,15 @@ export const useAgentRuntimeStore = create<AgentRuntimeStoreState>((set, get) =>
 
   setCycleMsOverride: (agentId, cycleMs) => {
     get().setConfig(agentId, { cycleMs });
+  },
+
+  setLoopState: (agentId, loopState) => {
+    if (!agentId) return;
+    set((state) => ({ loopStates: { ...state.loopStates, [agentId]: loopState } }));
+  },
+
+  getLoopState: (agentId) => {
+    return get().loopStates[agentId] || 'not_started';
   },
 
   resetToGlobal: (agentId, ...keys) => {

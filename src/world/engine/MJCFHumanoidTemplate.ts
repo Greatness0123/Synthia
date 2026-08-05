@@ -236,10 +236,10 @@ export function generateAgentSubtreeMJCF(
       const pGeomLocalStr = `${pGeomLocal.x} ${pGeomLocal.y} ${pGeomLocal.z}`;
 
       // High friction on foot soles: sliding=1.5 torsional=0.1 rolling=0.05 prevents ice-cube drift
-      geomXML = `<geom name="${prefix}${boneName}_geom" type="box" size="${FOOT_HALF_WIDTH} ${FOOT_HALF_LENGTH} ${FOOT_HALF_HEIGHT}" pos="${pGeomLocalStr}" quat="${qGeomLocalStr}" friction="1.5 0.1 0.05" contype="2" conaffinity="1" solref="0.004 1" solimp="0.95 0.99 0.001 0.5 2"/>`;
+      geomXML = `<geom name="${prefix}${boneName}_geom" type="box" size="${FOOT_HALF_WIDTH} ${FOOT_HALF_LENGTH} ${FOOT_HALF_HEIGHT}" pos="${pGeomLocalStr}" quat="${qGeomLocalStr}" friction="3.0 0.5 0.1" contype="2" conaffinity="1" solref="0.002 1" solimp="0.97 0.999 0.9 0.5 2"/>`;
     } else {
       const colRadius = 0.04;
-      geomXML = `<geom name="${prefix}${boneName}_geom" type="sphere" size="${colRadius}" pos="0 0 0" contype="2" conaffinity="1" solref="0.004 1" solimp="0.95 0.99 0.001 0.5 2"/>`;
+      geomXML = `<geom name="${prefix}${boneName}_geom" type="sphere" size="${colRadius}" pos="0 0 0" contype="2" conaffinity="1" solref="0.004 1" solimp="0.95 0.99 0.9 0.5 2"/>`;
     }
 
     // Joint declarations
@@ -331,7 +331,7 @@ export function generateAgentSubtreeMJCF(
       <inertial pos="0 0 0" mass="0.001" diaginertia="5.0 3.0 5.0"/>
 
       ${hipsBranch}
-      <geom name="${prefix}torso_collider" type="sphere" size="0.12" pos="0 0 0" contype="2" conaffinity="1" solref="0.004 1" solimp="0.95 0.99 0.001 0.5 2"/>
+      <geom name="${prefix}torso_collider" type="sphere" size="0.12" pos="0 0 0" contype="2" conaffinity="1" solref="0.004 1" solimp="0.95 0.99 0.9 0.5 2"/>
     </body>
   `.trim();
 
@@ -409,13 +409,13 @@ ${pianoGeoms.join('\n')}
   const xml = `
 <mujoco model="synthia_humanoid">
   <compiler angle="radian" coordinate="local"/>
-  <option gravity="0 0 -9.81" timestep="0.002" iterations="100" integrator="implicitfast"/>
+  <option gravity="0 0 -9.81" timestep="0.002" iterations="200" integrator="implicitfast"/>
   <default>
-    <geom friction="1.0 0.05 0.01"/>
+    <geom friction="2.0 0.5 0.1"/>
   </default>
   <worldbody>
     <light directional="true" pos="0 0 5" dir="0 0 -1"/>
-    <geom name="floor" type="plane" size="100 100 0.1" rgba="0.8 0.9 0.8 1" friction="1.0 0.05 0.01" contype="1" conaffinity="2" solref="0.004 1" solimp="0.95 0.99 0.001 0.5 2"/>
+    <geom name="floor" type="plane" size="100 100 0.1" rgba="0.8 0.9 0.8 1" friction="2.0 0.5 0.1" contype="1" conaffinity="2" solref="0.004 1" solimp="0.95 0.99 0.9 0.5 2"/>
 
     ${bodyXml}
 
@@ -527,13 +527,13 @@ ${pianoGeoms.join('\n')}
   const xml = `
 <mujoco model="synthia_humanoid">
   <compiler angle="radian" coordinate="local"/>
-  <option gravity="0 0 -9.81" timestep="0.002" iterations="100" integrator="implicitfast"/>
+  <option gravity="0 0 -9.81" timestep="0.002" iterations="200" integrator="implicitfast"/>
   <default>
-    <geom friction="1.0 0.05 0.01"/>
+    <geom friction="2.0 0.5 0.1"/>
   </default>
   <worldbody>
     <light directional="true" pos="0 0 5" dir="0 0 -1"/>
-    <geom name="floor" type="plane" size="100 100 0.1" rgba="0.8 0.9 0.8 1" friction="1.0 0.05 0.01" contype="1" conaffinity="2" solref="0.004 1" solimp="0.95 0.99 0.001 0.5 2"/>
+    <geom name="floor" type="plane" size="100 100 0.1" rgba="0.8 0.9 0.8 1" friction="2.0 0.5 0.1" contype="1" conaffinity="2" solref="0.004 1" solimp="0.95 0.99 0.9 0.5 2"/>
 
     ${bodiesXmlList.join('\n\n')}
 

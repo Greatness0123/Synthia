@@ -38,13 +38,14 @@ export const GodModePanel: React.FC = () => {
       <AnimatePresence>
         {godModeOpen && (
           <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.95 }}
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
             drag
             dragMomentum={false}
             dragElastic={0}
+            style={{ isolation: 'isolate' }}
             className="fixed top-[15vh] left-[15%] w-[420px] h-[70vh] glassmorphism rounded-modal z-[60] flex flex-col overflow-hidden cursor-grab active:cursor-grabbing"
           >
             {/* Header */}
@@ -71,19 +72,6 @@ export const GodModePanel: React.FC = () => {
               <PhysicsControls />
               <BodyControls />
 
-              {/* World Spawner Quick Action */}
-              <div className="p-4 border-t border-white/10">
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  className="w-full flex items-center justify-center gap-2"
-                  onClick={() => setObjectSpawnerOpen(true)}
-                >
-                  <Cube size={16} />
-                  <span className="text-[10px] font-bold uppercase tracking-wider">{STRINGS.GOD_MODE.SPAWN_BUTTON}</span>
-                </Button>
-              </div>
-
               {/* === SECTION 2: AGENT-SPECIFIC CONTROLS === */}
               <div className="p-3 bg-accent-blue/10 border-t border-b border-white/10 flex items-center justify-between">
                 <span className="text-[9px] font-black uppercase tracking-widest text-accent-blue select-none flex items-center gap-1.5">
@@ -96,6 +84,19 @@ export const GodModePanel: React.FC = () => {
               </div>
               <AgentBodyControls />
               <DirectivePanel />
+            </div>
+
+            {/* Pinned Bottom Footer Action */}
+            <div className="p-3 border-t border-white/10 bg-bg-panel/90 backdrop-blur-md shrink-0">
+              <Button
+                variant="secondary"
+                size="sm"
+                className="w-full flex items-center justify-center gap-2 py-2 text-accent-blue border-accent-blue/30 hover:bg-accent-blue/10"
+                onClick={() => setObjectSpawnerOpen(true)}
+              >
+                <Cube size={16} weight="bold" />
+                <span className="text-[11px] font-bold uppercase tracking-wider">{STRINGS.GOD_MODE.SPAWN_BUTTON} OBJECTS</span>
+              </Button>
             </div>
           </motion.div>
         )}

@@ -24,6 +24,8 @@ export class WorldEngine {
 
   private ambientLight!: THREE.AmbientLight;
   private directionalLight!: THREE.DirectionalLight;
+  private fillLight!: THREE.DirectionalLight;
+  private pointLight!: THREE.PointLight;
   private particles: THREE.Points | null = null;
   private particleTargetTime = 0;
 
@@ -82,6 +84,14 @@ export class WorldEngine {
     this.directionalLight.shadow.camera.bottom = -10;
 
     this.scene.add(this.directionalLight);
+
+    this.fillLight = new THREE.DirectionalLight(0xffffff, 0.4);
+    this.fillLight.position.set(-5, 10, -5);
+    this.scene.add(this.fillLight);
+
+    this.pointLight = new THREE.PointLight(0xffffff, 0.3, 30);
+    this.pointLight.position.set(0, 5, 0);
+    this.scene.add(this.pointLight);
   }
 
   private setupEnvironment(): void {
@@ -331,6 +341,10 @@ export class WorldEngine {
     const nightAmbient = 0.05;
     const dayDirect = 1.2;
     const nightDirect = 0.1;
+    const dayFill = 0.4;
+    const nightFill = 0.05;
+    const dayPoint = 0.3;
+    const nightPoint = 0.1;
 
     const skyColor = new THREE.Color();
     const ambientIntensity = THREE.MathUtils.lerp(
@@ -343,6 +357,16 @@ export class WorldEngine {
       state === 'day' ? dayDirect : nightDirect,
       transitionProgress
     );
+    const fillIntensity = THREE.MathUtils.lerp(
+      state === 'day' ? nightFill : dayFill,
+      state === 'day' ? dayFill : nightFill,
+      transitionProgress
+    );
+    const pointIntensity = THREE.MathUtils.lerp(
+      state === 'day' ? nightPoint : dayPoint,
+      state === 'day' ? dayPoint : nightPoint,
+      transitionProgress
+    );
 
     skyColor.lerpColors(
       state === 'day' ? nightSky : daySky,
@@ -353,6 +377,8 @@ export class WorldEngine {
     this.scene.background = skyColor;
     this.ambientLight.intensity = ambientIntensity;
     this.directionalLight.intensity = directionalIntensity;
+    this.fillLight.intensity = fillIntensity;
+    this.pointLight.intensity = pointIntensity;
   }
 
   public spawnParticleBurst(position: THREE.Vector3): void {

@@ -1,6 +1,6 @@
 /**
  * Modal for exporting simulation data with side-panel preview.
- * Refactored in Phase 7 to run entirely client-side without coordinator backend.
+ * Cleaned up in Phase 7 to run client-side with optional local fallback, LeRobot support, and Task Filter.
  */
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -55,6 +55,7 @@ export const ExportModal: React.FC = () => {
   const [hbFrom, setHbFrom] = useState(0);
   const [hbTo, setHbTo] = useState(heartbeat);
   const [selectedSessions, setSelectedSessions] = useState<string[]>([]);
+  const [selectedTasks, setSelectedTasks] = useState<string[]>([]);
 
   const [includeTiers, setIncludeTiers] = useState<number[]>([1, 2, 3]);
   const [includeThoughts, setIncludeThoughts] = useState(true);
@@ -62,7 +63,6 @@ export const ExportModal: React.FC = () => {
   const [includeMotorPrograms, setIncludeMotorPrograms] = useState(true);
   const [excludeInjected, setExcludeInjected] = useState(false);
   const [successfulOnly, setSuccessfulOnly] = useState(false);
-  const [minReward, setMinReward] = useState(0);
   const [tierInfoOpen, setTierInfoOpen] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
 
@@ -73,7 +73,7 @@ export const ExportModal: React.FC = () => {
     }
   }, [heartbeat, isExporting]);
 
-  // Fetch sessions directly from Supabase
+  // Fetch sessions directly from Supabase if configured
   useEffect(() => {
     if (!exportModalOpen || !supabaseUrl || !supabaseKey) {
       setAvailableSessions([]);
@@ -93,13 +93,10 @@ export const ExportModal: React.FC = () => {
           .in('agent_id', targetAgentIds)
           .order('started_at', { ascending: false });
 
-        if (error) {
-          console.error('[ExportModal] Error fetching sessions:', error.message);
-          synthiaToast.error(`Could not fetch sessions: ${error.message}`);
-        } else if (data) {
+        if (!error && data) {
           setAvailableSessions(data);
         }
-      } catch (err: any) {
+      } catch (err) {
         console.error('[ExportModal] Fetch sessions exception:', err);
       } finally {
         setSessionsLoading(false);
@@ -115,7 +112,6 @@ export const ExportModal: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [setExportModalOpen]);
 
-  // Handle illegal session scope if exportScope transitions to 'all'
   useEffect(() => {
     if (exportScope === 'all' && scope === 'session') {
       setScope('all');
@@ -131,21 +127,31 @@ export const ExportModal: React.FC = () => {
     return allAgents.flatMap(a => a.memories || []);
   }, [memories, exportScope, exportModalOpen]);
 
+  // Extract unique tasks across targeted memories
+  const availableTasks = useMemo(() => {
+    const tasks = new Set<string>();
+    targetedMemories.forEach(m => {
+      if (m.goalAtTime) tasks.add(m.goalAtTime);
+    });
+    return Array.from(tasks);
+  }, [targetedMemories]);
+
   const filteredCount = useMemo(() => {
     let filtered = targetedMemories.filter(memory => includeTiers.includes(memory.tier));
     if (excludeInjected) filtered = filtered.filter(memory => !memory.isInjected);
     if (successfulOnly) filtered = filtered.filter(memory => (memory.rewardSignal || 0) > 0.5);
-    if (minReward > 0) filtered = filtered.filter(memory => (memory.rewardSignal || 0) >= minReward);
+    if (selectedTasks.length > 0) {
+      filtered = filtered.filter(memory => memory.goalAtTime && selectedTasks.includes(memory.goalAtTime));
+    }
     if (scope === 'heartbeat_range') {
       filtered = filtered.filter(memory => memory.heartbeat >= hbFrom && memory.heartbeat <= hbTo);
     } else if (scope === 'session' && selectedSessions.length > 0) {
       filtered = filtered.filter((memory) => selectedSessions.includes(memory.sessionId || ''));
     }
     return filtered.length;
-  }, [targetedMemories, includeTiers, excludeInjected, successfulOnly, minReward, scope, hbFrom, hbTo, selectedSessions]);
+  }, [targetedMemories, includeTiers, excludeInjected, successfulOnly, selectedTasks, scope, hbFrom, hbTo, selectedSessions]);
 
   const estimatedSize = useMemo(() => {
-    // 2KB baseline per memory record without image frame
     const bytesPerRow = 2 * 1024;
     const totalBytes = filteredCount * bytesPerRow;
     if (totalBytes > 1024 * 1024) return `~${(totalBytes / (1024 * 1024)).toFixed(1)}MB`;
@@ -163,24 +169,7 @@ export const ExportModal: React.FC = () => {
     return filteredCount;
   }, [scope, selectedSessionData, filteredCount]);
 
-  const totalSessionSize = useMemo(() => {
-    if (scope === 'session' && selectedSessionData.length > 0) {
-      return selectedSessionData.reduce((sum, s) => sum + (s.estimated_size_bytes || 0), 0);
-    }
-    const bytesPerRow = 2 * 1024;
-    return filteredCount * bytesPerRow;
-  }, [scope, selectedSessionData, filteredCount]);
-
   const handleExport = async () => {
-    if (!supabaseUrl || !supabaseKey) {
-      synthiaToast.error('Please configure Supabase URL and Key first.');
-      return;
-    }
-    if (scope === 'session' && selectedSessionData.length > 0 && totalSessionSize === 0) {
-      synthiaToast.error('Selected sessions have no data to export');
-      return;
-    }
-
     setIsExporting(true);
     setExportProgress(0);
     synthiaToast.info(STRINGS.TOASTS.EXPORT_STARTED);
@@ -192,13 +181,13 @@ export const ExportModal: React.FC = () => {
       zipPerAgent: exportScope === 'all' ? zipPerAgent : undefined,
       scope,
       includeTiers: includeTiers as any,
-      includeFrames: false, // Frame sequence removed as per Phase 7
+      includeFrames: false,
       includeThoughts: exportType === 'session_full' ? includeThoughts : undefined,
       includeSkills: exportType === 'session_full' ? includeSkills : undefined,
       includeMotorPrograms: exportType === 'session_full' ? includeMotorPrograms : undefined,
       excludeInjected,
       successfulOnly,
-      minReward,
+      taskFilter: selectedTasks.length > 0 ? selectedTasks : undefined,
       dateFrom: scope === 'date_range' ? dateFrom : undefined,
       dateTo: scope === 'date_range' ? dateTo : undefined,
       heartbeatFrom: scope === 'heartbeat_range' ? hbFrom : undefined,
@@ -207,7 +196,7 @@ export const ExportModal: React.FC = () => {
     };
 
     try {
-      await runClientSideExport(config, supabaseUrl, supabaseKey, setExportProgress);
+      await runClientSideExport(config, supabaseUrl || '', supabaseKey || '', setExportProgress);
       synthiaToast.success('Dataset export downloaded successfully!');
       setTimeout(() => setExportModalOpen(false), 800);
     } catch (err: any) {
@@ -221,18 +210,19 @@ export const ExportModal: React.FC = () => {
   if (!exportModalOpen) return null;
 
   const exportTypes: { id: ExportType; name: string; icon: Icons.Icon; desc: string }[] = [
-    { id: 'dataset', name: 'Dataset', icon: Icons.Database, desc: STRINGS.EXPORT.EXPORT_TYPE_DATASET_DESC },
+    { id: 'dataset', name: 'Dataset', icon: Icons.Database, desc: 'ML training datasets (LeRobot, JSONL, CSV)' },
     { id: 'thoughts_report', name: 'Thoughts Report', icon: Icons.Notebook, desc: STRINGS.EXPORT.EXPORT_TYPE_THOUGHTS_DESC },
     { id: 'session_full', name: 'Session Full', icon: Icons.Archive, desc: STRINGS.EXPORT.EXPORT_TYPE_SESSION_FULL_DESC },
   ];
 
-  const formats: { id: ExportFormat; name: string; icon: Icons.Icon }[] = [
+  const formats: { id: ExportFormat; name: string; icon: Icons.Icon; tag?: string }[] = [
+    { id: 'LeRobot', name: 'LeRobot', icon: Icons.Robot, tag: 'Hugging Face' },
     { id: 'JSONL', name: 'JSONL', icon: Icons.FileCode },
     { id: 'CSV', name: 'CSV', icon: Icons.FileCsv },
   ];
 
   const scopeOptions = [
-    { id: 'all', label: 'All Sessions' },
+    { id: 'all', label: 'All Heartbeats' },
     { id: 'date_range', label: 'Date Range' },
     { id: 'session', label: 'Session Picker', disabled: !supabaseUrl || !supabaseKey || exportScope === 'all' },
     { id: 'heartbeat_range', label: 'Heartbeat Range' },
@@ -245,11 +235,15 @@ export const ExportModal: React.FC = () => {
         animate={{ opacity: 1, y: 0 }}
         className="w-[820px] max-h-[90vh] flex flex-col"
       >
-        <Panel className="border-border-subtle shadow-2xl overflow-hidden flex flex-col">
+        <Panel className="border-border-subtle shadow-2xl overflow-hidden flex flex-col bg-bg-panel/95 backdrop-blur-md">
+          {/* Header */}
           <div className="p-4 border-b border-border flex items-center justify-between bg-bg-panel shrink-0">
-            <h2 className="text-sm font-bold uppercase tracking-widest text-text-secondary">{STRINGS.EXPORT.TITLE}</h2>
-            <button onClick={() => setExportModalOpen(false)} className="text-text-tertiary hover:text-text-primary">
-              <Icons.X size={20} />
+            <div className="flex items-center gap-2.5">
+              <Icons.Export size={18} className="text-accent-blue" />
+              <h2 className="text-sm font-bold uppercase tracking-widest text-text-secondary">{STRINGS.EXPORT.TITLE}</h2>
+            </div>
+            <button onClick={() => setExportModalOpen(false)} className="text-text-tertiary hover:text-text-primary w-7 h-7 rounded-full flex items-center justify-center hover:bg-white/5 transition-colors">
+              <Icons.X size={18} />
             </button>
           </div>
 
@@ -257,34 +251,34 @@ export const ExportModal: React.FC = () => {
             {/* LEFT PANEL — Configuration */}
             <div className="flex-1 p-6 space-y-5 overflow-y-auto border-r border-border-subtle custom-scrollbar">
               {/* Scoping Selector - Single Agent vs All Active Agents */}
-              <div className="space-y-3">
-                <label className="text-[10px] font-bold uppercase tracking-widest text-text-tertiary">Export Target Scoping</label>
+              <div className="space-y-2">
+                <label className="text-[10px] font-bold uppercase tracking-widest text-text-tertiary">Export Scoping</label>
                 <div className="flex gap-2">
                   <button
                     onClick={() => {
                       setExportScope('single');
                       setZipPerAgent(false);
                     }}
-                    className={`flex-1 h-9 flex items-center justify-center gap-2 border rounded-btn text-xs font-medium transition-all ${
+                    className={`flex-1 h-9 flex items-center justify-center gap-2 border rounded-btn text-xs font-semibold transition-all ${
                       exportScope === 'single'
-                        ? "border-accent-blue bg-accent-blue/5 text-text-primary"
+                        ? "border-accent-blue bg-accent-blue/10 text-text-primary font-bold"
                         : "border-border text-text-tertiary hover:border-text-secondary"
                     }`}
                   >
-                    <Icons.User size={15} />
-                    <span>Active Agent ({activeAgentId})</span>
+                    <Icons.User size={14} />
+                    <span>Agent ({activeAgentId})</span>
                   </button>
                   <button
                     onClick={() => {
                       setExportScope('all');
                     }}
-                    className={`flex-1 h-9 flex items-center justify-center gap-2 border rounded-btn text-xs font-medium transition-all ${
+                    className={`flex-1 h-9 flex items-center justify-center gap-2 border rounded-btn text-xs font-semibold transition-all ${
                       exportScope === 'all'
-                        ? "border-accent-blue bg-accent-blue/5 text-text-primary"
+                        ? "border-accent-blue bg-accent-blue/10 text-text-primary font-bold"
                         : "border-border text-text-tertiary hover:border-text-secondary"
                     }`}
                   >
-                    <Icons.Users size={15} />
+                    <Icons.Users size={14} />
                     <span>All Active Agents</span>
                   </button>
                 </div>
@@ -297,26 +291,25 @@ export const ExportModal: React.FC = () => {
                     initial={{ height: 0, opacity: 0 }}
                     animate={{ height: 'auto', opacity: 1 }}
                     exit={{ height: 0, opacity: 0 }}
-                    className="overflow-hidden space-y-2 border-b border-border-subtle pb-4"
+                    className="overflow-hidden space-y-1 border-b border-border-subtle pb-3"
                   >
-                    <label className="flex items-center gap-3 cursor-pointer group">
-                      <div className={`w-4 h-4 border rounded-[4px] flex items-center justify-center transition-colors ${zipPerAgent ? 'border-accent-blue bg-accent-blue/10' : 'border-border bg-bg-elevated'}`}>
-                        {zipPerAgent && <div className="w-2 h-2 bg-accent-blue rounded-[1px]" />}
-                      </div>
-                      <span className="text-xs text-text-secondary group-hover:text-text-primary transition-colors font-semibold">
-                        Zip Archive Directory Isolation (`zipPerAgent`)
+                    <label className="flex items-center gap-2.5 cursor-pointer group">
+                      <input
+                        type="checkbox"
+                        checked={zipPerAgent}
+                        onChange={() => setZipPerAgent(!zipPerAgent)}
+                        className="rounded border-border accent-accent-blue cursor-pointer"
+                      />
+                      <span className="text-xs text-text-secondary group-hover:text-text-primary transition-colors font-medium">
+                        Separate folder per agent inside ZIP archive
                       </span>
-                      <input type="checkbox" className="hidden" checked={zipPerAgent} onChange={() => setZipPerAgent(!zipPerAgent)} />
                     </label>
-                    <p className="text-[10px] text-text-tertiary pl-7 italic leading-normal">
-                      Organizes exported datasets inside isolated subdirectories per agent (e.g., `/agent_0/export.csv`) within the final ZIP file.
-                    </p>
                   </motion.div>
                 )}
               </AnimatePresence>
 
               {/* Export Type Selection */}
-              <div className="space-y-3">
+              <div className="space-y-2">
                 <label className="text-[10px] font-bold uppercase tracking-widest text-text-tertiary">{STRINGS.EXPORT.EXPORT_TYPE}</label>
                 <div className="grid grid-cols-3 gap-2">
                   {exportTypes.map((t) => {
@@ -325,13 +318,13 @@ export const ExportModal: React.FC = () => {
                       <button
                         key={t.id}
                         onClick={() => setExportType(t.id)}
-                        className={`p-3 flex flex-col items-center gap-2 text-center border rounded-btn transition-all ${
+                        className={`p-3 flex flex-col items-center gap-1.5 text-center border rounded-btn transition-all ${
                           exportType === t.id
-                            ? 'border-accent-blue bg-accent-blue/5 text-text-primary'
+                            ? 'border-accent-blue bg-accent-blue/10 text-text-primary font-bold'
                             : 'border-border text-text-tertiary hover:border-text-secondary hover:bg-white/[0.01]'
                         }`}
                       >
-                        <Icon size={20} weight={exportType === t.id ? 'fill' : 'light'} />
+                        <Icon size={18} weight={exportType === t.id ? 'bold' : 'regular'} />
                         <span className="text-[10px] font-bold uppercase tracking-wide">{t.name}</span>
                         <span className="text-[9px] text-text-tertiary leading-tight font-normal line-clamp-2">{t.desc}</span>
                       </button>
@@ -347,7 +340,7 @@ export const ExportModal: React.FC = () => {
                     initial={{ height: 0, opacity: 0 }}
                     animate={{ height: 'auto', opacity: 1 }}
                     exit={{ height: 0, opacity: 0 }}
-                    className="space-y-3 overflow-hidden border-b border-border-subtle pb-4"
+                    className="space-y-2 overflow-hidden border-b border-border-subtle pb-3"
                   >
                     <label className="text-[10px] font-bold uppercase tracking-widest text-text-tertiary">{STRINGS.EXPORT.SELECT_FORMAT}</label>
                     <div className="flex gap-2">
@@ -355,14 +348,19 @@ export const ExportModal: React.FC = () => {
                         <button
                           key={f.id}
                           onClick={() => setFormat(f.id)}
-                          className={`flex-1 h-10 flex items-center justify-center gap-2 border rounded-btn transition-all ${
+                          className={`flex-1 h-9 flex items-center justify-center gap-2 border rounded-btn transition-all relative ${
                             format === f.id
-                              ? "border-accent-blue bg-accent-blue/5 text-text-primary"
+                              ? "border-accent-blue bg-accent-blue/10 text-text-primary font-bold"
                               : "border-border text-text-tertiary hover:border-text-secondary"
                           }`}
                         >
-                          <f.icon size={20} weight="light" />
+                          <f.icon size={16} />
                           <span className="text-[10px] font-bold">{f.name}</span>
+                          {f.tag && (
+                            <span className="text-[8px] bg-accent-blue/20 text-accent-blue px-1 rounded font-mono font-normal">
+                              {f.tag}
+                            </span>
+                          )}
                         </button>
                       ))}
                     </div>
@@ -377,21 +375,23 @@ export const ExportModal: React.FC = () => {
                     initial={{ height: 0, opacity: 0 }}
                     animate={{ height: 'auto', opacity: 1 }}
                     exit={{ height: 0, opacity: 0 }}
-                    className="space-y-3 overflow-hidden"
+                    className="space-y-2 overflow-hidden border-b border-border-subtle pb-3"
                   >
-                    <label className="text-[10px] font-bold uppercase tracking-widest text-text-tertiary">Include In Export</label>
-                    <div className="grid grid-cols-3 gap-y-2">
+                    <label className="text-[10px] font-bold uppercase tracking-widest text-text-tertiary">Include In Archive</label>
+                    <div className="grid grid-cols-3 gap-2">
                       {[
-                        { label: STRINGS.EXPORT.INCLUDE_THOUGHTS, checked: includeThoughts, onChange: () => setIncludeThoughts(!includeThoughts) },
-                        { label: STRINGS.EXPORT.INCLUDE_SKILLS, checked: includeSkills, onChange: () => setIncludeSkills(!includeSkills) },
-                        { label: STRINGS.EXPORT.INCLUDE_MOTOR_PROGRAMS, checked: includeMotorPrograms, onChange: () => setIncludeMotorPrograms(!includeMotorPrograms) },
+                        { label: 'Thoughts', checked: includeThoughts, onChange: () => setIncludeThoughts(!includeThoughts) },
+                        { label: 'Skills', checked: includeSkills, onChange: () => setIncludeSkills(!includeSkills) },
+                        { label: 'Motors', checked: includeMotorPrograms, onChange: () => setIncludeMotorPrograms(!includeMotorPrograms) },
                       ].map((opt, i) => (
-                        <label key={i} className="flex items-center gap-3 cursor-pointer group">
-                          <div className={`w-4 h-4 border rounded-[4px] flex items-center justify-center transition-colors ${opt.checked ? 'border-accent-blue bg-accent-blue/10' : 'border-border bg-bg-elevated'}`}>
-                            {opt.checked && <div className="w-2 h-2 bg-accent-blue rounded-[1px]" />}
-                          </div>
-                          <span className="text-[11px] text-text-secondary group-hover:text-text-primary transition-colors">{opt.label}</span>
-                          <input type="checkbox" className="hidden" checked={opt.checked} onChange={opt.onChange} />
+                        <label key={i} className="flex items-center gap-2 cursor-pointer group">
+                          <input
+                            type="checkbox"
+                            checked={opt.checked}
+                            onChange={opt.onChange}
+                            className="rounded border-border accent-accent-blue cursor-pointer"
+                          />
+                          <span className="text-[10px] text-text-secondary group-hover:text-text-primary transition-colors">{opt.label}</span>
                         </label>
                       ))}
                     </div>
@@ -399,8 +399,49 @@ export const ExportModal: React.FC = () => {
                 )}
               </AnimatePresence>
 
+              {/* Task Tracker / Task Filter */}
+              {availableTasks.length > 0 && (
+                <div className="space-y-2 border-b border-border-subtle pb-3">
+                  <div className="flex justify-between items-center">
+                    <label className="text-[10px] font-bold uppercase tracking-widest text-text-tertiary">Training Task Filter</label>
+                    {selectedTasks.length > 0 && (
+                      <button
+                        onClick={() => setSelectedTasks([])}
+                        className="text-[9px] text-accent-blue hover:underline"
+                      >
+                        Clear Task Filter
+                      </button>
+                    )}
+                  </div>
+                  <div className="flex flex-wrap gap-1.5 max-h-[80px] overflow-y-auto custom-scrollbar">
+                    {availableTasks.map((t) => {
+                      const isSelected = selectedTasks.includes(t);
+                      return (
+                        <button
+                          key={t}
+                          onClick={() => {
+                            if (isSelected) {
+                              setSelectedTasks(selectedTasks.filter(x => x !== t));
+                            } else {
+                              setSelectedTasks([...selectedTasks, t]);
+                            }
+                          }}
+                          className={`px-2 py-1 rounded text-[9px] font-mono border transition-all ${
+                            isSelected
+                              ? 'border-accent-blue bg-accent-blue/15 text-accent-blue font-bold'
+                              : 'border-border text-text-tertiary hover:border-text-secondary'
+                          }`}
+                        >
+                          {t}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
               {/* Scope Selector */}
-              <div className="space-y-3">
+              <div className="space-y-2">
                 <label className="text-[10px] font-bold uppercase tracking-widest text-text-tertiary">{STRINGS.EXPORT.SCOPE_LABEL}</label>
                 <div className="grid grid-cols-2 gap-2">
                   {scopeOptions.map((s) => (
@@ -412,7 +453,7 @@ export const ExportModal: React.FC = () => {
                         s.disabled
                           ? 'opacity-40 cursor-not-allowed border-dashed border-border text-text-tertiary'
                           : scope === s.id
-                            ? 'border-accent-blue bg-accent-blue/5 text-text-primary'
+                            ? 'border-accent-blue bg-accent-blue/10 text-text-primary font-bold'
                             : 'border-border text-text-tertiary hover:border-text-secondary'
                       }`}
                     >
@@ -493,14 +534,14 @@ export const ExportModal: React.FC = () => {
                     className="space-y-2 overflow-hidden"
                   >
                     <label className="text-[10px] font-bold uppercase tracking-widest text-text-tertiary">Select Sessions</label>
-                    <div className="max-h-[140px] overflow-y-auto border border-border-subtle rounded-btn bg-black/10 divide-y divide-border-subtle custom-scrollbar">
+                    <div className="max-h-[120px] overflow-y-auto border border-border-subtle rounded-btn bg-black/10 divide-y divide-border-subtle custom-scrollbar">
                       {sessionsLoading ? (
-                        <div className="p-4 text-center text-xs font-mono text-text-tertiary flex items-center justify-center gap-2">
+                        <div className="p-3 text-center text-xs font-mono text-text-tertiary flex items-center justify-center gap-2">
                           <Icons.ArrowsClockwise size={12} className="animate-spin text-accent-blue" />
-                          Fetching database sessions...
+                          Fetching sessions...
                         </div>
                       ) : availableSessions.length === 0 ? (
-                        <div className="p-4 text-center text-[10px] text-text-tertiary uppercase">No database sessions registered.</div>
+                        <div className="p-3 text-center text-[10px] text-text-tertiary uppercase">No database sessions found.</div>
                       ) : (
                         availableSessions.map((s) => {
                           const isSelected = selectedSessions.includes(s.id);
@@ -514,29 +555,22 @@ export const ExportModal: React.FC = () => {
                                   setSelectedSessions([...selectedSessions, s.id]);
                                 }
                               }}
-                              className={`flex items-center justify-between px-3 py-2 cursor-pointer transition-colors ${
+                              className={`flex items-center justify-between px-3 py-1.5 cursor-pointer transition-colors ${
                                 isSelected ? 'bg-accent-blue/10 text-text-primary' : 'hover:bg-white/[0.02]'
                               }`}
                             >
-                              <div className="flex items-center gap-3">
-                                <div className={`w-3.5 h-3.5 border rounded flex items-center justify-center transition-colors ${isSelected ? 'border-accent-blue bg-accent-blue/10' : 'border-border'}`}>
-                                  {isSelected && <div className="w-1.5 h-1.5 bg-accent-blue rounded-[1px]" />}
-                                </div>
-                                <div className="flex flex-col text-left">
-                                  <span className="text-[11px] font-mono font-bold leading-tight">{s.id}</span>
-                                  <span className="text-[9px] text-text-tertiary leading-none mt-0.5">
-                                    Started: {new Date(s.started_at).toLocaleString()}
-                                  </span>
-                                </div>
+                              <div className="flex items-center gap-2">
+                                <input
+                                  type="checkbox"
+                                  checked={isSelected}
+                                  onChange={() => {}}
+                                  className="rounded border-border accent-accent-blue"
+                                />
+                                <span className="text-[10px] font-mono font-bold">{s.id.slice(0, 16)}</span>
                               </div>
-                              <div className="text-right">
-                                <span className="text-[10px] font-mono text-text-secondary block font-bold">
-                                  {s.memory_count || 0} rows
-                                </span>
-                                <span className="text-[9px] font-mono text-text-tertiary block leading-none">
-                                  {formatBytes(s.estimated_size_bytes || 0)}
-                                </span>
-                              </div>
+                              <span className="text-[9px] font-mono text-text-tertiary">
+                                {formatBytes(s.estimated_size_bytes || 0)}
+                              </span>
                             </div>
                           );
                         })
@@ -547,7 +581,7 @@ export const ExportModal: React.FC = () => {
               </AnimatePresence>
 
               {/* Memory Tiers Filter */}
-              <div className="space-y-3">
+              <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <label className="text-[10px] font-bold uppercase tracking-widest text-text-tertiary">{STRINGS.EXPORT.TIER_LABEL}</label>
                   <button onClick={() => setTierInfoOpen(!tierInfoOpen)} className="text-text-tertiary hover:text-text-primary">
@@ -579,11 +613,9 @@ export const ExportModal: React.FC = () => {
                           setIncludeTiers([...includeTiers, tier]);
                         }
                       }}
-                      className={`flex-1 h-9 flex items-center justify-center border rounded-btn text-xs font-bold transition-all ${
+                      className={`flex-1 h-8 flex items-center justify-center border rounded-btn text-xs font-bold transition-all ${
                         includeTiers.includes(tier)
-                          ? tier === 1 ? 'border-accent-green bg-accent-green/5 text-accent-green' :
-                            tier === 2 ? 'border-accent-blue bg-accent-blue/5 text-accent-blue' :
-                            'border-accent-amber bg-accent-amber/5 text-accent-amber'
+                          ? 'border-accent-blue bg-accent-blue/10 text-accent-blue font-bold'
                           : 'border-border text-text-tertiary hover:border-text-secondary'
                       }`}
                     >
@@ -594,37 +626,23 @@ export const ExportModal: React.FC = () => {
               </div>
 
               {/* Additional Filters */}
-              <div className="space-y-3">
+              <div className="space-y-2">
                 <label className="text-[10px] font-bold uppercase tracking-widest text-text-tertiary">{STRINGS.EXPORT.FILTERS}</label>
                 <div className="grid grid-cols-2 gap-y-2">
                   {[
                     { label: 'Exclude Injected', checked: excludeInjected, onChange: () => setExcludeInjected(!excludeInjected) },
                     { label: 'Successful Only', checked: successfulOnly, onChange: () => setSuccessfulOnly(!successfulOnly) },
                   ].map((opt, i) => (
-                    <label key={i} className="flex items-center gap-3 cursor-pointer group">
-                      <div className={`w-4 h-4 border rounded-[4px] flex items-center justify-center transition-colors ${opt.checked ? 'border-accent-blue bg-accent-blue/10' : 'border-border bg-bg-elevated'}`}>
-                        {opt.checked && <div className="w-2 h-2 bg-accent-blue rounded-[1px]" />}
-                      </div>
+                    <label key={i} className="flex items-center gap-2.5 cursor-pointer group">
+                      <input
+                        type="checkbox"
+                        checked={opt.checked}
+                        onChange={opt.onChange}
+                        className="rounded border-border accent-accent-blue cursor-pointer"
+                      />
                       <span className="text-[11px] text-text-secondary group-hover:text-text-primary transition-colors">{opt.label}</span>
-                      <input type="checkbox" className="hidden" checked={opt.checked} onChange={opt.onChange} />
                     </label>
                   ))}
-                </div>
-
-                <div className="pt-1 space-y-1.5">
-                  <div className="flex justify-between">
-                    <label className="text-[10px] uppercase text-text-tertiary">Min Reward Signal</label>
-                    <span className="text-[10px] font-mono text-text-secondary">{minReward.toFixed(1)}</span>
-                  </div>
-                  <input
-                    type="range"
-                    min="0"
-                    max="1"
-                    step="0.1"
-                    value={minReward}
-                    onChange={e => setMinReward(parseFloat(e.target.value))}
-                    className="w-full h-1 bg-bg-elevated rounded-lg appearance-none cursor-pointer accent-accent-blue"
-                  />
                 </div>
               </div>
             </div>
@@ -632,7 +650,7 @@ export const ExportModal: React.FC = () => {
             {/* RIGHT PANEL — Preview */}
             <div className="w-[280px] p-5 bg-bg-elevated/20 flex flex-col">
               <div className="flex items-center gap-2 mb-4">
-                <Icons.Eye size={14} weight="light" className="text-accent-blue" />
+                <Icons.Eye size={14} className="text-accent-blue" />
                 <span className="text-[10px] font-bold uppercase tracking-widest text-text-secondary">{STRINGS.EXPORT.PREVIEW_PANEL}</span>
               </div>
 
@@ -645,7 +663,7 @@ export const ExportModal: React.FC = () => {
                       {exportScope === 'single' ? (
                         <>
                           <Icons.User size={13} className="text-accent-blue" />
-                          {activeAgentId} (Active Agent)
+                          {activeAgentId}
                         </>
                       ) : (
                         <>
@@ -672,46 +690,28 @@ export const ExportModal: React.FC = () => {
                     </div>
                   )}
 
+                  {/* Task Filter indicator if active */}
+                  {selectedTasks.length > 0 && (
+                    <div className="space-y-1">
+                      <span className="text-[9px] uppercase text-text-tertiary">Tasks Filtered</span>
+                      <span className="text-[10px] font-mono text-accent-blue font-bold block">
+                        {selectedTasks.length} task(s) selected
+                      </span>
+                    </div>
+                  )}
+
                   {/* Scope */}
                   <div className="space-y-1">
                     <span className="text-[9px] uppercase text-text-tertiary">Scope</span>
                     <span className="text-xs font-bold text-text-primary capitalize">{scope.replace('_', ' ')}</span>
-                    {scope === 'session' && selectedSessions.length > 0 && (
-                      <span className="text-[9px] text-accent-blue">{selectedSessions.length} session(s) selected</span>
-                    )}
-                  </div>
-
-                  {/* Tiers */}
-                  <div className="space-y-1">
-                    <span className="text-[9px] uppercase text-text-tertiary">Tiers</span>
-                    <div className="flex gap-1">
-                      {includeTiers.map(t => (
-                        <span key={t} className={`px-1.5 py-0.5 text-[9px] font-bold rounded ${
-                          t === 1 ? 'bg-accent-green/10 text-accent-green' :
-                          t === 2 ? 'bg-accent-blue/10 text-accent-blue' :
-                          'bg-accent-amber/10 text-accent-amber'
-                        }`}>
-                          T{t}
-                        </span>
-                      ))}
-                    </div>
                   </div>
 
                   {/* Breakdown */}
                   <div className="space-y-1">
-                    <span className="text-[9px] uppercase text-text-tertiary">Breakdown</span>
-                    <div className="space-y-1">
-                      <div className="flex justify-between text-[10px]">
-                        <span className="text-text-tertiary">Memories</span>
-                        <span className="text-text-secondary font-mono">{totalMemoryCount.toLocaleString()}</span>
-                      </div>
-                      {scope === 'session' && selectedSessionData.length > 0 && (
-                        <div className="flex justify-between text-[10px]">
-                          <span className="text-text-tertiary">Sessions</span>
-                          <span className="text-text-secondary font-mono">{selectedSessionData.length}</span>
-                        </div>
-                      )}
-                    </div>
+                    <span className="text-[9px] uppercase text-text-tertiary">Memories Match</span>
+                    <span className="text-xs font-mono font-bold text-text-primary block">
+                      {totalMemoryCount.toLocaleString()} rows
+                    </span>
                   </div>
 
                   <div className="h-px bg-border-subtle" />
@@ -719,42 +719,22 @@ export const ExportModal: React.FC = () => {
                   {/* Size Estimate */}
                   <div className="space-y-1">
                     <span className="text-[9px] uppercase text-text-tertiary">{STRINGS.EXPORT.ESTIMATED_SIZE}</span>
-                    <span className="text-sm font-bold text-text-primary">
-                      {scope === 'session' && selectedSessionData.length > 0
-                        ? formatBytes(totalSessionSize)
-                        : estimatedSize}
+                    <span className="text-sm font-bold text-text-primary block">
+                      {estimatedSize}
                     </span>
-                    {!supabaseUrl && (
-                      <span className="text-[9px] text-accent-amber">
-                        Estimated from current session only.
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Filters active */}
-                  <div className="space-y-1">
-                    <span className="text-[9px] uppercase text-text-tertiary">Active Filters</span>
-                    <div className="flex flex-wrap gap-1">
-                      {excludeInjected && <span className="px-1.5 py-0.5 text-[8px] bg-bg-elevated rounded text-text-tertiary">No Injected</span>}
-                      {successfulOnly && <span className="px-1.5 py-0.5 text-[8px] bg-bg-elevated rounded text-text-tertiary">Successful Only</span>}
-                      {minReward > 0 && <span className="px-1.5 py-0.5 text-[8px] bg-bg-elevated rounded text-text-tertiary">Reward ≥ {minReward.toFixed(1)}</span>}
-                      {!excludeInjected && !successfulOnly && minReward === 0 && (
-                        <span className="text-[10px] text-text-tertiary italic">None</span>
-                      )}
-                    </div>
                   </div>
                 </div>
               </div>
 
               {/* Progress and Action Button */}
-              <div className="mt-auto pt-4 space-y-3.5 shrink-0">
+              <div className="mt-auto pt-4 space-y-3 shrink-0">
                 {isExporting && (
-                  <div className="space-y-1.5 text-left">
+                  <div className="space-y-1 text-left">
                     <div className="flex justify-between text-[10px] font-mono">
                       <span className="text-text-secondary uppercase">Progress</span>
                       <span className="text-accent-blue font-bold">{exportProgress}%</span>
                     </div>
-                    <div className="w-full h-1.5 bg-bg-elevated border border-border rounded-full overflow-hidden">
+                    <div className="w-full h-1 bg-bg-elevated rounded-full overflow-hidden">
                       <div className="h-full bg-accent-blue transition-all duration-300" style={{ width: `${exportProgress}%` }} />
                     </div>
                   </div>

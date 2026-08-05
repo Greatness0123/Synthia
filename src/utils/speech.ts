@@ -72,6 +72,30 @@ export class WebSpeechProvider implements VoiceProvider {
 export const ttsProvider = new WebSpeechProvider();
 
 /**
+ * Extracts the content of <speak>...</speak> tags from a text string.
+ * Returns null when no <speak> tag is present (i.e. the thought should NOT be spoken).
+ * The returned text has the tags themselves stripped so speech only carries the
+ * intended spoken content, not the markup.
+ */
+export function extractSpeechContent(text: string): string | null {
+  if (!text) return null;
+  const match = text.match(/<speak\b[^>]*>([\s\S]*?)<\/speak>/i);
+  if (!match) return null;
+  return match[1]
+    .replace(/<speak\b[^>]*>/gi, '')
+    .replace(/<\/speak>/gi, '')
+    .trim();
+}
+
+/**
+ * Removes <speak> tags from a thought so the UI never shows raw markup.
+ */
+export function stripSpeechTags(text: string): string {
+  if (!text) return text;
+  return text.replace(/<speak\b[^>]*>/gi, '').replace(/<\/speak>/gi, '').trim();
+}
+
+/**
  * Resolves the system voice to use for a given agent.
  * Fallback to deterministic sequential assignment if no custom voice is selected.
  */
@@ -95,13 +119,22 @@ export function getSystemVoiceForAgent(agentId: string): SpeechSynthesisVoice | 
 
 /**
  * Coordinates and plays Speech Synthesis for an agent's completed thought.
+ *
+ * IMPORTANT: Only text wrapped in <speak>...</speak> is spoken aloud, and only
+ * that content is broadcast to other agents via the `synthia:agent_spoke`
+ * spatial event. Internal thoughts are silent — agents only "hear" what the
+ * speaker intentionally says.
  */
 export async function speakAgentThought(agentId: string, text: string): Promise<void> {
   if (typeof window === 'undefined') return;
 
-  // Dispatch custom event for client-side agent perception (overhearing) tunnel
+  const speechContent = extractSpeechContent(text);
+  if (speechContent === null) return; // No <speak> tag — silent thought, nothing broadcast
+
+  // Dispatch custom event for client-side agent perception (overhearing) tunnel.
+  // Only the extracted spoken content is shared — not the full thought.
   window.dispatchEvent(new CustomEvent('synthia:agent_spoke', {
-    detail: { agentId, text }
+    detail: { agentId, text: speechContent }
   }));
 
   if (!window.speechSynthesis) return;
@@ -137,7 +170,7 @@ export async function speakAgentThought(agentId: string, text: string): Promise<
   const voice = getSystemVoiceForAgent(agentId);
 
   try {
-    await ttsProvider.speak(text, {
+    await ttsProvider.speak(speechContent, {
       voiceURI: voice?.voiceURI,
       volume,
     });

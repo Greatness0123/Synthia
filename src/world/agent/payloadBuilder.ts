@@ -26,35 +26,49 @@ export class PayloadBuilder {
   private heartbeatCounter: number = 0;
 
   /**
-   * Build a natural-language description of active contact forces.
-   * Converts raw impulse magnitudes to qualitative labels.
+   * Build a natural-language description of contact forces for every bone.
+   * Reports both active contact and no-contact for complete proprioceptive awareness.
    */
-  private buildTactileContext(contactForces: Record<string, any>): string {
-    const entries = Object.entries(contactForces);
-    if (entries.length === 0) return 'No active contact — you are not touching anything.';
-
-    const lines: string[] = [];
-    for (const [bodyPart, data] of entries) {
-      if (!data.contact || !data.impulse_magnitude) continue;
-
-      const mag = data.impulse_magnitude;
-      let label: string;
-      if (mag < 1) label = 'light touch';
-      else if (mag < 5) label = 'moderate force';
-      else if (mag < 20) label = 'firm contact';
-      else label = 'strong ground support';
-
-      const partName = bodyPart
-        .replace('capsule_body', 'body')
-        .replace(/_/g, ' ')
-        .replace('mixamorig', '');
-
-      lines.push(`Your ${partName} is pressing against ${data.touching || 'something'} with ${label} (${mag.toFixed(1)} N·s).`);
+  private buildTactileContext(contactForces: Record<string, any>, joints: Record<string, any>): string {
+    const allBoneNames = Object.keys(joints);
+    if (allBoneNames.length === 0) {
+      const entries = Object.entries(contactForces);
+      if (entries.length === 0) return 'No active contact — you are not touching anything.';
+      // Fallback: just report what's in contactForces
+      const lines: string[] = [];
+      for (const [bodyPart, data] of entries) {
+        if (!data.contact || !data.impulse_magnitude) continue;
+        const mag = data.impulse_magnitude;
+        let label: string;
+        if (mag < 1) label = 'light touch';
+        else if (mag < 5) label = 'moderate force';
+        else if (mag < 20) label = 'firm contact';
+        else label = 'strong ground support';
+        const partName = bodyPart.replace('capsule_body', 'body').replace(/_/g, ' ').replace('mixamorig', '');
+        lines.push(`Your ${partName} is pressing against ${data.touching || 'something'} with ${label} (${mag.toFixed(1)} N·s).`);
+      }
+      return lines.length > 0 ? lines.join(' ') : 'No active contact — you are not touching anything.';
     }
 
-    return lines.length > 0
-      ? lines.join(' ')
-      : 'No active contact — you are not touching anything.';
+    const lines: string[] = [];
+    for (const boneName of allBoneNames) {
+      const contactData = contactForces[boneName];
+      const partName = boneName.replace('capsule_body', 'body').replace(/_/g, ' ').replace('mixamorig', '');
+
+      if (contactData && contactData.contact && contactData.impulse_magnitude) {
+        const mag = contactData.impulse_magnitude;
+        let label: string;
+        if (mag < 1) label = 'light touch';
+        else if (mag < 5) label = 'moderate force';
+        else if (mag < 20) label = 'firm contact';
+        else label = 'strong ground support';
+        lines.push(`Your ${partName} is pressing against ${contactData.touching || 'something'} with ${label} (${mag.toFixed(1)} N·s).`);
+      } else {
+        lines.push(`Your ${partName} is not in contact with anything.`);
+      }
+    }
+
+    return lines.length > 0 ? lines.join(' ') : 'No active contact — you are not touching anything.';
   }
 
   /**
@@ -245,7 +259,7 @@ IMPORTANT: contacts=1 means ONE surface (the floor) is touching me. This is NORM
       overheard_speech: worldState.overheard_speech || [],
     };
 
-    payload.tactile_context = this.buildTactileContext(contactForces);
+    payload.tactile_context = this.buildTactileContext(contactForces, worldState.joints || {});
 
     payload.gaze_context = `You control your view by rotating your head (set mixamorighead joint overrides).
 The first-person camera is attached to your head bone. It does NOT move independently.

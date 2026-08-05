@@ -2,12 +2,13 @@
 
 export type ExportType = 'dataset' | 'frames_zip' | 'thoughts_report' | 'session_full';
 export type ExportFormat = 'LeRobot' | 'JSONL' | 'CSV';
+export type ExportScope = 'all' | 'date_range' | 'session' | 'heartbeat_range';
 
 export interface ExportConfig {
   exportType: ExportType;
   format?: ExportFormat;           // Only for 'dataset' type
   agentIds: string[]
-  scope: 'all' | 'date_range' | 'session' | 'heartbeat_range'
+  scope: ExportScope
   dateFrom?: string        // ISO string
   dateTo?: string          // ISO string
   sessionIds?: string[]
@@ -20,6 +21,7 @@ export interface ExportConfig {
   includeMotorPrograms?: boolean
   excludeInjected: boolean
   successfulOnly: boolean
-  minReward?: number
+  /** Filter exported rows to memories created under these training goals. */
+  taskFilter?: string[];
   zipPerAgent?: boolean;
 }

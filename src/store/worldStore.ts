@@ -31,8 +31,12 @@ interface WorldState {
   useProcedural: boolean;
   lastAIFrameForDisplay: string | null;
   useMuJoCo: boolean;
+  aiVisionFov: number;
+  aiVisionSize: number;
 
   // Actions
+  setAiVisionFov: (fov: number) => void;
+  setAiVisionSize: (size: number) => void;
   setUseMultiBodyPD: (enable: boolean) => void;
   setUseProcedural: (enable: boolean) => void;
   setGravity: (gravity: number) => void;
@@ -87,7 +91,11 @@ export const useWorldStore = create<WorldState>((set, get) => ({
   useProcedural: false,
   lastAIFrameForDisplay: null as string | null,
   useMuJoCo: false,
+  aiVisionFov: 110,
+  aiVisionSize: 448,
 
+  setAiVisionFov: (aiVisionFov) => set({ aiVisionFov }),
+  setAiVisionSize: (aiVisionSize) => set({ aiVisionSize }),
   setUseMultiBodyPD: (useMultiBodyPD) => {
     set({ useMultiBodyPD });
     get().saveSession();
@@ -186,6 +194,8 @@ export const useWorldStore = create<WorldState>((set, get) => ({
       movementSmoothing: state.movementSmoothing,
       useProcedural: state.useProcedural,
       useMuJoCo: state.useMuJoCo,
+      aiVisionFov: state.aiVisionFov,
+      aiVisionSize: state.aiVisionSize,
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
   },
