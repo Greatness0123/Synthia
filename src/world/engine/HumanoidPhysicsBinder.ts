@@ -1018,10 +1018,15 @@ export class HumanoidPhysicsBinder {
               if (typeof startVal === 'number' && typeof endVal === 'number') {
                 interpolatedOverrides[key] = startVal + (endVal - startVal) * t_interp;
               } else if (Array.isArray(startVal) && Array.isArray(endVal) && startVal.length === 3 && endVal.length === 3) {
+                // Slerp: Convert Euler triples [pitch, yaw, roll] to quaternions, slerp, convert back
+                const qStart = new THREE.Quaternion().setFromEuler(new THREE.Euler(startVal[0], startVal[2], startVal[1], 'ZXY'));
+                const qEnd = new THREE.Quaternion().setFromEuler(new THREE.Euler(endVal[0], endVal[2], endVal[1], 'ZXY'));
+                const qInterp = qStart.clone().slerp(qEnd, t_interp);
+                const eulerInterp = new THREE.Euler().setFromQuaternion(qInterp, 'ZXY');
                 interpolatedOverrides[key] = [
-                  startVal[0] + (endVal[0] - startVal[0]) * t_interp,
-                  startVal[1] + (endVal[1] - startVal[1]) * t_interp,
-                  startVal[2] + (endVal[2] - startVal[2]) * t_interp,
+                  eulerInterp.x, // pitch
+                  eulerInterp.z, // yaw
+                  eulerInterp.y, // roll
                 ];
               } else {
                 interpolatedOverrides[key] = endVal;

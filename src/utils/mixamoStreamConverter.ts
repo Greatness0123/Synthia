@@ -133,9 +133,9 @@ function toZxyEuler(qThree: THREE.Quaternion): { yaw: number; pitch: number; rol
   return { yaw: wrapPi(euler.z), pitch: wrapPi(euler.x), roll: wrapPi(euler.y) };
 }
 
-/** Stream data → THREE quaternion from (w, x, y, z) scalar-first data. */
+/** Stream data → THREE quaternion from (x, y, z, w) data. */
 function quatFromData(data: number[], offset: number): THREE.Quaternion {
-  return new THREE.Quaternion(data[offset + 1], data[offset + 2], data[offset + 3], data[offset]);
+  return new THREE.Quaternion(data[offset], data[offset + 1], data[offset + 2], data[offset + 3]);
 }
 
 /** Parse the line-oriented SJSON stream file text into a MixamoStream. */

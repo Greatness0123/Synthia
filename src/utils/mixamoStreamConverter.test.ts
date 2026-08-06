@@ -17,7 +17,7 @@ import {
 import SYNTHIA_RIG_CONSTRAINTS from '../constants/rigConstraints';
 
 function loadWalkingStream(): string {
-  const file = path.join(process.cwd(), 'walking');
+  const file = path.join(process.cwd(), 'walking2.md');
   return fs.readFileSync(file, 'utf8');
 }
 
@@ -137,6 +137,71 @@ describe('convertMixamoStreamToTimeline', () => {
     const totalZ = artifact.rootMotion.reduce((sum, d) => sum + Math.abs(d.dz), 0);
     expect(totalZ).toBeGreaterThan(1.5);
     expect(totalZ).toBeLessThan(2.0);
+  });
+
+  test('regression: spine and rightupleg frame 0 extractions do not hit clamp rails', () => {
+    // Spine Frame 0: Z-rotation (roll, index 2) must be < 0.1 rad
+    const spineVal = artifact.sequence[0].overrides['mixamorigspine'];
+    console.log("TEST SPINE VAL:", spineVal);
+    expect(Array.isArray(spineVal)).toBe(true);
+    const spineRoll = (spineVal as [number, number, number])[2];
+    expect(Math.abs(spineRoll)).toBeLessThan(0.1);
+
+    // LeftUpLeg Frame 0: X-rotation (pitch, index 0) must be around its real ~28.8 deg (-0.48 rad)
+    const leftUpLegVal = artifact.sequence[0].overrides['mixamorigleftupleg'];
+    console.log("TEST LEFTUPLEG VAL:", leftUpLegVal);
+    expect(Array.isArray(leftUpLegVal)).toBe(true);
+    const leftUpLegPitch = (leftUpLegVal as [number, number, number])[0];
+    expect(Math.abs(leftUpLegPitch)).toBeGreaterThanOrEqual(0.4);
+    expect(Math.abs(leftUpLegPitch)).toBeLessThanOrEqual(0.55);
+
+    // RightUpLeg Frame 0: Z-rotation (roll, index 2) must be in a realistic band (not pinned to ±2.094)
+    const rightUpLegVal = artifact.sequence[0].overrides['mixamorigrightupleg'];
+    console.log("TEST RIGHTUPLEG VAL:", rightUpLegVal);
+    expect(Array.isArray(rightUpLegVal)).toBe(true);
+    const rightUpLegRoll = (rightUpLegVal as [number, number, number])[2];
+    expect(Math.abs(rightUpLegRoll)).toBeLessThan(0.2);
+  });
+
+  test('completeness scan: ensure no suspicious rail-pinned values remain across the clip', () => {
+    // We scan every frame of the sequence, check every bone's values,
+    // and print any value that lands close to a SYNTHIA_RIG_CONSTRAINTS clamp rail.
+    // We assert that spine and hip bones NEVER hit any of their clamp rails,
+    // confirming that the gimbal-alias bug is fully resolved for them.
+    const hitRails: string[] = [];
+
+    for (let i = 0; i < artifact.sequence.length; i++) {
+      const frame = artifact.sequence[i];
+      for (const [bone, value] of Object.entries(frame.overrides)) {
+        const constraint = SYNTHIA_RIG_CONSTRAINTS[bone];
+        if (!constraint) continue;
+
+        const checkValue = (val: number, range: [number, number], axis: string) => {
+          if (Math.abs(val - range[0]) <= 1e-8 && Math.abs(range[0]) > 0.01) {
+            hitRails.push(`${bone}.${axis} MIN (${range[0].toFixed(3)}) at frame ${i}`);
+          }
+          if (Math.abs(val - range[1]) <= 1e-8 && Math.abs(range[1]) > 0.01) {
+            hitRails.push(`${bone}.${axis} MAX (${range[1].toFixed(3)}) at frame ${i}`);
+          }
+        };
+
+        if (typeof value === 'number') {
+          checkValue(value, constraint.x, 'x');
+        } else {
+          checkValue(value[0], constraint.x, 'x');
+          checkValue(value[1], constraint.y, 'y');
+          checkValue(value[2], constraint.z, 'z');
+        }
+      }
+    }
+
+    console.log("COMPLETE RAIL SCANS (Total hits):", hitRails.length);
+    console.log(hitRails);
+
+    // Spine/Hip bones must never hit clamp rails (which previously they did constantly)
+    const criticalBones = ['mixamorigspine', 'mixamorigleftupleg', 'mixamorigrightupleg'];
+    const criticalHits = hitRails.filter(hit => criticalBones.some(bone => hit.startsWith(bone)));
+    expect(criticalHits).toHaveLength(0);
   });
 
   test('conversion is deterministic across two runs', () => {
