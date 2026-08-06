@@ -212,4 +212,36 @@ describe('MuJoCo Physics and Humanoid Integration', () => {
     // Verify velocities damp back down and remain stable under constraint solver
     expect(engine.isBroken).toBe(false);
   });
+
+  test('custom mesh spawning and agent collision integration works correctly', async () => {
+    (global as any).__SYNTHIA_HUMANOID_BINDER__ = binder;
+
+    await binder.loadAndVisualizeBindPose(new THREE.Vector3(0, 0, 0));
+    binder.repositionModel(0, 0.05, 0);
+    await binder.createRigidBodiesAndColliders();
+
+    // Spawn a custom model
+    const customGroup = new THREE.Group();
+    const geom = new THREE.BoxGeometry(1, 1, 1);
+    const mesh = new THREE.Mesh(geom);
+    customGroup.add(mesh);
+
+    // Spawn the custom mesh directly where the agent's torso or capsule is to force a contact/collision
+    const customObj = objManager.spawnCustomModel(
+      customGroup,
+      'TestCustomMesh',
+      new THREE.Vector3(0, 0.5, 0), // overlapping with humanoid root capsule/torso space
+      { isTerrain: false, mass: 5 }
+    );
+    expect(customObj).toBeTruthy();
+
+    // Step physics to resolve contact and generate contact elements
+    for (let i = 0; i < 5; i++) {
+      engine.step();
+    }
+
+    const world = engine.getWorld();
+    // Verify that contacts were generated (at least 1 contact between overlapping geoms in MuJoCo)
+    expect(world.data.ncon).toBeGreaterThan(0);
+  });
 });

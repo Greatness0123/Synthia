@@ -59,4 +59,78 @@ describe('ObjectManager', () => {
     const obj3 = objectManager.spawnObject('cylinder', new THREE.Vector3(0, 3, 0));
     expect(obj3?.slotIndex).toBe(0); // claims slot 0 again
   });
+
+  test('spawnObject works after custom-model spawn + delete cycle and custom geom masks are correct', () => {
+    // 1. Spawn a primitive
+    const prim = objectManager.spawnObject('cube', new THREE.Vector3(0, 1, 0));
+    expect(prim).toBeTruthy();
+    expect(prim?.slotIndex).toBe(0);
+
+    // 2. Spawn a custom model
+    const customGroup = new THREE.Group();
+    const mesh = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1));
+    customGroup.add(mesh);
+
+    const customObj = objectManager.spawnCustomModel(
+      customGroup,
+      'MyCustomMesh',
+      new THREE.Vector3(0, 2, 0),
+      { isTerrain: false, mass: 2 }
+    );
+    expect(customObj).toBeTruthy();
+    expect(customObj?.isCustom).toBe(true);
+
+    // Verify custom meshes are appended inside this.customMeshesSpec
+    expect(objectManager.customMeshesSpec.length).toBe(1);
+
+    // Check custom geom contype and conaffinity inside model
+    const world = engine.getWorld();
+    const model = world.model;
+    const module = PhysicsEngine.getModule();
+    expect(module).toBeTruthy();
+
+    if (module) {
+      const geomId = module.mj_name2id(model, module.mjtObj.mjOBJ_GEOM.value, `custom_geom_${customObj!.id}`);
+      expect(geomId).toBeGreaterThanOrEqual(0);
+      expect(model.geom_contype[geomId]).toBe(2);
+      expect(model.geom_conaffinity[geomId]).toBe(3);
+    }
+
+    // 3. Delete the custom model
+    objectManager.deleteObject(customObj!.id);
+    expect(objectManager.customMeshesSpec.length).toBe(0);
+
+    // 4. Spawn another primitive and confirm it works
+    const prim2 = objectManager.spawnObject('sphere', new THREE.Vector3(0, 3, 0));
+    expect(prim2).toBeTruthy();
+    expect(prim2?.slotIndex).toBe(1); // slot 0 was claimed by prim, so this is slot 1
+  });
+
+  test('slot state (C3 size, friction, contype/conaffinity) survives consecutive multiple reloads', () => {
+    // 1. Spawn a primitive (cube)
+    const obj = objectManager.spawnObject('cube', new THREE.Vector3(0, 1, 0));
+    expect(obj).toBeTruthy();
+    expect(obj?.slotIndex).toBe(0);
+
+    const worldBefore = engine.getWorld();
+    const geomIdBefore = obj!.colliders[0];
+    // Check initial mutated values
+    expect(worldBefore.model.geom_contype[geomIdBefore]).toBe(2);
+    expect(worldBefore.model.geom_conaffinity[geomIdBefore]).toBe(3);
+    expect(worldBefore.model.geom_friction[geomIdBefore * 3]).toBe(obj!.preset.friction);
+
+    // 2. Perform consecutive multiple reload cycles (e.g. simulating spawning dynamic models or other agents)
+    objectManager.reloadStateAndRehydrate();
+    objectManager.reloadStateAndRehydrate();
+    objectManager.reloadStateAndRehydrate();
+
+    // 3. Verify that the properties are successfully restored to the slot geoms
+    const worldAfter = engine.getWorld();
+    const geomIdAfter = obj!.colliders[0];
+
+    // Confirm properties are identical after 3 sequential reloads
+    expect(worldAfter.model.geom_contype[geomIdAfter]).toBe(2);
+    expect(worldAfter.model.geom_conaffinity[geomIdAfter]).toBe(3);
+    expect(worldAfter.model.geom_friction[geomIdAfter * 3]).toBe(obj!.preset.friction);
+  });
 });

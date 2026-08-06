@@ -228,7 +228,7 @@ describe('Multi-Agent Composition & Isolation', () => {
     // the exact call sequence in useWorld.spawnAgent()'s per-binder loop.
     const { bodyXml, actuatorsXml } = generateSingleAgentSubtreeForTest(binder0);
     engine.loadMJCFModel(
-      `<mujoco model="synthia_humanoid"><compiler angle="radian" coordinate="local"/>
+      `<mujoco model="synthia_humanoid"><compiler angle="radian" coordinate="local" inertiafromgeom="false"/>
        <option gravity="0 0 -9.81" timestep="0.002" iterations="100" integrator="implicitfast"/>
        <worldbody><geom name="floor" type="plane" size="100 100 0.1" contype="1" conaffinity="2"/>
        ${bodyXml}</worldbody><actuator>${actuatorsXml}</actuator></mujoco>`

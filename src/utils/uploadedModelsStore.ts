@@ -10,6 +10,13 @@ export interface StoredUploadedModel {
   arrayBuffer: ArrayBuffer;
   uploadedAt: number;
   isTerrain: boolean;
+  skipCollision?: boolean;
+  processed?: {
+    hulls: Array<{ positions: number[]; indices: number[] }>;
+    hullCount: number;
+    sourceTriCount: number;
+    version: number;
+  };
 }
 
 const STORE_PREFIX = 'synthia_uploaded_model_';

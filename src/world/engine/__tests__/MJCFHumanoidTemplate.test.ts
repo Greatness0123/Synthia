@@ -68,7 +68,7 @@ describe('MJCFHumanoidTemplate', () => {
     // Verify it contains basic XML elements
     expect(xml).toBeTruthy();
     expect(xml.includes('<mujoco model="synthia_humanoid">')).toBe(true);
-    expect(xml.includes('<compiler angle="radian" coordinate="local"/>')).toBe(true);
+    expect(xml.includes('<compiler angle="radian" coordinate="local" inertiafromgeom="false"/>')).toBe(true);
     expect(xml.includes('<body name="root_capsule"')).toBe(true);
     expect(xml.includes('<freejoint name="root_freejoint"/>')).toBe(true);
 
