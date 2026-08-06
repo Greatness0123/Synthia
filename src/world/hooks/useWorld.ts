@@ -1012,16 +1012,32 @@ export const useWorld = (containerRef: React.RefObject<HTMLDivElement>) => {
       const { presetId } = (e as CustomEvent).detail;
       const activeObjManager = objectManagerRef.current;
       if (!activeObjManager) {
-        Logger.warn('useWorld: spawnObject called but activeObjManager not ready');
+        synthiaToast.error('Spawning failed: Object Manager is not ready');
+        return;
+      }
+      const physicsEngine = physicsEngineRef.current;
+      if (!physicsEngine || !physicsEngine.isReady) {
+        synthiaToast.error('Spawning failed: Physics engine is not ready');
         return;
       }
 
-      const spawnPos = findSpawnPosition();
-      const obj = activeObjManager.spawnObject(presetId, spawnPos);
-      if (obj) {
-        Logger.info(`useWorld: Object '${presetId}' spawned successfully (id=${obj.id}). Total objects: ${activeObjManager.getObjects().size}`);
-      } else {
-        Logger.error(`useWorld: spawnObject returned null for presetId='${presetId}'`);
+      try {
+        const spawnPos = findSpawnPosition();
+        const obj = activeObjManager.spawnObject(presetId, spawnPos);
+        if (obj) {
+          Logger.info(`useWorld: Object '${presetId}' spawned successfully (id=${obj.id}). Total objects: ${activeObjManager.getObjects().size}`);
+          synthiaToast.success(`${obj.name} spawned near the agent`);
+        } else {
+          const unclaimedIndex = (activeObjManager as any).slotClaimed.indexOf(false);
+          if (unclaimedIndex < 0 && presetId !== 'piano') {
+            synthiaToast.error('Spawning failed: Primitive slot pool exhausted (20/20)');
+          } else {
+            synthiaToast.error(`Spawning failed: Could not create object for preset '${presetId}'`);
+          }
+        }
+      } catch (err: any) {
+        Logger.error(`useWorld: spawnObject threw an error`, err);
+        synthiaToast.error(`Spawning failed: ${err.message || err}`);
       }
     };
 
@@ -1031,26 +1047,44 @@ export const useWorld = (containerRef: React.RefObject<HTMLDivElement>) => {
 
   useEffect(() => {
     const handleSpawnCustom = (e: Event) => {
-      const { name, scene, isTerrain } = (e as CustomEvent).detail as {
+      const { name, scene, isTerrain, skipCollision, processed } = (e as CustomEvent).detail as {
         name: string;
         scene: THREE.Group;
         isTerrain: boolean;
+        skipCollision?: boolean;
+        processed?: any;
       };
       const activeObjManager = objectManagerRef.current;
-      if (!activeObjManager) return;
-
-      const box = new THREE.Box3().setFromObject(scene);
-      const size = box.getSize(new THREE.Vector3());
-      const spawnPos = findSpawnPosition(isTerrain);
-      if (isTerrain) {
-        spawnPos.y = -box.min.y;
-      } else {
-        spawnPos.y = Math.max(0.1, size.y / 2 + 0.01);
+      if (!activeObjManager) {
+        synthiaToast.error('Spawning failed: Object Manager is not ready');
+        return;
+      }
+      const physicsEngine = physicsEngineRef.current;
+      if (!physicsEngine || !physicsEngine.isReady) {
+        synthiaToast.error('Spawning failed: Physics engine is not ready');
+        return;
       }
 
-      const obj = activeObjManager.spawnCustomModel(scene, name, spawnPos, { isTerrain });
-      if (obj) {
-        Logger.info(`useWorld: Custom model '${name}' spawned (id=${obj.id})`);
+      try {
+        const box = new THREE.Box3().setFromObject(scene);
+        const size = box.getSize(new THREE.Vector3());
+        const spawnPos = findSpawnPosition(isTerrain);
+        if (isTerrain) {
+          spawnPos.y = -box.min.y;
+        } else {
+          spawnPos.y = Math.max(0.1, size.y / 2 + 0.01);
+        }
+
+        const obj = activeObjManager.spawnCustomModel(scene, name, spawnPos, { isTerrain, skipCollision, processed });
+        if (obj) {
+          Logger.info(`useWorld: Custom model '${name}' spawned (id=${obj.id})`);
+          synthiaToast.success(`${name} spawned successfully`);
+        } else {
+          synthiaToast.error(`Spawning failed: Could not create custom model '${name}'`);
+        }
+      } catch (err: any) {
+        Logger.error(`useWorld: spawnCustomModel threw an error`, err);
+        synthiaToast.error(`Spawning failed: ${err.message || err}`);
       }
     };
 

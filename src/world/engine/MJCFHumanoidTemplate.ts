@@ -338,6 +338,47 @@ export function generateAgentSubtreeMJCF(
   return { bodyXml, actuatorsXml: actuators };
 }
 
+export function injectAssetsAndBodies(baseXml: string, assets: string[], bodies: string[]): string {
+  let xml = baseXml;
+
+  if (assets.length > 0) {
+    // Check if <asset> exists
+    const assetStartIdx = xml.indexOf('<asset>');
+    const assetEndIdx = xml.indexOf('</asset>');
+    if (assetStartIdx >= 0 && assetEndIdx >= 0) {
+      // Append inside existing <asset>
+      const insideAsset = xml.slice(assetStartIdx + 7, assetEndIdx);
+      const newInside = insideAsset + '\n      ' + assets.join('\n      ');
+      xml = xml.slice(0, assetStartIdx + 7) + newInside + xml.slice(assetEndIdx);
+    } else {
+      // Create new <asset> block
+      const newAssetBlock = `\n  <asset>\n    ${assets.join('\n    ')}\n  </asset>`;
+      // Insert after compiler tag or before worldbody tag
+      const compilerEndIdx = xml.indexOf('/>', xml.indexOf('<compiler'));
+      if (compilerEndIdx >= 0) {
+        xml = xml.slice(0, compilerEndIdx + 2) + newAssetBlock + xml.slice(compilerEndIdx + 2);
+      } else {
+        const mujocoTagEnd = xml.indexOf('>');
+        if (mujocoTagEnd >= 0) {
+          xml = xml.slice(0, mujocoTagEnd + 1) + newAssetBlock + xml.slice(mujocoTagEnd + 1);
+        } else {
+          xml = newAssetBlock + xml;
+        }
+      }
+    }
+  }
+
+  if (bodies.length > 0) {
+    // Insert bodies inside <worldbody> before </worldbody>
+    const worldbodyEndIdx = xml.lastIndexOf('</worldbody>');
+    if (worldbodyEndIdx >= 0) {
+      xml = xml.slice(0, worldbodyEndIdx) + '\n    ' + bodies.join('\n    ') + '\n  ' + xml.slice(worldbodyEndIdx);
+    }
+  }
+
+  return xml;
+}
+
 export function generateHumanoidMJCF(
   boneInfoMap: Map<string, { bone: THREE.Bone; worldPosition: THREE.Vector3 }>,
   _skeletonOrBones: any,
@@ -368,6 +409,7 @@ export function generateHumanoidMJCF(
     slotBodies.push(`
     <body name="env_slot_${i}" pos="0 0 -10">
       <freejoint name="env_slot_${i}_joint"/>
+      <inertial pos="0 0 0" mass="1" diaginertia="0.1 0.1 0.1"/>
       <geom name="env_slot_${i}_sphere" type="sphere" size="0.001" contype="0" conaffinity="0"/>
       <geom name="env_slot_${i}_box" type="box" size="0.001 0.001 0.001" contype="0" conaffinity="0"/>
       <geom name="env_slot_${i}_cylinder" type="cylinder" size="0.001 0.001" contype="0" conaffinity="0"/>
@@ -408,7 +450,7 @@ ${pianoGeoms.join('\n')}
   // Return the complete MJCF XML
   const xml = `
 <mujoco model="synthia_humanoid">
-  <compiler angle="radian" coordinate="local"/>
+  <compiler angle="radian" coordinate="local" inertiafromgeom="false"/>
   <option gravity="0 0 -9.81" timestep="0.002" iterations="200" integrator="implicitfast"/>
   <default>
     <geom friction="2.0 0.5 0.1"/>
@@ -466,6 +508,7 @@ export function generateCombinedMultiAgentMJCF(
     slotBodies.push(`
     <body name="env_slot_${i}" pos="0 0 -10">
       <freejoint name="env_slot_${i}_joint"/>
+      <inertial pos="0 0 0" mass="1" diaginertia="0.1 0.1 0.1"/>
       <geom name="env_slot_${i}_sphere" type="sphere" size="0.001" contype="0" conaffinity="0"/>
       <geom name="env_slot_${i}_box" type="box" size="0.001 0.001 0.001" contype="0" conaffinity="0"/>
       <geom name="env_slot_${i}_cylinder" type="cylinder" size="0.001 0.001" contype="0" conaffinity="0"/>
@@ -503,30 +546,9 @@ ${pianoGeoms.join('\n')}
     </body>
   `;
 
-  // Process custom meshes specs XML
-  const customModelsXml = customMeshesSpec.map((spec) => {
-    const posMj = PhysicsEngine.worldToMuJoCo(spec.position);
-    const quatMj = spec.quaternion
-      ? PhysicsEngine.threeQuatToMuJoCo(spec.quaternion)
-      : [1, 0, 0, 0];
-
-    const verticesStr = Array.from(spec.vertices).join(' ');
-    const facesStr = Array.from(spec.indices).join(' ');
-
-    return `
-    <asset>
-      <mesh name="mesh_${spec.id}" vertex="${verticesStr}" face="${facesStr}"/>
-    </asset>
-    <body name="custom_${spec.id}" pos="${posMj[0]} ${posMj[1]} ${posMj[2]}" quat="${quatMj[0]} ${quatMj[1]} ${quatMj[2]} ${quatMj[3]}">
-      <freejoint name="custom_${spec.id}_joint"/>
-      <geom name="custom_geom_${spec.id}" type="mesh" mesh="mesh_${spec.id}" contype="2" conaffinity="1"/>
-      <inertial pos="0 0 0" mass="${spec.preset.mass}" diaginertia="0.1 0.1 0.1"/>
-    </body>`;
-  }).join('\n');
-
   const xml = `
 <mujoco model="synthia_humanoid">
-  <compiler angle="radian" coordinate="local"/>
+  <compiler angle="radian" coordinate="local" inertiafromgeom="false"/>
   <option gravity="0 0 -9.81" timestep="0.002" iterations="200" integrator="implicitfast"/>
   <default>
     <geom friction="2.0 0.5 0.1"/>
@@ -540,7 +562,6 @@ ${pianoGeoms.join('\n')}
     ${slotBodies.join('\n')}
 
     ${pianoBody}
-    ${customModelsXml}
   </worldbody>
 
   <actuator>
@@ -549,5 +570,67 @@ ${pianoGeoms.join('\n')}
 </mujoco>
   `.trim();
 
-  return xml;
+  // Map custom meshes specs to separate arrays
+  const customAssets: string[] = [];
+  const customBodies: string[] = [];
+
+  for (const spec of customMeshesSpec) {
+    if (spec.options?.skipCollision) {
+      continue;
+    }
+
+    const posMj = PhysicsEngine.worldToMuJoCo(spec.position);
+    const quatMj = spec.quaternion
+      ? PhysicsEngine.threeQuatToMuJoCo(spec.quaternion)
+      : [1, 0, 0, 0];
+
+    const hasHulls = spec.processed && spec.processed.hulls && spec.processed.hulls.length > 0;
+
+    if (hasHulls) {
+      const geomsXml: string[] = [];
+      spec.processed!.hulls.forEach((hull, i) => {
+        customAssets.push(`<mesh name="hull_${spec.id}_${i}" vertex="${hull.positions.join(' ')}" face="${hull.indices.join(' ')}"/>`);
+        if (spec.options?.isTerrain) {
+          geomsXml.push(`<geom name="custom_geom_${spec.id}_${i}" type="mesh" mesh="hull_${spec.id}_${i}" contype="1" conaffinity="2"/>`);
+        } else {
+          geomsXml.push(`<geom name="custom_geom_${spec.id}_${i}" type="mesh" mesh="hull_${spec.id}_${i}" contype="2" conaffinity="3"/>`);
+        }
+      });
+
+      if (spec.options?.isTerrain) {
+        customBodies.push(`
+    <body name="custom_${spec.id}" pos="${posMj[0]} ${posMj[1]} ${posMj[2]}" quat="${quatMj[0]} ${quatMj[1]} ${quatMj[2]} ${quatMj[3]}">
+      ${geomsXml.join('\n      ')}
+    </body>`);
+      } else {
+        customBodies.push(`
+    <body name="custom_${spec.id}" pos="${posMj[0]} ${posMj[1]} ${posMj[2]}" quat="${quatMj[0]} ${quatMj[1]} ${quatMj[2]} ${quatMj[3]}">
+      <freejoint name="custom_${spec.id}_joint"/>
+      ${geomsXml.join('\n      ')}
+      <inertial pos="0 0 0" mass="${spec.preset.mass}" diaginertia="0.1 0.1 0.1"/>
+    </body>`);
+      }
+    } else {
+      const verticesStr = Array.from(spec.vertices).join(' ');
+      const facesStr = Array.from(spec.indices).join(' ');
+
+      customAssets.push(`<mesh name="mesh_${spec.id}" vertex="${verticesStr}" face="${facesStr}"/>`);
+
+      if (spec.options?.isTerrain) {
+        customBodies.push(`
+    <body name="custom_${spec.id}" pos="${posMj[0]} ${posMj[1]} ${posMj[2]}" quat="${quatMj[0]} ${quatMj[1]} ${quatMj[2]} ${quatMj[3]}">
+      <geom name="custom_geom_${spec.id}" type="mesh" mesh="mesh_${spec.id}" contype="1" conaffinity="2"/>
+    </body>`);
+      } else {
+        customBodies.push(`
+    <body name="custom_${spec.id}" pos="${posMj[0]} ${posMj[1]} ${posMj[2]}" quat="${quatMj[0]} ${quatMj[1]} ${quatMj[2]} ${quatMj[3]}">
+      <freejoint name="custom_${spec.id}_joint"/>
+      <geom name="custom_geom_${spec.id}" type="mesh" mesh="mesh_${spec.id}" contype="2" conaffinity="3"/>
+      <inertial pos="0 0 0" mass="${spec.preset.mass}" diaginertia="0.1 0.1 0.1"/>
+    </body>`);
+      }
+    }
+  }
+
+  return injectAssetsAndBodies(xml, customAssets, customBodies);
 }

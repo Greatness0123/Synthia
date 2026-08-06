@@ -4,7 +4,7 @@ import { PhysicsEngine } from './PhysicsEngine';
 import { CollisionAdapter } from './CollisionAdapter';
 import { AudioEngine } from './AudioEngine';
 import { StateRehydrator } from './StateRehydrator';
-import { NUM_ENV_SLOTS } from './MJCFHumanoidTemplate';
+import { NUM_ENV_SLOTS, injectAssetsAndBodies } from './MJCFHumanoidTemplate';
 import { logger as Logger } from '../../utils/logger';
 
 export interface WorldObject {
@@ -37,15 +37,21 @@ export class ObjectManager {
   private eventCallback: ((type: string, data: any) => void) | null = null;
 
   // Cache for custom mesh structures currently added to the scene to allow reloads
-  private customMeshesSpec: Array<{
+  public customMeshesSpec: Array<{
     id: string;
     name: string;
     preset: ObjectPreset;
     position: THREE.Vector3;
     quaternion?: THREE.Quaternion;
-    options: { isTerrain: boolean; mass?: number; friction?: number; restitution?: number };
+    options: { isTerrain: boolean; mass?: number; friction?: number; restitution?: number; skipCollision?: boolean };
     vertices: Float32Array;
     indices: Uint32Array;
+    processed?: {
+      hulls: Array<{ positions: number[]; indices: number[] }>;
+      hullCount: number;
+      sourceTriCount: number;
+      version: number;
+    };
   }> = [];
 
   constructor(physicsEngine: PhysicsEngine, scene: THREE.Scene, audioEngine: AudioEngine) {
@@ -118,7 +124,7 @@ export class ObjectManager {
   /**
    * Helper to perform scene state-capture, compilation, reload, and hydration
    */
-  private reloadStateAndRehydrate(newMeshSpec?: any) {
+  public reloadStateAndRehydrate() {
     this.physicsEngine.setMutating(true);
     this.physicsEngine.setReady(false);
 
@@ -127,7 +133,7 @@ export class ObjectManager {
       if (!module) return;
 
       // 1. Capture current simulation state using StateRehydrator
-      const activeAgentIds = (window as any).__SYNTHIA_HUMANOID_BINDERS__
+      const activeAgentIds = (typeof window !== 'undefined' && (window as any).__SYNTHIA_HUMANOID_BINDERS__)
         ? Array.from((window as any).__SYNTHIA_HUMANOID_BINDERS__.keys()) as string[]
         : ['agent_0'];
 
@@ -136,69 +142,91 @@ export class ObjectManager {
       // 3. Rebuild the XML MJCF model
       let skeletonBinder: any = null;
       let baseXml = '';
-      if (typeof (window as any).__SYNTHIA_GENERATE_COMBINED_MJCF__ === 'function') {
+      if (typeof window !== 'undefined' && typeof (window as any).__SYNTHIA_GENERATE_COMBINED_MJCF__ === 'function') {
         baseXml = (window as any).__SYNTHIA_GENERATE_COMBINED_MJCF__();
       } else {
-        skeletonBinder = (window as any).__SYNTHIA_HUMANOID_BINDER__;
-        if (!skeletonBinder) {
-          throw new Error('Hydration error: Humanoid binder reference is missing.');
+        skeletonBinder = typeof window !== 'undefined' ? (window as any).__SYNTHIA_HUMANOID_BINDER__ : null;
+        if (skeletonBinder) {
+          const mbm = skeletonBinder.getMultiBodyManager();
+          baseXml = mbm.getPristineBaseMjcfXml();
+        } else {
+          baseXml = this.physicsEngine.getLastLoadedXml();
         }
-        const mbm = skeletonBinder.getMultiBodyManager();
-        baseXml = newMeshSpec
-          ? (mbm.getCurrentBaseMjcfXml() || mbm.getPristineBaseMjcfXml())
-          : mbm.getPristineBaseMjcfXml();
       }
 
       if (!baseXml) {
         throw new Error('Hydration error: Base MJCF is empty or uninitialized');
       }
 
-      // If we have a new custom mesh, only append the new mesh to the current accumulated XML.
-      // If we are reloading/deleting, append all remaining specs onto the pristine base.
-      const specsToAppend = newMeshSpec ? [newMeshSpec] : this.customMeshesSpec;
-
-      // Append the new custom mesh spec to specs cache
-      if (newMeshSpec) {
-        this.customMeshesSpec.push(newMeshSpec);
-      }
-
-      // Parse and construct the combined custom model XML tags
-      const customModelsXml = specsToAppend.map((spec) => {
-        const posMj = PhysicsEngine.worldToMuJoCo(spec.position);
-        const quatMj = spec.quaternion
-          ? PhysicsEngine.threeQuatToMuJoCo(spec.quaternion)
-          : [1, 0, 0, 0];
-
-        // Format vertex lists and index lists for MuJoCo XML
-        const verticesStr = Array.from(spec.vertices).join(' ');
-        const facesStr = Array.from(spec.indices).join(' ');
-
-        // Declare custom mesh assets inside an inline asset tag or globally
-        // For simplicity and XML structure compatibility, declare <asset> with <mesh> inside the body,
-        // and link them to <geom type="mesh" mesh="...">.
-        return `
-    <asset>
-      <mesh name="mesh_${spec.id}" vertex="${verticesStr}" face="${facesStr}"/>
-    </asset>
-    <body name="custom_${spec.id}" pos="${posMj[0]} ${posMj[1]} ${posMj[2]}" quat="${quatMj[0]} ${quatMj[1]} ${quatMj[2]} ${quatMj[3]}">
-      <freejoint name="custom_${spec.id}_joint"/>
-      <geom name="custom_geom_${spec.id}" type="mesh" mesh="mesh_${spec.id}" contype="2" conaffinity="1"/>
-      <inertial pos="0 0 0" mass="${spec.preset.mass}" diaginertia="0.1 0.1 0.1"/>
-    </body>`;
-      }).join('\n');
-
-      // Inject custom body models inside the worldbody before reload
       let combinedXml = baseXml;
 
-      // Injecting before </worldbody>
-      const worldbodyEndIdx = combinedXml.lastIndexOf('</worldbody>');
-      if (worldbodyEndIdx >= 0) {
-        combinedXml = combinedXml.slice(0, worldbodyEndIdx) + customModelsXml + combinedXml.slice(worldbodyEndIdx);
+      if (typeof window === 'undefined' || typeof (window as any).__SYNTHIA_GENERATE_COMBINED_MJCF__ !== 'function') {
+        // Construct the combined custom model XML tags inside non-combined fallback
+        const customAssets: string[] = [];
+        const customBodies: string[] = [];
+
+        this.customMeshesSpec.forEach((spec) => {
+          if (spec.options?.skipCollision) return;
+
+          const posMj = PhysicsEngine.worldToMuJoCo(spec.position);
+          const quatMj = spec.quaternion
+            ? PhysicsEngine.threeQuatToMuJoCo(spec.quaternion)
+            : [1, 0, 0, 0];
+
+          const hasHulls = spec.processed && spec.processed.hulls && spec.processed.hulls.length > 0;
+
+          if (hasHulls) {
+            const geomsXml: string[] = [];
+            spec.processed!.hulls.forEach((hull, i) => {
+              customAssets.push(`<mesh name="hull_${spec.id}_${i}" vertex="${hull.positions.join(' ')}" face="${hull.indices.join(' ')}"/>`);
+              if (spec.options?.isTerrain) {
+                geomsXml.push(`<geom name="custom_geom_${spec.id}_${i}" type="mesh" mesh="hull_${spec.id}_${i}" contype="1" conaffinity="2"/>`);
+              } else {
+                geomsXml.push(`<geom name="custom_geom_${spec.id}_${i}" type="mesh" mesh="hull_${spec.id}_${i}" contype="2" conaffinity="3"/>`);
+              }
+            });
+
+            if (spec.options?.isTerrain) {
+              customBodies.push(`
+          <body name="custom_${spec.id}" pos="${posMj[0]} ${posMj[1]} ${posMj[2]}" quat="${quatMj[0]} ${quatMj[1]} ${quatMj[2]} ${quatMj[3]}">
+            ${geomsXml.join('\n            ')}
+          </body>`);
+            } else {
+              customBodies.push(`
+          <body name="custom_${spec.id}" pos="${posMj[0]} ${posMj[1]} ${posMj[2]}" quat="${quatMj[0]} ${quatMj[1]} ${quatMj[2]} ${quatMj[3]}">
+            <freejoint name="custom_${spec.id}_joint"/>
+            ${geomsXml.join('\n            ')}
+            <inertial pos="0 0 0" mass="${spec.preset.mass}" diaginertia="0.1 0.1 0.1"/>
+          </body>`);
+            }
+          } else {
+            const verticesStr = Array.from(spec.vertices).join(' ');
+            const facesStr = Array.from(spec.indices).join(' ');
+
+            customAssets.push(`<mesh name="mesh_${spec.id}" vertex="${verticesStr}" face="${facesStr}"/>`);
+
+            if (spec.options?.isTerrain) {
+              customBodies.push(`
+          <body name="custom_${spec.id}" pos="${posMj[0]} ${posMj[1]} ${posMj[2]}" quat="${quatMj[0]} ${quatMj[1]} ${quatMj[2]} ${quatMj[3]}">
+            <geom name="custom_geom_${spec.id}" type="mesh" mesh="mesh_${spec.id}" contype="1" conaffinity="2"/>
+          </body>`);
+            } else {
+              customBodies.push(`
+          <body name="custom_${spec.id}" pos="${posMj[0]} ${posMj[1]} ${posMj[2]}" quat="${quatMj[0]} ${quatMj[1]} ${quatMj[2]} ${quatMj[3]}">
+            <freejoint name="custom_${spec.id}_joint"/>
+            <geom name="custom_geom_${spec.id}" type="mesh" mesh="mesh_${spec.id}" contype="2" conaffinity="3"/>
+            <inertial pos="0 0 0" mass="${spec.preset.mass}" diaginertia="0.1 0.1 0.1"/>
+          </body>`);
+            }
+          }
+        });
+
+        combinedXml = injectAssetsAndBodies(baseXml, customAssets, customBodies);
       }
 
       // 4. Load compiled XML into the physics engine
       this.physicsEngine.loadMJCFModel(combinedXml);
-      if (typeof (window as any).__SYNTHIA_GENERATE_COMBINED_MJCF__ !== 'function' && skeletonBinder) {
+      if (typeof window !== 'undefined' && typeof (window as any).__SYNTHIA_GENERATE_COMBINED_MJCF__ !== 'function' && skeletonBinder) {
         skeletonBinder.getMultiBodyManager().setCurrentBaseMjcfXml(combinedXml);
       }
       this.physicsEngine.setReady(true);
@@ -210,7 +238,7 @@ export class ObjectManager {
       StateRehydrator.restore(this.physicsEngine, capturedState, Array.from(this.objects.values()));
 
       // Re-map IDs on all active binders if multi-agent is running
-      if ((window as any).__SYNTHIA_HUMANOID_BINDERS__) {
+      if (typeof window !== 'undefined' && (window as any).__SYNTHIA_HUMANOID_BINDERS__) {
         (window as any).__SYNTHIA_HUMANOID_BINDERS__.forEach((binder: any) => {
           binder.getMultiBodyManager().remapIdsAgainstLoadedWorld(binder.getBoneInfoMap());
           binder.initMotorController();
@@ -219,9 +247,17 @@ export class ObjectManager {
 
       // Rehydrate pre-allocated slot bodies and custom models
       this.objects.forEach((obj) => {
+        if (obj.preset.id === 'piano') return; // Piano uses fixed/predefined logic, handled differently
+
         // Look up new body ID after reload
         let bodyId = -1;
         if (obj.isCustom) {
+          if (obj.preset.id.startsWith('custom_') && obj.mesh.userData.physics?.skipCollision) {
+            // Unsimulated/skipCollision body doesn't exist in MuJoCo
+            obj.bodyId = -1;
+            obj.colliders = [];
+            return;
+          }
           bodyId = module.mj_name2id(newModel, module.mjtObj.mjOBJ_BODY.value, `custom_${obj.id}`);
         } else if (obj.slotIndex !== undefined) {
           bodyId = module.mj_name2id(newModel, module.mjtObj.mjOBJ_BODY.value, `env_slot_${obj.slotIndex}`);
@@ -234,13 +270,43 @@ export class ObjectManager {
           obj.colliders = [];
           if (obj.isCustom) {
             const geomId = module.mj_name2id(newModel, module.mjtObj.mjOBJ_GEOM.value, `custom_geom_${obj.id}`);
-            if (geomId >= 0) obj.colliders.push(geomId);
+            if (geomId >= 0) {
+              obj.colliders.push(geomId);
+            } else {
+              let i = 0;
+              while (true) {
+                const gId = module.mj_name2id(newModel, module.mjtObj.mjOBJ_GEOM.value, `custom_geom_${obj.id}_${i}`);
+                if (gId >= 0) {
+                  obj.colliders.push(gId);
+                  i++;
+                } else {
+                  break;
+                }
+              }
+            }
           } else if (obj.slotIndex !== undefined) {
             // Re-claim sibling geom ID (mapping cube, wedge, slope, ramp to box)
             const actualPresetShapeId = ['cube', 'wedge', 'slope', 'ramp'].includes(obj.preset.id) ? 'box' : obj.preset.id;
             const activeGeomName = `env_slot_${obj.slotIndex}_${actualPresetShapeId}`;
             const geomId = module.mj_name2id(newModel, module.mjtObj.mjOBJ_GEOM.value, activeGeomName);
-            if (geomId >= 0) obj.colliders.push(geomId);
+            if (geomId >= 0) {
+              obj.colliders.push(geomId);
+
+              // RE-APPLY EFFECTIVE SPAWN PROPERTIES FOR THE SLOT GEOM
+              const adapterGeom = CollisionAdapter.objectPresetToMJCFGeom(obj.preset);
+              const sizeValues = adapterGeom.size.split(' ').map(Number);
+              const sizeOffset = geomId * 3;
+              newModel.geom_size[sizeOffset] = sizeValues[0] || 0;
+              newModel.geom_size[sizeOffset + 1] = sizeValues[1] || 0;
+              newModel.geom_size[sizeOffset + 2] = sizeValues[2] || 0;
+
+              newModel.geom_contype[geomId] = 2;
+              newModel.geom_conaffinity[geomId] = 3;
+
+              newModel.geom_friction[geomId * 3] = obj.preset.friction;
+              newModel.geom_solref[geomId * 2] = 0.02; // default solref kp
+              newModel.geom_solimp[geomId * 3 + 2] = obj.preset.restitution; // default solimp damp
+            }
           }
         }
       });
@@ -256,7 +322,7 @@ export class ObjectManager {
     modelGroup: THREE.Group,
     name: string,
     position: THREE.Vector3,
-    options: { isTerrain: boolean; mass?: number; friction?: number; restitution?: number }
+    options: { isTerrain: boolean; mass?: number; friction?: number; restitution?: number; skipCollision?: boolean; processed?: any }
   ): WorldObject | null {
     const id = Math.random().toString(36).substring(2, 9);
     const mass = options.isTerrain ? 0 : (options.mass ?? 1);
@@ -269,7 +335,7 @@ export class ObjectManager {
     group.userData.isSynthiaPrimitive = true;
     group.userData.objectId = id;
     group.userData.isCustomUpload = true;
-    group.userData.physics = { mass, friction, restitution };
+    group.userData.physics = { mass, friction, restitution, skipCollision: options.skipCollision, processed: options.processed };
     this.scene.add(group);
 
     const preset: ObjectPreset = {
@@ -295,21 +361,43 @@ export class ObjectManager {
 
     this.objects.set(id, worldObject);
 
-    // Call XML compilation reload and rehydration
-    this.reloadStateAndRehydrate({
+    if (options.skipCollision) {
+      // Raycast to place correct ground height
+      const raycaster = new THREE.Raycaster();
+      // Raycast downwards from high up
+      raycaster.set(new THREE.Vector3(position.x, 100, position.z), new THREE.Vector3(0, -1, 0));
+      const floorMesh = (window as any).__SYNTHIA_FLOOR_MESH__;
+      if (floorMesh) {
+        const intersects = raycaster.intersectObject(floorMesh, true);
+        if (intersects.length > 0) {
+          group.position.y = intersects[0].point.y;
+        }
+      }
+      return worldObject;
+    }
+
+    // Add new spec to customMeshesSpec BEFORE calling the generator, making it the single source of truth
+    this.customMeshesSpec.push({
       id,
       name,
       preset,
       position,
       options,
       vertices,
-      indices
+      indices,
+      processed: options.processed
     });
+
+    // Call XML compilation reload and rehydration (now with zero arguments, reading this.customMeshesSpec)
+    this.reloadStateAndRehydrate();
 
     return worldObject;
   }
 
   public spawnObject(presetId: string, position: THREE.Vector3): WorldObject | null {
+    const module = PhysicsEngine.getModule();
+    if (!module) return null;
+
     if (presetId === 'piano') {
       const id = Math.random().toString(36).substring(2, 9);
       return this.spawnPiano(id, { id: 'piano', name: 'Piano', category: 'Interactive', icon: 'MusicNotes', mass: 50, friction: 0.5, restitution: 0.1 }, position);
@@ -382,8 +470,6 @@ export class ObjectManager {
     const world = this.physicsEngine.getWorld();
     const model = world.model;
     const data = world.data;
-    const module = PhysicsEngine.getModule();
-    if (!module) return null;
 
     const bodyName = `env_slot_${slotIdx}`;
     const bodyId = module.mj_name2id(model, module.mjtObj.mjOBJ_BODY.value, bodyName);
