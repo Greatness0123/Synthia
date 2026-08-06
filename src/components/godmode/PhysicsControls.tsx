@@ -6,6 +6,7 @@ import { useWorldStore } from '../../store/worldStore';
 import { Slider } from '../ui/Slider';
 import { Panel } from '../ui/Panel';
 import { STRINGS } from '../../constants/strings';
+import { Sliders, Globe } from '../ui/icons';
 
 export const PhysicsControls: React.FC = () => {
   const { 
@@ -19,7 +20,8 @@ export const PhysicsControls: React.FC = () => {
 
   return (
     <Panel className="p-4 border-none bg-transparent">
-      <h3 className="text-[10px] font-bold text-text-tertiary uppercase tracking-widest mb-4">
+      <h3 className="text-[10px] font-bold text-text-tertiary uppercase tracking-widest mb-4 flex items-center gap-1.5">
+        <Sliders size={12} />
         {STRINGS.GOD_MODE.PHYSICS}
       </h3>
       <div className="space-y-6">
@@ -41,7 +43,8 @@ export const PhysicsControls: React.FC = () => {
         />
       </div>
 
-      <h3 className="text-[10px] font-bold text-text-tertiary uppercase tracking-widest mb-4 mt-8">
+      <h3 className="text-[10px] font-bold text-text-tertiary uppercase tracking-widest mb-4 mt-8 flex items-center gap-1.5">
+        <Globe size={12} />
         Environment
       </h3>
       <div className="space-y-4">

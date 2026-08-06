@@ -5,9 +5,9 @@
 import React from 'react';
 import { useAgentStore } from '../../store/agentStore';
 import { Toggle } from '../ui/Toggle';
-import { Button } from '../ui/Button';
 import { STRINGS } from '../../constants/strings';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Flag, Target } from '../ui/icons';
 
 export const DirectivePanel: React.FC = () => {
   const { directiveMode, setDirectiveMode, currentGoal, setCurrentGoal } = useAgentStore();
@@ -17,27 +17,28 @@ export const DirectivePanel: React.FC = () => {
     setDirectiveMode(mode);
   };
 
-  const handleSetGoal = () => {
-    // Stores update immediately. The client loop picks it up on its next cycle.
-  };
-
   const handleClearGoal = () => {
+    // Only clear the goal text — user must manually toggle off training mode
     setCurrentGoal(null);
-    setDirectiveMode('free_will');
   };
 
   return (
     <div className="p-4 border-t border-border">
-      <h3 className="text-[10px] font-bold text-text-tertiary uppercase tracking-widest mb-4">
+      <h3 className="text-[10px] font-bold text-text-tertiary uppercase tracking-widest mb-4 flex items-center gap-1.5">
+        <Flag size={12} />
         {STRINGS.GOD_MODE.DIRECTIVE}
       </h3>
 
       <div className="space-y-4">
-        <Toggle
-          label={STRINGS.GOD_MODE.TRAINING_MODE_LABEL}
-          enabled={directiveMode === 'training'}
-          onChange={handleToggle}
-        />
+        <div className="flex items-center gap-1.5">
+          <Target size={10} className="text-text-tertiary" />
+          <Toggle
+            label={STRINGS.GOD_MODE.TRAINING_MODE_LABEL}
+            ariaLabel="Enable training mode"
+            enabled={directiveMode === 'training'}
+            onChange={handleToggle}
+          />
+        </div>
 
         <AnimatePresence>
           {directiveMode === 'training' && (
@@ -51,16 +52,17 @@ export const DirectivePanel: React.FC = () => {
                 value={currentGoal || ''}
                 onChange={(e) => setCurrentGoal(e.target.value)}
                 placeholder="Define training objective..."
+                aria-label="Training objective"
                 className="w-full h-20 p-2 bg-bg-elevated border border-border rounded-btn text-xs text-text-primary resize-none focus:outline-none focus:ring-1 focus:ring-accent-blue"
               />
-              <div className="flex gap-2">
-                <Button variant="primary" size="sm" className="flex-1 text-[10px]" onClick={handleSetGoal}>
-                  {STRINGS.GOD_MODE.SET_GOAL}
-                </Button>
-                <Button variant="secondary" size="sm" className="flex-1 text-[10px]" onClick={handleClearGoal}>
+              {currentGoal && (
+                <button
+                  onClick={handleClearGoal}
+                  className="w-full h-8 border border-border rounded-btn text-[10px] text-text-tertiary hover:text-accent-red hover:border-accent-red/40 transition-colors font-bold uppercase tracking-widest"
+                >
                   {STRINGS.GOD_MODE.CLEAR_GOAL}
-                </Button>
-              </div>
+                </button>
+              )}
             </motion.div>
           )}
         </AnimatePresence>
@@ -74,3 +76,4 @@ export const DirectivePanel: React.FC = () => {
     </div>
   );
 };
+

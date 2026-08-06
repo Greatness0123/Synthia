@@ -3,7 +3,7 @@ import { ModelInputPiP } from './ModelInputPiP';
 import { PianoReward } from './PianoReward';
 import { useWorld } from '../../world/hooks/useWorld';
 import { useWorldStore } from '../../store/worldStore';
-import { Spinner } from '@phosphor-icons/react';
+import { Spinner } from '../ui/icons';
 import { STRINGS } from '../../constants/strings';
 
 /**

@@ -1,7 +1,3 @@
-/**
- * Main application entry point and root component.
- */
-
 import { AppShell } from './components/layout/AppShell';
 import { WorldViewport } from './components/world/WorldViewport';
 import { RehydrationModal } from './components/ui/RehydrationModal';
@@ -12,10 +8,28 @@ import { InjectionInput } from './components/agent/InjectionInput';
 import { MemoryViewer } from './components/agent/MemoryViewer';
 import { StructureViewer } from './components/agent/StructureViewer';
 import { GodModePanel } from './components/godmode/GodModePanel';
+import { ObjectSpawner } from './components/godmode/ObjectSpawner';
 import { useUIStore } from './store/uiStore';
 import { useWorldStore } from './store/worldStore';
 import { useAgentStore } from './store/agentStore';
-import { Brain, Database, Cube, ListChecks, TreeStructure, Camera, VideoCamera, Monitor, X, Sun, Moon, Gear, SpeakerHigh, SpeakerSlash, Export } from '@phosphor-icons/react';
+import { Dropdown } from './components/ui/Dropdown';
+import {
+  Brain,
+  Database,
+  Cube,
+  ListChecks,
+  TreeStructure,
+  Camera,
+  VideoCamera,
+  Monitor,
+  X,
+  Sun,
+  Moon,
+  Gear,
+  SpeakerHigh,
+  SpeakerSlash,
+  Export,
+} from './components/ui/icons';
 import { ExportModal } from './components/export/ExportModal';
 import { AgentSettingsModal } from './components/agent/AgentSettingsModal';
 import { LogViewer } from './components/agent/LogViewer';
@@ -26,16 +40,26 @@ import { cn } from './components/ui/Panel';
 import type { CameraMode } from './types/world';
 import { useSpeechStore } from './store/speechStore';
 import { initSpeech } from './utils/speech';
-import { useSupabaseKeepalive } from './world/hooks/useSupabaseKeepalive';
+import { synthiaToast } from './utils/synthiaToast';
 
 function App() {
-  const { activeRightPanelTab, setActiveRightPanelTab, rightPanelOpen, setRightPanelOpen, theme, toggleTheme, settingsModalOpen, setSettingsModalOpen, setExportModalOpen } = useUIStore();
+  const {
+    activeRightPanelTab,
+    setActiveRightPanelTab,
+    rightPanelOpen,
+    setRightPanelOpen,
+    theme,
+    toggleTheme,
+    settingsModalOpen,
+    setSettingsModalOpen,
+    setExportModalOpen,
+    setObjectSpawnerOpen,
+    spawning,
+    setSpawning,
+  } = useUIStore();
   const { cameraMode, setCameraMode } = useWorldStore();
   const { globalTtsEnabled, setGlobalTtsEnabled } = useSpeechStore();
   const activeAgentId = useAgentStore((state) => state.activeAgentId);
-
-  // Run client-side Supabase keepalive pings
-  useSupabaseKeepalive();
 
   // Initialize browser-native Web Speech synthesis voices
   useEffect(() => {
@@ -64,6 +88,11 @@ function App() {
     }
   }, [theme]);
 
+  const agentItems = Object.keys(useAgentStore.getState().agents).map((id) => ({
+    value: id,
+    label: id,
+  }));
+
   return (
     <AppShell>
       {/* 3D Viewport - Full Screen Canvas */}
@@ -78,36 +107,38 @@ function App() {
       </div>
 
       {/* Dev Multi-Agent Controller - Top Center */}
-      <div className="fixed top-4 left-1/2 -translate-x-1/2 glassmorphism rounded-full flex items-center gap-4 p-2 z-50">
+      <div className="fixed top-4 left-1/2 -translate-x-1/2 glassmorphism rounded-full flex items-center gap-3 p-2 z-50">
         <button
           onClick={async () => {
-            if ((window as any).synthia?.spawnAgent) {
+            if (!(window as any).synthia?.spawnAgent || spawning) return;
+            setSpawning(true);
+            try {
               const newBinder = await (window as any).synthia.spawnAgent();
               if (newBinder) {
-                console.log('Successfully spawned agent.');
+                synthiaToast.success('Agent spawned successfully.');
+              } else {
+                synthiaToast.error('Spawning failed — check the log for details.');
               }
+            } catch {
+              synthiaToast.error('Spawning failed unexpectedly.');
+            } finally {
+              setSpawning(false);
             }
           }}
-          className="px-4 py-1.5 bg-accent-blue/20 hover:bg-accent-blue/30 text-accent-blue text-[10px] font-bold uppercase tracking-widest rounded-full transition-all"
+          disabled={spawning}
+          className="px-4 py-1.5 bg-accent-blue/20 hover:bg-accent-blue/30 disabled:opacity-50 disabled:cursor-not-allowed text-accent-blue text-[10px] font-bold uppercase tracking-widest rounded-full transition-all flex items-center gap-2"
         >
-          + Spawn Agent
+          {spawning ? 'Spawning…' : '+ Spawn Agent'}
         </button>
 
-        {/* Agent Selector Dropdown */}
-        <select
+        {/* Agent Selector Custom Dropdown */}
+        <Dropdown
           value={activeAgentId}
-          onChange={(e) => {
-            const nextAgentId = e.target.value;
-            useAgentStore.getState().setActiveAgentId(nextAgentId);
-          }}
-          className="bg-transparent border-0 text-[10px] font-bold text-text-secondary outline-none uppercase select-none cursor-pointer"
-        >
-          {Object.keys(useAgentStore.getState().agents).map((id) => (
-            <option key={id} value={id} className="bg-[#111115] text-text-secondary text-[10px] font-bold">
-              {id}
-            </option>
-          ))}
-        </select>
+          onChange={(nextAgentId) => useAgentStore.getState().setActiveAgentId(nextAgentId)}
+          items={agentItems}
+          className="w-28"
+          triggerClassName="h-7 text-[10px] font-bold uppercase tracking-wider bg-transparent border-0 text-text-secondary hover:text-text-primary px-2"
+        />
 
         {/* Agent Settings Button (Gear) */}
         <button
@@ -116,6 +147,7 @@ function App() {
             "w-7 h-7 rounded-full flex items-center justify-center hover:bg-white/10 transition-all text-text-secondary group",
             settingsModalOpen && "bg-white/10 text-accent-blue"
           )}
+          aria-label="Agent Settings"
           title="Agent Settings"
         >
           <Gear size={15} className="group-hover:rotate-45 transition-transform" />
@@ -125,6 +157,7 @@ function App() {
         <button
           onClick={() => setGlobalTtsEnabled(!globalTtsEnabled)}
           className="w-7 h-7 rounded-full flex items-center justify-center hover:bg-white/10 transition-all text-text-secondary group"
+          aria-label={globalTtsEnabled ? "Mute Global TTS Voice" : "Unmute Global TTS Voice"}
           title={globalTtsEnabled ? "Mute Global TTS Voice" : "Unmute Global TTS Voice"}
         >
           {globalTtsEnabled ? (
@@ -138,6 +171,7 @@ function App() {
         <button
           onClick={toggleTheme}
           className="w-7 h-7 rounded-full flex items-center justify-center hover:bg-white/10 transition-all text-text-secondary group"
+          aria-label={theme === 'dark' ? "Switch to Light Mode" : "Switch to Dark Mode"}
           title={theme === 'dark' ? "Switch to Light Mode" : "Switch to Dark Mode"}
         >
           {theme === 'dark' ? (
@@ -164,8 +198,9 @@ function App() {
                 ? "bg-white/10 text-accent-blue"
                 : "text-text-tertiary hover:text-text-secondary hover:bg-white/5"
             )}
+            aria-label={`Camera Mode ${label}`}
           >
-            <Icon size={14} weight={cameraMode === mode ? "bold" : "regular"} />
+            <Icon size={14} />
             <span className="text-[10px] font-bold">{label}</span>
           </button>
         ))}
@@ -174,16 +209,27 @@ function App() {
       {/* Metrics Pill - Bottom Center */}
       <StatusBar />
 
-      {/* GodMode Panel (trigger button + modal handled inside) */}
+      {/* GodMode Panel */}
       <GodModePanel />
 
       {/* Circular Export Trigger Button - Top Left, below GodMode button */}
       <button
         onClick={() => setExportModalOpen(true)}
         className="fixed top-[116px] left-4 w-10 h-10 glassmorphism rounded-full flex items-center justify-center hover:bg-white/10 transition-all z-50 group"
+        aria-label="Export Data"
         title="Export Data"
       >
         <Export size={20} className="text-text-secondary group-hover:text-accent-blue" />
+      </button>
+
+      {/* Circular Object Spawner Trigger Button - Top Left, below Export button */}
+      <button
+        onClick={() => setObjectSpawnerOpen(true)}
+        className="fixed top-[164px] left-4 w-10 h-10 glassmorphism rounded-full flex items-center justify-center hover:bg-white/10 transition-all z-50 group"
+        aria-label="Spawn Objects"
+        title="Spawn Objects"
+      >
+        <Cube size={20} className="text-text-secondary group-hover:text-accent-blue" />
       </button>
 
       {/* Right Panel Trigger Button - Top Right, under camera pill */}
@@ -191,6 +237,8 @@ function App() {
         <button
           onClick={() => setRightPanelOpen(true)}
           className="fixed top-[68px] right-4 w-10 h-10 glassmorphism rounded-full flex items-center justify-center hover:bg-white/10 transition-all z-50 group"
+          aria-label="Open Agent Inspector"
+          title="Open Agent Inspector"
         >
           <TreeStructure size={20} className="text-text-secondary group-hover:text-accent-purple" />
         </button>
@@ -207,8 +255,9 @@ function App() {
             drag
             dragMomentum={false}
             dragElastic={0}
+            dragConstraints={{ top: -400, left: -600, right: 600, bottom: 400 }}
             style={{ isolation: 'isolate' }}
-            className="fixed top-[10vh] right-[15%] w-[380px] h-[80vh] glassmorphism rounded-modal z-[60] flex flex-col overflow-hidden cursor-grab active:cursor-grabbing"
+            className="fixed top-[10vh] right-[15%] w-[380px] max-w-[calc(100vw-2rem)] h-[80vh] max-h-[calc(100vh-2rem)] glassmorphism rounded-modal z-[60] flex flex-col overflow-hidden cursor-grab active:cursor-grabbing"
           >
             {/* Header */}
             <div className="flex items-center justify-between px-4 py-2 border-b border-white/10 shrink-0 cursor-grab">
@@ -218,6 +267,7 @@ function App() {
               <button
                 onClick={() => setRightPanelOpen(false)}
                 className="w-6 h-6 rounded-full flex items-center justify-center hover:bg-white/10 transition-colors"
+                aria-label="Close Agent Inspector"
               >
                 <X size={16} className="text-text-tertiary" />
               </button>
@@ -239,11 +289,12 @@ function App() {
                   onClick={() => setActiveRightPanelTab(id as any)}
                   className={`flex-1 flex items-center justify-center gap-2 py-1.5 rounded transition-all ${
                     activeRightPanelTab === id
-                      ? 'bg-white/10 text-accent-blue'
+                      ? 'bg-white/10 text-accent-blue font-bold'
                       : 'text-text-tertiary hover:text-text-secondary hover:bg-white/5'
                   }`}
+                  aria-label={`View ${label}`}
                 >
-                  <Icon size={14} weight={activeRightPanelTab === id ? 'fill' : 'regular'} />
+                  <Icon size={14} />
                   <span className="text-[10px] font-bold uppercase tracking-tighter">{label}</span>
                 </button>
               ))}
@@ -264,6 +315,9 @@ function App() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Standalone Object Spawner */}
+      <ObjectSpawner />
 
       {/* Existing Modals */}
       <ExportModal />

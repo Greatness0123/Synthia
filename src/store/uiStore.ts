@@ -14,6 +14,7 @@ interface UIState {
   rehydrationModalOpen: boolean;
   exportProgress: number;
   selectedEntityId: string | null;
+  spawning: boolean;
 
   // Actions
   setActiveRightPanelTab: (tab: 'thoughts' | 'memories' | 'structure' | 'logs') => void;
@@ -25,6 +26,7 @@ interface UIState {
   setObjectSpawnerOpen: (open: boolean) => void;
   setRehydrationModalOpen: (open: boolean) => void;
   setExportProgress: (progress: number) => void;
+  setSpawning: (spawning: boolean) => void;
 }
 
 export const useUIStore = create<UIState>((set) => ({
@@ -37,6 +39,7 @@ export const useUIStore = create<UIState>((set) => ({
   rehydrationModalOpen: false,
   exportProgress: 0,
   selectedEntityId: null,
+  spawning: false,
 
   setActiveRightPanelTab: (activeRightPanelTab) => set({ activeRightPanelTab }),
   setRightPanelOpen: (rightPanelOpen) => set({ rightPanelOpen }),
@@ -47,4 +50,5 @@ export const useUIStore = create<UIState>((set) => ({
   setObjectSpawnerOpen: (objectSpawnerOpen) => set({ objectSpawnerOpen }),
   setRehydrationModalOpen: (rehydrationModalOpen) => set({ rehydrationModalOpen }),
   setExportProgress: (exportProgress) => set({ exportProgress }),
+  setSpawning: (spawning) => set({ spawning }),
 }));

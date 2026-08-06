@@ -12,7 +12,7 @@ import { useAgentStore } from '../../store/agentStore';
 import { useUIStore } from '../../store/uiStore';
 import { useLogStore } from '../../store/logStore';
 import { SKILL_RUNGS } from '../../constants/progressionLadder';
-import { synthiaToast } from '../../components/ui/Toast';
+import { synthiaToast } from '../../utils/synthiaToast';
 import { logger as Logger } from '../../utils/logger';
 import {
   CoordinatorContext,

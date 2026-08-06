@@ -9,6 +9,7 @@ import { MemoryManager, MemoryEntry } from './memoryManager';
 import { useAgentStore } from '../../store/agentStore';
 import { useAgentRuntimeStore } from '../../store/agentRuntimeStore';
 import { stripSpeechTags } from '../../utils/speech';
+import { synthiaToast } from '../../utils/synthiaToast';
 
 interface AgentLoopConfig {
   agentId: string;
@@ -254,9 +255,16 @@ export class AgentLoop {
 
     } catch (err: any) {
       console.error(`[AgentLoop (${this.config.agentId})] Cycle error:`, err);
+      const shortError = err?.message ? String(err.message).slice(0, 120) : 'Inference failed';
+      useAgentRuntimeStore.getState().setLoopState(this.config.agentId, 'error');
+      if (store.setStatusForAgent) {
+        store.setStatusForAgent(this.config.agentId, 'error');
+      }
+      synthiaToast.error(`Inference failed for ${this.config.agentId}: ${shortError}`);
     } finally {
       this.isProcessing = false;
-      if (store.setStatusForAgent) {
+      const loopState = useAgentRuntimeStore.getState().getLoopState(this.config.agentId);
+      if (loopState !== 'error' && store.setStatusForAgent) {
         store.setStatusForAgent(this.config.agentId, 'idle');
       }
     }

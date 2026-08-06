@@ -8,23 +8,16 @@ import { motion } from 'framer-motion';
 
 export const RehydrationModal: React.FC = () => {
   const { rehydrationSummary, hasRehydrated } = useAgentStore();
-  const [isVisible, setIsVisible] = useState(false);
+  const [dismissed, setDismissed] = useState(false);
 
   useEffect(() => {
-    if (!hasRehydrated && rehydrationSummary) {
-      setIsVisible(true);
-    }
-  }, [rehydrationSummary, hasRehydrated]);
-
-  useEffect(() => {
-    if (hasRehydrated) {
-      // Fade out after a short delay
-      const timer = setTimeout(() => {
-        setIsVisible(false);
-      }, 2000);
+    if (hasRehydrated && !dismissed) {
+      const timer = setTimeout(() => setDismissed(true), 2000);
       return () => clearTimeout(timer);
     }
-  }, [hasRehydrated]);
+  }, [hasRehydrated, dismissed]);
+
+  const isVisible = !dismissed && !hasRehydrated && !!rehydrationSummary;
 
   if (!isVisible) return null;
 

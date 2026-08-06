@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Scrolling stream of agent thoughts.
  */
 
@@ -6,7 +6,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAgentStore } from '../../store/agentStore';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Badge } from '../ui/Badge';
-import { Syringe, ArrowDown } from '@phosphor-icons/react';
+import { Syringe, ArrowDown } from '../ui/icons';
 import { STRINGS } from '../../constants/strings';
 
 function isNearBottom(el: HTMLElement, threshold = 80): boolean {
@@ -98,7 +98,7 @@ export const ThoughtBank: React.FC = () => {
                   [{new Date(thought.timestamp).toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })}]
                 </span>
                 {thought.isInjected && (
-                  <Syringe size={12} className="text-accent-purple" weight="bold" />
+                  <Syringe size={12} className="text-accent-purple" />
                 )}
               </div>
 
@@ -136,9 +136,10 @@ export const ThoughtBank: React.FC = () => {
         }}
         className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-bg-elevated border border-border shadow-lg text-[11px] font-medium text-text-secondary hover:text-text-primary hover:border-accent-blue/60 hover:bg-bg-elevated/90 z-10"
       >
-        <ArrowDown size={12} weight="bold" />
+        <ArrowDown size={12} />
         Latest
       </button>
     </div>
   );
 };
+

@@ -5,8 +5,8 @@
 import { useState, useEffect } from 'react';
 import { useAgentStore } from '../../store/agentStore';
 import { STRINGS } from '../../constants/strings';
-import { Syringe, ArrowRight, Microphone } from '@phosphor-icons/react';
-import { synthiaToast } from '../ui/Toast';
+import { Syringe, ArrowRight, Microphone } from '../ui/icons';
+import { synthiaToast } from '../../utils/synthiaToast';
 import { cn } from '../ui/Panel';
 
 const SpeechRecognitionAPI =
@@ -92,6 +92,7 @@ export const InjectionInput: React.FC = () => {
         {SpeechRecognitionAPI && (
           <button
             onClick={toggleListening}
+            aria-label={isListening ? "Stop voice listening" : "Start voice input"}
             title={isListening ? "Stop listening" : "Start voice input (STT)"}
             className={cn(
               "w-10 h-10 rounded-btn flex items-center justify-center border transition-all shrink-0",
@@ -100,13 +101,13 @@ export const InjectionInput: React.FC = () => {
                 : "bg-bg-elevated border-border text-text-tertiary hover:text-text-primary hover:border-text-secondary"
             )}
           >
-            <Microphone size={18} weight={isListening ? "fill" : "regular"} />
+            <Microphone size={18} />
           </button>
         )}
 
         <div className="relative flex-1 flex items-center">
           <div className="absolute left-3 text-accent-purple">
-            <Syringe size={16} weight="regular" />
+            <Syringe size={16} />
           </div>
           <input
             type="text"
@@ -119,9 +120,10 @@ export const InjectionInput: React.FC = () => {
           <button
             onClick={handleInject}
             disabled={!value.trim()}
+            aria-label="Inject thought"
             className="absolute right-2 p-1.5 text-text-tertiary hover:text-accent-blue disabled:opacity-0 transition-all"
           >
-            <ArrowRight size={18} weight="bold" />
+            <ArrowRight size={18} />
           </button>
         </div>
       </div>

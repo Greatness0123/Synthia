@@ -1281,6 +1281,12 @@ export class HumanoidPhysicsBinder {
       qpos[qposadr + 1] = capsulePosMj[1];
       qpos[qposadr + 2] = capsulePosMj[2];
 
+      // Reset quaternion to identity (upright)
+      qpos[qposadr + 3] = 1;
+      qpos[qposadr + 4] = 0;
+      qpos[qposadr + 5] = 0;
+      qpos[qposadr + 6] = 0;
+
       for (let i = 0; i < 6; i++) {
         qvel[qveladr + i] = 0;
       }

@@ -1,18 +1,14 @@
-/**
- * Collapsible panel for viewing agent memories.
- */
-
 import { useState, useMemo } from 'react';
 import { useAgentStore } from '../../store/agentStore';
 import { useUIStore } from '../../store/uiStore';
-import { CaretDown, CaretUp, Database, Bookmark, Export } from '@phosphor-icons/react';
+import { CaretDown, CaretUp, Database, Bookmark, Export } from '../ui/icons';
 import { Badge } from '../ui/Badge';
 import { Button } from '../ui/Button';
 import { STRINGS } from '../../constants/strings';
 
 export const MemoryViewer: React.FC = () => {
   const { memories } = useAgentStore();
-  const { setExportModalOpen } = useUIStore();
+  const { setExportModalOpen, setSettingsModalOpen } = useUIStore();
   const [isExpanded, setIsExpanded] = useState(false);
 
   const tierBreakdown = useMemo(() => {
@@ -34,6 +30,7 @@ export const MemoryViewer: React.FC = () => {
       <button
         onClick={() => setIsExpanded(!isExpanded)}
         className="w-full h-10 px-4 flex items-center justify-between hover:bg-bg-hover transition-colors"
+        aria-label="Toggle Memory Viewer"
       >
         <div className="flex items-center gap-2">
           <Database size={16} className="text-accent-teal" />
@@ -46,7 +43,18 @@ export const MemoryViewer: React.FC = () => {
       </button>
 
       {isExpanded && (
-        <div className="h-[400px] overflow-y-auto p-4 bg-bg-elevated/30 space-y-3 flex flex-col">
+        <div className="h-[400px] overflow-y-auto p-4 bg-bg-elevated/30 space-y-3 flex flex-col custom-scrollbar">
+          <div className="flex items-center justify-between px-1">
+            <span className="text-[10px] text-text-tertiary font-mono">
+              Showing last {Math.min(10, memories.length)} of {memories.length} memories
+            </span>
+            <button
+              onClick={() => setSettingsModalOpen(true)}
+              className="text-[10px] text-accent-blue hover:underline font-bold uppercase tracking-wider"
+            >
+              Full Explorer
+            </button>
+          </div>
           <div className="flex-1 space-y-3">
             {memories.slice(-10).reverse().map((memory) => (
               <div key={memory.id} className="p-3 border border-border-subtle bg-bg-panel rounded-btn space-y-2 relative group">
@@ -54,7 +62,7 @@ export const MemoryViewer: React.FC = () => {
                   <div className="flex items-center gap-2">
                     <Badge variant="tertiary" className="text-[9px]">HB {memory.heartbeat}</Badge>
                     {memory.tier === 1 && (
-                      <Bookmark size={12} weight="fill" className="text-accent-teal" />
+                      <Bookmark size={12} className="text-accent-teal" />
                     )}
                   </div>
                   <span className={`text-[10px] font-mono font-bold ${getRewardColor(memory.rewardSignal)}`}>

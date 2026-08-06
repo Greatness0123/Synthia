@@ -1,6 +1,6 @@
-import { useRef, useEffect, useCallback, useState } from 'react';
+﻿import { useRef, useEffect, useCallback, useState } from 'react';
 import { useLogStore, type LogLevel } from '../../store/logStore';
-import { CheckCircle, Warning, XCircle, Info, Trash, ArrowDown } from '@phosphor-icons/react';
+import { CheckCircle, WarningCircle as Warning, XCircle, Info, Trash, ArrowDown } from '../ui/icons';
 
 const LEVEL_CONFIG: Record<LogLevel, { Icon: React.FC<any>; color: string; bg: string }> = {
   success: { Icon: CheckCircle, color: 'text-accent-green', bg: 'bg-accent-green/10' },
@@ -44,6 +44,12 @@ export const LogViewer: React.FC = () => {
     scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [entries.length]);
 
+  const handleClearLogs = () => {
+    if (window.confirm('Clear all log entries?')) {
+      clear();
+    }
+  };
+
   return (
     <div className="flex flex-col h-full relative">
       <div className="flex items-center justify-between px-4 py-2 border-b border-border">
@@ -51,8 +57,9 @@ export const LogViewer: React.FC = () => {
           {entries.length} entries
         </span>
         <button
-          onClick={clear}
+          onClick={handleClearLogs}
           className="text-text-tertiary hover:text-accent-red transition-colors p-1 rounded"
+          aria-label="Clear logs"
           title="Clear logs"
         >
           <Trash size={14} />
@@ -76,7 +83,7 @@ export const LogViewer: React.FC = () => {
               key={entry.id}
               className={`flex items-start gap-2 px-2 py-1.5 rounded text-[11px] leading-snug ${bg}`}
             >
-              <Icon size={13} className={`${color} shrink-0 mt-0.5`} weight="regular" />
+              <Icon size={13} className={`${color} shrink-0 mt-0.5`} />
               <span className="text-text-tertiary font-mono text-[10px] shrink-0 mt-px">
                 {formatTime(entry.timestamp)}
               </span>
@@ -98,9 +105,10 @@ export const LogViewer: React.FC = () => {
         }}
         className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-bg-elevated border border-border shadow-lg text-[11px] font-medium text-text-secondary hover:text-text-primary hover:border-accent-blue/60 hover:bg-bg-elevated/90"
       >
-        <ArrowDown size={12} weight="bold" />
+        <ArrowDown size={12} />
         Latest
       </button>
     </div>
   );
 };
+

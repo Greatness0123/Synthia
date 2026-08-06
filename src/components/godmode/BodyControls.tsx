@@ -7,6 +7,7 @@ import { useWorldStore } from '../../store/worldStore';
 import { BODY_TYPE_CONFIGS } from '../../constants/bodyTypes';
 import { Slider } from '../ui/Slider';
 import { STRINGS } from '../../constants/strings';
+import { Bot, Camera, Monitor } from '../ui/icons';
 import type { BodyType } from '../../types/world';
 
 export const BodyControls: React.FC = () => {
@@ -23,7 +24,8 @@ export const BodyControls: React.FC = () => {
 
   return (
     <div className="p-4 border-t border-border">
-      <h3 className="text-[10px] font-bold text-text-tertiary uppercase tracking-widest mb-4">
+      <h3 className="text-[10px] font-bold text-text-tertiary uppercase tracking-widest mb-4 flex items-center gap-1.5">
+        <Bot size={12} />
         {STRINGS.GOD_MODE.BODY} (GLOBAL DEBUG)
       </h3>
 
@@ -52,7 +54,7 @@ export const BodyControls: React.FC = () => {
         </div>
 
         <div className="flex items-center justify-between py-1">
-          <label className="text-[10px] uppercase tracking-wider text-text-tertiary">Show All Cameras</label>
+          <label className="text-[10px] uppercase tracking-wider text-text-tertiary flex items-center gap-1.5"><Camera size={10} /> Show All Cameras</label>
           <button
             onClick={() => setShowAICameraHelper(!showAICameraHelper)}
             className={`w-8 h-4 rounded-full transition-colors relative ${showAICameraHelper ? 'bg-accent-blue' : 'bg-bg-elevated'}`}
@@ -62,7 +64,7 @@ export const BodyControls: React.FC = () => {
         </div>
 
         <div className="flex items-center justify-between py-1">
-          <label className="text-[10px] uppercase tracking-wider text-text-tertiary">AI PiP View</label>
+          <label className="text-[10px] uppercase tracking-wider text-text-tertiary flex items-center gap-1.5"><Monitor size={10} /> AI PiP View</label>
           <button
             onClick={() => setShowAIPiP(!showAIPiP)}
             className={`w-8 h-4 rounded-full transition-colors relative ${showAIPiP ? 'bg-accent-blue' : 'bg-bg-elevated'}`}

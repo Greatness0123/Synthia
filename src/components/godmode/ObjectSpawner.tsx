@@ -1,5 +1,5 @@
 /**
- * Overlay for spawning objects into the world.
+ * Standalone draggable panel for spawning objects into the world.
  */
 
 import { useCallback, useEffect, useState, useRef } from 'react';
@@ -7,10 +7,8 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { useUIStore } from '../../store/uiStore';
 import { OBJECT_PRESETS } from '../../constants/objectPresets';
-import { Panel } from '../ui/Panel';
-import * as Icons from '@phosphor-icons/react';
-import { motion } from 'framer-motion';
-import { synthiaToast } from '../ui/Toast';
+import { motion, AnimatePresence } from 'framer-motion';
+import { synthiaToast } from '../../utils/synthiaToast';
 import { STRINGS } from '../../constants/strings';
 import { ModelPreview } from './ModelPreview';
 import {
@@ -19,6 +17,7 @@ import {
   type StoredUploadedModel,
 } from '../../utils/uploadedModelsStore';
 import { decomposeMesh } from '../../utils/vhacdDecomposer';
+import { X, FileCloud, UploadSimple, Spinner, PRESET_ICONS, Cube } from '../ui/icons';
 
 type Preset = typeof OBJECT_PRESETS[0];
 type Category = 'Primitives' | 'Terrain' | 'Interactive' | 'Custom';
@@ -54,10 +53,14 @@ export const ObjectSpawner: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if (objectSpawnerOpen) {
-      loadSavedModels();
-    }
-  }, [objectSpawnerOpen, loadSavedModels]);
+    if (!objectSpawnerOpen) return;
+    let cancelled = false;
+    (async () => {
+      const models = await listUploadedModels();
+      if (!cancelled) setSavedModels(models);
+    })();
+    return () => { cancelled = true; };
+  }, [objectSpawnerOpen]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -66,6 +69,18 @@ export const ObjectSpawner: React.FC = () => {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [setObjectSpawnerOpen]);
+
+  useEffect(() => {
+    const handleCustomComplete = (e: CustomEvent<{ success: boolean; name: string }>) => {
+      if (e.detail.success) {
+        setPendingModel(null);
+        setPreviewScene(null);
+        setPreviewDimensions(null);
+      }
+    };
+    window.addEventListener('synthia:spawnCustomComplete', handleCustomComplete as EventListener);
+    return () => window.removeEventListener('synthia:spawnCustomComplete', handleCustomComplete as EventListener);
+  }, []);
 
   const categories: Category[] = ['Primitives', 'Terrain', 'Interactive', 'Custom'];
   const filteredPresets = OBJECT_PRESETS.filter((p) => p.category === activeCategory);
@@ -268,9 +283,6 @@ export const ObjectSpawner: React.FC = () => {
         },
       })
     );
-    setPendingModel(null);
-    setPreviewScene(null);
-    setPreviewDimensions(null);
   };
 
   const spawnSavedModel = async (model: StoredUploadedModel) => {
@@ -306,7 +318,7 @@ export const ObjectSpawner: React.FC = () => {
               });
               await loadSavedModels();
               synthiaToast.success('Collision mesh optimized and saved!');
-            } catch (err) {
+        } catch (err) {
               console.warn('Lazy decomposition failed, falling back to auto-convex:', err);
             }
           }
@@ -328,26 +340,36 @@ export const ObjectSpawner: React.FC = () => {
     );
   };
 
-  if (!objectSpawnerOpen) return null;
-
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm">
-      <motion.div
-        initial={{ opacity: 0, scale: 0.9 }}
-        animate={{ opacity: 1, scale: 1 }}
-        className="w-[520px] max-h-[80vh] flex flex-col"
-      >
-        <Panel className="flex-1 flex flex-col border-border-subtle shadow-2xl">
-          <div className="p-4 border-b border-border flex items-center justify-between">
+    <AnimatePresence>
+      {objectSpawnerOpen && (
+        <motion.div
+          initial={{ opacity: 0, y: -8 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -8 }}
+          transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+          drag
+          dragMomentum={false}
+          dragElastic={0}
+          dragConstraints={{ top: -400, left: -600, right: 600, bottom: 400 }}
+          style={{ isolation: 'isolate' }}
+          className="fixed right-[8vw] top-[18vh] w-[520px] max-w-[calc(100vw-2rem)] max-h-[80vh] flex flex-col glassmorphism rounded-modal z-[60] overflow-hidden cursor-grab active:cursor-grabbing shadow-2xl"
+        >
+          {/* Header */}
+          <div className="p-4 border-b border-border flex items-center justify-between bg-bg-panel shrink-0 cursor-grab">
             <h2 className="text-sm font-bold uppercase tracking-widest text-text-secondary">
               {STRINGS.GOD_MODE.OBJECT_SPAWNER_TITLE}
             </h2>
-            <button onClick={() => setObjectSpawnerOpen(false)} className="text-text-tertiary hover:text-text-primary">
-              <Icons.X size={20} />
+            <button
+              onClick={() => setObjectSpawnerOpen(false)}
+              className="text-text-tertiary hover:text-text-primary w-6 h-6 rounded-full flex items-center justify-center hover:bg-white/10 transition-colors"
+              aria-label="Close Object Spawner"
+            >
+              <X size={18} />
             </button>
           </div>
 
-          <div className="flex px-4 border-b border-border bg-bg-elevated/20">
+          <div className="flex px-4 border-b border-border bg-bg-elevated/20 shrink-0">
             {categories.map((cat) => (
               <button
                 key={cat}
@@ -364,16 +386,16 @@ export const ObjectSpawner: React.FC = () => {
           </div>
 
           {activeCategory === 'Custom' ? (
-            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
               <label className="flex flex-col items-center justify-center gap-2 p-6 border border-dashed border-border rounded-btn cursor-pointer hover:border-accent-blue transition-colors">
-                <Icons.UploadSimple size={28} className="text-text-tertiary" />
+                <UploadSimple size={28} className="text-text-tertiary" />
                 <span className="text-[10px] font-bold uppercase text-text-secondary">Upload Model (.glb / .gltf)</span>
                 <input type="file" accept=".glb,.gltf" onChange={handleFileUpload} className="hidden" />
               </label>
 
               {isDecomposing && (
                 <div className="space-y-3 p-4 border border-border rounded-btn bg-bg-elevated/20 flex flex-col items-center justify-center">
-                  <Icons.Spinner size={32} className="text-accent-blue animate-spin" />
+                  <Spinner size={32} className="text-accent-blue animate-spin" />
                   <div className="text-[10px] font-bold uppercase text-text-secondary">Generating collision mesh...</div>
                   <button
                     onClick={() => {
@@ -405,7 +427,7 @@ export const ObjectSpawner: React.FC = () => {
                         type="checkbox"
                         checked={showCollision}
                         onChange={(e) => setShowCollision(e.target.checked)}
-                        className="accent-accent-blue"
+                        className="accent-accent-blue cursor-pointer"
                       />
                       Show collision mesh {pendingModel.processed ? `(${pendingModel.processed.hullCount} hulls)` : '(auto convex hull)'}
                     </label>
@@ -417,7 +439,7 @@ export const ObjectSpawner: React.FC = () => {
                           setIsTerrain(e.target.checked);
                           setPendingModel((prev) => (prev ? { ...prev, isTerrain: e.target.checked } : null));
                         }}
-                        className="accent-accent-blue"
+                        className="accent-accent-blue cursor-pointer"
                       />
                       This is world terrain
                     </label>
@@ -428,7 +450,7 @@ export const ObjectSpawner: React.FC = () => {
                         onChange={(e) => {
                           setSkipCollision(e.target.checked);
                         }}
-                        className="accent-accent-blue"
+                        className="accent-accent-blue cursor-pointer"
                       />
                       Skip collision (purely visual)
                     </label>
@@ -462,9 +484,9 @@ export const ObjectSpawner: React.FC = () => {
                     <button
                       key={model.id}
                       onClick={() => spawnSavedModel(model)}
-                      className="w-full flex items-center gap-3 p-2 border border-border rounded-btn hover:border-accent-blue text-left"
+                      className="w-full flex items-center gap-3 p-2 border border-border rounded-btn hover:border-accent-blue text-left transition-colors"
                     >
-                      <Icons.FileCloud size={20} className="text-text-tertiary shrink-0" />
+                      <FileCloud size={20} className="text-text-tertiary shrink-0" />
                       <div className="flex flex-col min-w-0">
                         <span className="text-[10px] text-text-primary truncate">{model.name}</span>
                         <span className="text-[9px] text-text-tertiary">
@@ -477,24 +499,24 @@ export const ObjectSpawner: React.FC = () => {
               )}
             </div>
           ) : (
-            <div className="flex-1 overflow-y-auto p-4 grid grid-cols-3 gap-3">
+            <div className="flex-1 overflow-y-auto p-4 grid grid-cols-3 gap-3 custom-scrollbar">
               {filteredPresets.map((preset) => {
-                const IconComponent = (Icons as unknown as Record<string, Icons.Icon>)[preset.icon] || Icons.Cube;
+                const IconComponent = PRESET_ICONS[preset.icon] || Cube;
                 return (
                   <button
                     key={preset.id}
                     onClick={() => handleSpawn(preset)}
                     className="group flex flex-col items-center justify-center p-4 border border-border bg-bg-panel rounded-btn hover:border-accent-blue hover:bg-bg-hover transition-all"
                   >
-                    <IconComponent size={32} weight="light" className="text-text-tertiary group-hover:text-accent-blue mb-2 transition-colors" />
+                    <IconComponent size={32} className="text-text-tertiary group-hover:text-accent-blue mb-2 transition-colors" />
                     <span className="text-[10px] font-medium text-text-secondary group-hover:text-text-primary">{preset.name}</span>
                   </button>
                 );
               })}
             </div>
           )}
-        </Panel>
-      </motion.div>
-    </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 };

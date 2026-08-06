@@ -6,6 +6,7 @@ import React from 'react';
 import { useAgentStore } from '../../store/agentStore';
 import { Button } from '../ui/Button';
 import { STRINGS } from '../../constants/strings';
+import { Bot, Zap, RefreshCw } from '../ui/icons';
 
 export const AgentBodyControls: React.FC = () => {
   const activeAgentId = useAgentStore((state) => state.activeAgentId);
@@ -30,7 +31,8 @@ export const AgentBodyControls: React.FC = () => {
 
   return (
     <div className="p-4 border-t border-border">
-      <h3 className="text-[10px] font-bold text-text-tertiary uppercase tracking-widest mb-4">
+      <h3 className="text-[10px] font-bold text-text-tertiary uppercase tracking-widest mb-4 flex items-center gap-1.5">
+        <Bot size={12} />
         {STRINGS.GOD_MODE.BODY}
       </h3>
 
@@ -52,7 +54,7 @@ export const AgentBodyControls: React.FC = () => {
         </div>
 
         <div className="flex items-center justify-between py-1">
-          <label className="text-[10px] uppercase tracking-wider text-text-tertiary">Multi-Body PD Motors</label>
+          <label className="text-[10px] uppercase tracking-wider text-text-tertiary flex items-center gap-1.5"><Zap size={10} /> Multi-Body PD Motors</label>
           <button
             onClick={handleToggleMultiBodyPD}
             className={`w-8 h-4 rounded-full transition-colors relative ${useMultiBodyPD ? 'bg-accent-blue' : 'bg-bg-elevated'}`}
@@ -61,7 +63,8 @@ export const AgentBodyControls: React.FC = () => {
           </button>
         </div>
 
-        <Button variant="secondary" size="sm" className="w-full text-[10px] uppercase tracking-widest" onClick={handleResetPose}>
+        <Button variant="secondary" size="sm" className="w-full text-[10px] uppercase tracking-widest flex items-center justify-center gap-1.5" onClick={handleResetPose}>
+          <RefreshCw size={10} />
           {STRINGS.GOD_MODE.RESET_POSE}
         </Button>
       </div>

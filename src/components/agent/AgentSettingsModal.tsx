@@ -1,10 +1,10 @@
-/**
+﻿/**
  * AgentSettingsModal component.
  * Driven entirely by useAgentStore's activeAgentId selection.
  * Covers: Connection/provider settings, memory explorer, per-agent voice/TTS, vision settings, and connection testing.
  */
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useUIStore } from '../../store/uiStore';
 import { useAgentStore } from '../../store/agentStore';
 import { useAgentRuntimeStore, type AgentRuntimeConfig } from '../../store/agentRuntimeStore';
@@ -12,6 +12,7 @@ import { type ProviderType } from '../../store/connectionStore';
 import { Panel, cn } from '../ui/Panel';
 import { Button } from '../ui/Button';
 import { Badge } from '../ui/Badge';
+import { Dropdown } from '../ui/Dropdown';
 import { motion } from 'framer-motion';
 import {
   X,
@@ -32,8 +33,8 @@ import {
   PlugsConnected,
   Pause,
   Play
-} from '@phosphor-icons/react';
-import { synthiaToast } from '../ui/Toast';
+} from '../ui/icons';
+import { synthiaToast } from '../../utils/synthiaToast';
 import { useSpeechStore } from '../../store/speechStore';
 import { getSystemVoiceForAgent, ttsProvider } from '../../utils/speech';
 import { useWorldStore } from '../../store/worldStore';
@@ -164,12 +165,26 @@ export const AgentSettingsModal: React.FC = () => {
 
     setIsSending(true);
     setSentOk(false);
-    await new Promise(resolve => setTimeout(resolve, 600));
+
+    const client = new InferenceClient();
+    client.setProvider(config.provider, config.endpoint, config.apiKey, config.model);
+    const result = await client.testConnection();
 
     setIsSending(false);
-    setSentOk(true);
-    synthiaToast.success(`Applied settings successfully for ${activeAgentId}`);
-    setTimeout(() => setSentOk(false), 5000);
+
+    if (result.ok) {
+      setSentOk(true);
+      setConnectionTest({ status: 'ok', latencyMs: result.latencyMs });
+      synthiaToast.success(`Config saved and verified for ${activeAgentId}`);
+      setTimeout(() => setSentOk(false), 5000);
+    } else {
+      setConnectionTest({
+        status: 'fail',
+        latencyMs: result.latencyMs,
+        error: result.error,
+      });
+      synthiaToast.error(result.error || 'Connection test failed â€” config not applied.');
+    }
   };
 
   const handleTestConnection = async () => {
@@ -233,14 +248,27 @@ export const AgentSettingsModal: React.FC = () => {
     return [...result].reverse(); // reverse to show latest first
   }, [currentAgent.memories, memoryTierFilter, memorySearch]);
 
+  useEffect(() => {
+    if (!settingsModalOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setSettingsModalOpen(false);
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [settingsModalOpen, setSettingsModalOpen]);
+
   if (!settingsModalOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm">
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm"
+      onClick={() => setSettingsModalOpen(false)}
+    >
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="w-[840px] h-[80vh] flex flex-col"
+        onClick={(e) => e.stopPropagation()}
+        className="w-[840px] max-w-[calc(100vw-2rem)] h-[80vh] max-h-[calc(100vh-2rem)] flex flex-col"
       >
         <Panel className="border-border-subtle shadow-2xl overflow-hidden flex flex-col h-full bg-bg-panel/95 backdrop-blur-md">
           {/* Header */}
@@ -340,18 +368,12 @@ export const AgentSettingsModal: React.FC = () => {
                       <label className="text-[10px] uppercase tracking-wider text-text-tertiary font-bold">
                         Inference Provider
                       </label>
-                      <div className="relative">
-                        <select
-                          value={config.provider}
-                          onChange={(e) => handleProviderChange(e.target.value as ProviderType)}
-                          className="w-full h-8 pl-2.5 pr-8 bg-bg-elevated border border-border rounded-btn text-xs text-text-primary appearance-none cursor-pointer focus:outline-none focus:ring-1 focus:ring-accent-blue"
-                        >
-                          {Object.entries(PROVIDER_INFO).map(([key, info]) => (
-                            <option key={key} value={key}>{info.label}</option>
-                          ))}
-                        </select>
-                        <CaretDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-text-tertiary pointer-events-none" />
-                      </div>
+                      <Dropdown
+                        value={config.provider}
+                        onChange={(val) => handleProviderChange(val as ProviderType)}
+                        items={Object.entries(PROVIDER_INFO).map(([key, info]) => ({ value: key, label: info.label }))}
+                        searchable
+                      />
                     </div>
 
                     {/* Model (for non-Kaggle) */}
@@ -361,27 +383,22 @@ export const AgentSettingsModal: React.FC = () => {
                           Model
                         </label>
                         {PROVIDER_INFO[config.provider]?.models?.length ? (
-                          <div className="relative">
-                            <select
-                              value={showCustomModel ? '__custom__' : (config.model || '')}
-                              onChange={(e) => {
-                                if (e.target.value === '__custom__') {
-                                  setShowCustomModel(true);
-                                  runtimeStore.setConfig(activeAgentId, { model: '' });
-                                } else {
-                                  setShowCustomModel(false);
-                                  runtimeStore.setConfig(activeAgentId, { model: e.target.value });
-                                }
-                              }}
-                              className="w-full h-8 pl-2.5 pr-8 bg-bg-elevated border border-border rounded-btn text-xs text-text-primary appearance-none cursor-pointer focus:outline-none focus:ring-1 focus:ring-accent-blue"
-                            >
-                              {PROVIDER_INFO[config.provider].models!.map(m => (
-                                <option key={m} value={m}>{m}</option>
-                              ))}
-                              <option value="__custom__">Custom...</option>
-                            </select>
-                            <CaretDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-text-tertiary pointer-events-none" />
-                          </div>
+                          <Dropdown
+                            value={showCustomModel ? '__custom__' : (PROVIDER_INFO[config.provider]?.models?.includes(config.model || '') ? (config.model || '') : '__custom__')}
+                            onChange={(val) => {
+                              if (val === '__custom__') {
+                                setShowCustomModel(true);
+                                runtimeStore.setConfig(activeAgentId, { model: '' });
+                              } else {
+                                setShowCustomModel(false);
+                                runtimeStore.setConfig(activeAgentId, { model: val });
+                              }
+                            }}
+                            items={[
+                              ...(PROVIDER_INFO[config.provider].models!).map((m) => ({ value: m, label: m })),
+                              { value: '__custom__', label: 'Customâ€¦' },
+                            ]}
+                          />
                         ) : null}
                         {(showCustomModel || !PROVIDER_INFO[config.provider]?.models?.length) && (
                           <input
@@ -443,17 +460,17 @@ export const AgentSettingsModal: React.FC = () => {
                         {isSending ? (
                           <>
                             <ArrowsClockwise size={12} className="animate-spin" />
-                            Applying Config…
+                            Verifying Configâ€¦
                           </>
                         ) : sentOk ? (
                           <>
-                            <CheckCircle size={12} weight="fill" />
-                            Applied Successfully
+                            <CheckCircle size={12} />
+                            Saved Successfully
                           </>
                         ) : (
                           <>
                             <WifiHigh size={14} />
-                            Deploy Cognition Config
+                            Save Config
                           </>
                         )}
                       </button>
@@ -480,7 +497,7 @@ export const AgentSettingsModal: React.FC = () => {
                       "bg-bg-elevated border-border"
                     )}>
                       <div className="flex items-center gap-2">
-                        <Circle size={6} weight="fill" className={statusChip.dot} />
+                        <Circle size={6} className={statusChip.dot} />
                         <span className={cn("text-[9px] font-mono uppercase", statusChip.color)}>{statusChip.label}</span>
                       </div>
                     </div>
@@ -511,15 +528,15 @@ export const AgentSettingsModal: React.FC = () => {
                   {/* Connection Test Result */}
                   {connectionTest.status === 'ok' && (
                     <div className="flex items-center gap-2 p-3 rounded-btn border border-accent-green/30 bg-accent-green/5 text-accent-green">
-                      <CheckCircle size={14} weight="fill" />
+                      <CheckCircle size={14} />
                       <span className="text-[10px] font-mono">
-                        Connection OK — {connectionTest.latencyMs}ms round-trip
+                        Connection OK â€” {connectionTest.latencyMs}ms round-trip
                       </span>
                     </div>
                   )}
                   {connectionTest.status === 'fail' && connectionTest.error && (
                     <div className="flex items-start gap-2 p-3 rounded-btn border border-accent-red/30 bg-accent-red/5 text-accent-red">
-                      <WarningCircle size={14} weight="fill" className="mt-0.5 shrink-0" />
+                      <WarningCircle size={14} className="mt-0.5 shrink-0" />
                       <span className="text-[10px] font-mono break-all">
                         Failed: {connectionTest.error}
                       </span>
@@ -559,7 +576,7 @@ export const AgentSettingsModal: React.FC = () => {
                       <span className="text-[10px] font-bold uppercase tracking-widest text-text-tertiary flex items-center gap-2">
                         <Database size={13} />
                         Supabase Memory Archiving
-                        {config.supabaseUrl && <span className="text-accent-green/70">● Active</span>}
+                        {config.supabaseUrl && <span className="text-accent-green/70">â— Active</span>}
                       </span>
                       {dbExpanded ? <CaretDown size={14} /> : <CaretUp size={14} />}
                     </button>
@@ -585,7 +602,7 @@ export const AgentSettingsModal: React.FC = () => {
                             type="password"
                             value={config.supabaseKey || ''}
                             onChange={(e) => runtimeStore.setConfig(activeAgentId, { supabaseKey: e.target.value })}
-                            placeholder="eyJhbGci…"
+                            placeholder="eyJhbGciâ€¦"
                             className="w-full h-8 px-2.5 bg-bg-elevated border border-border rounded-btn text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-accent-blue"
                           />
                         </div>
@@ -664,7 +681,7 @@ export const AgentSettingsModal: React.FC = () => {
                                     TIER {m.tier}
                                   </span>
                                   {m.tier === 1 && (
-                                    <Bookmark size={11} weight="fill" className="text-accent-teal" />
+                                    <Bookmark size={11} className="text-accent-teal" />
                                   )}
                                 </div>
                                 <span className={cn(
@@ -730,22 +747,20 @@ export const AgentSettingsModal: React.FC = () => {
                       <span>Select Speech Voice</span>
                       <span className="text-text-tertiary/50 font-normal">Browser-Native Web Speech API</span>
                     </label>
-                    <div className="relative">
-                      <select
-                        value={selectedVoiceURI}
-                        onChange={(e) => setVoiceForAgent(activeAgentId, e.target.value)}
-                        disabled={!isAgentTtsEnabled}
-                        className="w-full h-9 pl-2.5 pr-8 bg-bg-elevated border border-border rounded-btn text-xs text-text-primary appearance-none cursor-pointer focus:outline-none focus:ring-1 focus:ring-accent-blue disabled:opacity-50 disabled:cursor-not-allowed font-sans"
-                      >
-                        <option value="">System Default (Deterministic Sequential: {defaultVoice?.name || 'Loading...'})</option>
-                        {availableVoices.map((voice) => (
-                          <option key={voice.voiceURI} value={voice.voiceURI}>
-                            {voice.name} ({voice.lang}) {voice.localService ? '[Local]' : ''}
-                          </option>
-                        ))}
-                      </select>
-                      <CaretDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-text-tertiary pointer-events-none" />
-                    </div>
+                    <Dropdown
+                      value={selectedVoiceURI}
+                      onChange={(val) => setVoiceForAgent(activeAgentId, val)}
+                      disabled={!isAgentTtsEnabled}
+                      searchable
+                      placeholder={`System Default (${defaultVoice?.name || 'Loading...'})`}
+                      items={[
+                        { value: '', label: `System Default (${defaultVoice?.name || 'Loading...'})` },
+                        ...availableVoices.map((voice) => ({
+                          value: voice.voiceURI,
+                          label: `${voice.name} (${voice.lang}) ${voice.localService ? '[Local]' : ''}`,
+                        })),
+                      ]}
+                    />
                     {availableVoices.length === 0 && (
                       <p className="text-[9px] text-accent-amber mt-1">
                         No system voices detected yet. Ensure your device audio output is active or wait for browser voices to load.
@@ -826,7 +841,7 @@ export const AgentSettingsModal: React.FC = () => {
                   <div>
                     <h3 className="text-xs font-bold text-text-primary uppercase tracking-wider">AI Perception Vision</h3>
                     <p className="text-[11px] text-text-tertiary leading-normal mt-1">
-                      Tune how the agent's eyes work — wider FOV behaves like a first-person shooter's field of view, higher resolution costs more per frame.
+                      Tune how the agent's eyes work â€” wider FOV behaves like a first-person shooter's field of view, higher resolution costs more per frame.
                     </p>
                   </div>
 
@@ -834,7 +849,7 @@ export const AgentSettingsModal: React.FC = () => {
                   <div className="space-y-2 p-4 rounded-btn border border-border bg-white/[0.01]">
                     <div className="flex justify-between items-center">
                       <label className="text-[10px] uppercase tracking-wider text-text-tertiary font-bold">Field of View (FOV)</label>
-                      <span className="text-xs font-mono font-bold text-accent-blue">{aiVisionFov}°</span>
+                      <span className="text-xs font-mono font-bold text-accent-blue">{aiVisionFov}Â°</span>
                     </div>
                     <input
                       type="range"
@@ -846,7 +861,7 @@ export const AgentSettingsModal: React.FC = () => {
                       className="w-full h-1 bg-bg-elevated rounded-lg appearance-none cursor-pointer accent-accent-blue"
                     />
                     <p className="text-[9px] text-text-tertiary leading-relaxed">
-                      Higher FOV = wider view like FPS games (default 110°). Lower = tighter, more focused shots.
+                      Higher FOV = wider view like FPS games (default 110Â°). Lower = tighter, more focused shots.
                     </p>
                   </div>
 
@@ -854,7 +869,7 @@ export const AgentSettingsModal: React.FC = () => {
                   <div className="space-y-2 p-4 rounded-btn border border-border bg-white/[0.01]">
                     <div className="flex justify-between items-center">
                       <label className="text-[10px] uppercase tracking-wider text-text-tertiary font-bold">Render Resolution</label>
-                      <span className="text-xs font-mono font-bold text-accent-blue">{aiVisionSize}×{aiVisionSize}</span>
+                      <span className="text-xs font-mono font-bold text-accent-blue">{aiVisionSize}Ã—{aiVisionSize}</span>
                     </div>
                     <div className="flex gap-2">
                       {VISION_SIZES.map((size) => (
@@ -887,3 +902,4 @@ export const AgentSettingsModal: React.FC = () => {
     </div>
   );
 };
+

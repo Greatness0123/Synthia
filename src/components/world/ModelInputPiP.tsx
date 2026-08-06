@@ -1,11 +1,11 @@
-import { useEffect, useRef } from 'react';
+﻿import { useEffect, useRef } from 'react';
 import { useWorldStore } from '../../store/worldStore';
 import { STRINGS } from '../../constants/strings';
-import { Eye } from '@phosphor-icons/react';
+import { Eye } from '../ui/icons';
 import { motion } from 'framer-motion';
 
 /**
- * Draggable picture-in-picture overlay showing what the AI sees (same 448×448 frame as inference).
+ * Draggable picture-in-picture overlay showing what the AI sees (same 448Ã—448 frame as inference).
  */
 export const ModelInputPiP: React.FC = () => {
   const lastFrame = useWorldStore(state => state.lastAIFrameForDisplay);
@@ -24,7 +24,7 @@ export const ModelInputPiP: React.FC = () => {
       drag
       dragMomentum={false}
       dragElastic={0}
-      className="absolute bottom-4 right-4 z-10 cursor-grab active:cursor-grabbing"
+      className="absolute bottom-4 right-4 z-40 cursor-grab active:cursor-grabbing"
     >
       <div className="text-[9px] font-mono text-text-tertiary mb-1 uppercase tracking-tighter select-none">
         {STRINGS.AGENT.SENDING_TO_AI}
@@ -38,7 +38,7 @@ export const ModelInputPiP: React.FC = () => {
         />
         {!hasContent && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none bg-bg-elevated">
-            <Eye size={24} className="text-text-tertiary/20" weight="light" />
+            <Eye size={24} className="text-text-tertiary/20" />
           </div>
         )}
         <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent pointer-events-none" />
@@ -59,3 +59,4 @@ export const ModelInputPiP: React.FC = () => {
     </motion.div>
   );
 };
+

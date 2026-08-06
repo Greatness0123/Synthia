@@ -1,7 +1,7 @@
 
 import React, { useEffect, useState, useRef } from 'react';
 import { useUIStore } from '../../store/uiStore';
-import { Cube, Bone, Info } from '@phosphor-icons/react';
+import { Cube, Bone, Move } from '../ui/icons';
 import * as THREE from 'three';
 
 export const StructureViewer: React.FC = () => {
@@ -127,7 +127,7 @@ export const StructureViewer: React.FC = () => {
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         <section>
           <h4 className="text-[10px] font-bold text-text-secondary uppercase mb-2 flex items-center gap-1">
-            <Info size={12} /> Transform
+            <Move size={12} /> Transform
           </h4>
           <div className="grid grid-cols-3 gap-2">
             {['x', 'y', 'z'].map((axis) => (
@@ -196,12 +196,13 @@ export const StructureViewer: React.FC = () => {
             <section className="pt-4 mt-auto">
               <button
                 onClick={() => {
-                  if (entityData.objectId) {
+                  if (entityData.objectId && window.confirm(`Delete "${entityData.name}"? This cannot be undone.`)) {
                     window.dispatchEvent(new CustomEvent('synthia:deleteObject', {
                       detail: { id: entityData.objectId }
                     }));
                   }
                 }}
+                aria-label="Delete selected object"
                 className="w-full py-2 bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/30 rounded text-[10px] font-bold uppercase tracking-widest transition-colors"
               >
                 Delete Object

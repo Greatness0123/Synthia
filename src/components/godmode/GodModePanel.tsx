@@ -1,25 +1,16 @@
-/**
- * Floating modal for "God Mode" controls with a circular trigger button.
- * Split into World-level controls and Agent-specific controls.
- */
-
-import React from 'react';
+﻿import React from 'react';
 import { useWorldStore } from '../../store/worldStore';
-import { useUIStore } from '../../store/uiStore';
 import { useAgentStore } from '../../store/agentStore';
 import { PhysicsControls } from './PhysicsControls';
 import { BodyControls } from './BodyControls';
 import { AgentBodyControls } from './AgentBodyControls';
 import { DirectivePanel } from './DirectivePanel';
-import { ObjectSpawner } from './ObjectSpawner';
 import { motion, AnimatePresence } from 'framer-motion';
-import { GearSix, X, Cube, User } from '@phosphor-icons/react';
-import { Button } from '../ui/Button';
+import { GearSix, X, User, Globe } from '../ui/icons';
 import { STRINGS } from '../../constants/strings';
 
 export const GodModePanel: React.FC = () => {
   const { godModeOpen, setGodModeOpen } = useWorldStore();
-  const { setObjectSpawnerOpen } = useUIStore();
   const activeAgentId = useAgentStore((state) => state.activeAgentId);
 
   return (
@@ -29,6 +20,8 @@ export const GodModePanel: React.FC = () => {
         <button
           onClick={() => setGodModeOpen(true)}
           className="fixed top-[68px] left-4 w-10 h-10 glassmorphism rounded-full flex items-center justify-center hover:bg-white/10 transition-all z-50 group"
+          aria-label="Open God Mode"
+          title="God Mode Controls"
         >
           <GearSix size={20} className="text-text-secondary group-hover:text-accent-blue" />
         </button>
@@ -45,8 +38,9 @@ export const GodModePanel: React.FC = () => {
             drag
             dragMomentum={false}
             dragElastic={0}
+            dragConstraints={{ top: -400, left: -400, right: 400, bottom: 400 }}
             style={{ isolation: 'isolate' }}
-            className="fixed top-[15vh] left-[15%] w-[420px] h-[70vh] glassmorphism rounded-modal z-[60] flex flex-col overflow-hidden cursor-grab active:cursor-grabbing"
+            className="fixed top-[15vh] left-[15%] w-[420px] max-w-[calc(100vw-2rem)] h-[70vh] max-h-[calc(100vh-2rem)] glassmorphism rounded-modal z-[60] flex flex-col overflow-hidden cursor-grab active:cursor-grabbing"
           >
             {/* Header */}
             <div className="flex items-center justify-between px-4 py-2 border-b border-white/10 shrink-0 cursor-grab">
@@ -56,6 +50,7 @@ export const GodModePanel: React.FC = () => {
               <button
                 onClick={() => setGodModeOpen(false)}
                 className="w-6 h-6 rounded-full flex items-center justify-center hover:bg-white/10 transition-colors"
+                aria-label="Close God Mode"
               >
                 <X size={16} className="text-text-tertiary" />
               </button>
@@ -65,9 +60,10 @@ export const GodModePanel: React.FC = () => {
             <div className="flex-1 overflow-y-auto custom-scrollbar">
               {/* === SECTION 1: WORLD-LEVEL CONTROLS === */}
               <div className="p-3 bg-white/[0.02]">
-                <span className="text-[9px] font-black uppercase tracking-widest text-text-tertiary/70 select-none block px-1.5 mb-1">
-                  🌐 WORLD-LEVEL CONTROLS
-                </span>
+                  <span className="text-[9px] font-black uppercase tracking-widest text-text-tertiary/70 select-none flex items-center gap-1.5">
+                    <Globe size={12} />
+                    WORLD-LEVEL CONTROLS
+                  </span>
               </div>
               <PhysicsControls />
               <BodyControls />
@@ -75,7 +71,7 @@ export const GodModePanel: React.FC = () => {
               {/* === SECTION 2: AGENT-SPECIFIC CONTROLS === */}
               <div className="p-3 bg-accent-blue/10 border-t border-b border-white/10 flex items-center justify-between">
                 <span className="text-[9px] font-black uppercase tracking-widest text-accent-blue select-none flex items-center gap-1.5">
-                  <User size={12} weight="bold" />
+                  <User size={12} />
                   AGENT-SPECIFIC CONTROLS
                 </span>
                 <span className="px-2 py-0.5 rounded-full bg-accent-blue/20 text-[9px] font-bold font-mono text-accent-blue uppercase tracking-wider">
@@ -85,24 +81,10 @@ export const GodModePanel: React.FC = () => {
               <AgentBodyControls />
               <DirectivePanel />
             </div>
-
-            {/* Pinned Bottom Footer Action */}
-            <div className="p-3 border-t border-white/10 bg-bg-panel/90 backdrop-blur-md shrink-0">
-              <Button
-                variant="secondary"
-                size="sm"
-                className="w-full flex items-center justify-center gap-2 py-2 text-accent-blue border-accent-blue/30 hover:bg-accent-blue/10"
-                onClick={() => setObjectSpawnerOpen(true)}
-              >
-                <Cube size={16} weight="bold" />
-                <span className="text-[11px] font-bold uppercase tracking-wider">{STRINGS.GOD_MODE.SPAWN_BUTTON} OBJECTS</span>
-              </Button>
-            </div>
           </motion.div>
         )}
       </AnimatePresence>
-
-      <ObjectSpawner />
     </>
   );
 };
+

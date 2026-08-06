@@ -17,7 +17,7 @@ import { useConnectionStore } from "../../store/connectionStore";
 import { useSpeechStore } from "../../store/speechStore";
 import { useAgentRuntimeStore } from "../../store/agentRuntimeStore";
 import { useUIStore } from "../../store/uiStore";
-import { synthiaToast } from "../../components/ui/Toast";
+import { synthiaToast } from "../../utils/synthiaToast";
 import { debouncedToast } from "../../utils/toastUtils";
 import { STRINGS } from "../../constants/strings";
 import { logger as Logger } from "../../utils/logger";
@@ -1101,12 +1101,15 @@ export const useWorld = (containerRef: React.RefObject<HTMLDivElement>) => {
         if (obj) {
           Logger.info(`useWorld: Custom model '${name}' spawned (id=${obj.id})`);
           synthiaToast.success(`${name} spawned successfully`);
+          window.dispatchEvent(new CustomEvent('synthia:spawnCustomComplete', { detail: { success: true, name } }));
         } else {
           synthiaToast.error(`Spawning failed: Could not create custom model '${name}'`);
+          window.dispatchEvent(new CustomEvent('synthia:spawnCustomComplete', { detail: { success: false, name } }));
         }
       } catch (err: any) {
         Logger.error(`useWorld: spawnCustomModel threw an error`, err);
         synthiaToast.error(`Spawning failed: ${err.message || err}`);
+        window.dispatchEvent(new CustomEvent('synthia:spawnCustomComplete', { detail: { success: false, name } }));
       }
     };
 
@@ -1732,41 +1735,14 @@ export const useWorld = (containerRef: React.RefObject<HTMLDivElement>) => {
   useEffect(() => {
     if (!isReady) return;
 
-    const interval = setInterval(() => {
-      const nextState = worldStore.lightState === "day" ? "night" : "day";
-      worldStore.setLightState(nextState);
-    }, worldStore.dayNightCycleMs);
-
-    return () => clearInterval(interval);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isReady, worldStore.dayNightCycleMs]);
+    // Day/night cycle removed — lighting stays bright permanently
+  }, [isReady]);
 
   useEffect(() => {
     if (!worldEngineRef.current) return;
-
-    let cancelled = false;
-    let rafId: number | null = null;
-    const startTime = Date.now();
-    const duration = 30000;
-
-    const update = () => {
-      if (cancelled) return;
-      const elapsed = Date.now() - startTime;
-      const progress = Math.min(elapsed / duration, 1);
-      worldEngineRef.current?.updateLighting(worldStore.lightState, progress);
-
-      if (progress < 1) {
-        rafId = requestAnimationFrame(update);
-      }
-    };
-
-    rafId = requestAnimationFrame(update);
-
-    return () => {
-      cancelled = true;
-      if (rafId !== null) cancelAnimationFrame(rafId);
-    };
-  }, [worldStore.lightState]);
+    // Set bright lighting immediately — no day/night transitions
+    worldEngineRef.current.updateLighting('day', 1);
+  }, []);
 
   // Escape to deselect + Delete to remove selected object
   useEffect(() => {
@@ -1778,7 +1754,7 @@ export const useWorld = (containerRef: React.RefObject<HTMLDivElement>) => {
       }
       if (e.key === 'Delete' || e.key === 'Backspace') {
         const selectedId = useUIStore.getState().selectedEntityId;
-        if (selectedId) {
+        if (selectedId && window.confirm('Delete selected object? This cannot be undone.')) {
           window.dispatchEvent(new CustomEvent('synthia:deleteObject', { detail: { id: selectedId } }));
         }
       }
