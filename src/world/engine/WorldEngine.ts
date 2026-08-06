@@ -39,7 +39,7 @@ export class WorldEngine {
     this.container = container;
     this.physicsEngine = physicsEngine;
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(0x0a0a0a);
+    this.scene.background = new THREE.Color(0x87ceeb);
 
     const width = container.clientWidth;
     const height = container.clientHeight;
@@ -335,16 +335,16 @@ export class WorldEngine {
   }
 
   public updateLighting(state: 'day' | 'night', transitionProgress: number): void {
-    const daySky = new THREE.Color(0x1a1a2e);
-    const nightSky = new THREE.Color(0x050508);
-    const dayAmbient = 0.4;
-    const nightAmbient = 0.05;
+    const daySky = new THREE.Color(0x87ceeb);
+    const nightSky = new THREE.Color(0x0a0a1a);
+    const dayAmbient = 0.6;
+    const nightAmbient = 0.08;
     const dayDirect = 1.2;
-    const nightDirect = 0.1;
+    const nightDirect = 0.15;
     const dayFill = 0.4;
-    const nightFill = 0.05;
+    const nightFill = 0.08;
     const dayPoint = 0.3;
-    const nightPoint = 0.1;
+    const nightPoint = 0.12;
 
     const skyColor = new THREE.Color();
     const ambientIntensity = THREE.MathUtils.lerp(

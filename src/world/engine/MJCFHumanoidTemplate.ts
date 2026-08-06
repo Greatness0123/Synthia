@@ -588,7 +588,7 @@ ${pianoGeoms.join('\n')}
 
     if (hasHulls) {
       const geomsXml: string[] = [];
-      spec.processed!.hulls.forEach((hull, i) => {
+      spec.processed!.hulls.forEach((hull: { positions: number[]; indices: number[] }, i: number) => {
         customAssets.push(`<mesh name="hull_${spec.id}_${i}" vertex="${hull.positions.join(' ')}" face="${hull.indices.join(' ')}"/>`);
         if (spec.options?.isTerrain) {
           geomsXml.push(`<geom name="custom_geom_${spec.id}_${i}" type="mesh" mesh="hull_${spec.id}_${i}" contype="1" conaffinity="2"/>`);

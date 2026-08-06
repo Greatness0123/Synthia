@@ -187,8 +187,6 @@ export const ObjectSpawner: React.FC = () => {
             // No V-HACD needed
           } else if (triCount < 300) {
             // Skip V-HACD (near convex)
-          } else if (triCount > 50000) {
-            synthiaToast.warning('Mesh is very complex. Using auto convex hull collision fallback.');
           } else {
             // Run V-HACD inside Worker
             setIsDecomposing(true);
@@ -196,7 +194,10 @@ export const ObjectSpawner: React.FC = () => {
             abortControllerRef.current = controller;
 
             try {
-              const hulls = await decomposeMesh(vertices, indices, controller.signal);
+              // Use more aggressive settings for complex meshes
+              const hullLimit = triCount > 50000 ? 24 : 16;
+              const vertLimit = triCount > 50000 ? 48 : 32;
+              const hulls = await decomposeMesh(vertices, indices, controller.signal, { maxHulls: hullLimit, maxVerticesPerHull: vertLimit });
               processed = {
                 hulls,
                 hullCount: hulls.length,
@@ -286,10 +287,12 @@ export const ObjectSpawner: React.FC = () => {
           const { vertices, indices } = collectMeshGeometry(scene);
           const triCount = indices.length / 3;
 
-          if (triCount >= 300 && triCount <= 50000) {
+          if (triCount >= 300) {
             synthiaToast.info('Optimizing collision mesh for first spawn...');
             try {
-              const hulls = await decomposeMesh(vertices, indices);
+              const hullLimit = triCount > 50000 ? 24 : 16;
+              const vertLimit = triCount > 50000 ? 48 : 32;
+              const hulls = await decomposeMesh(vertices, indices, undefined, { maxHulls: hullLimit, maxVerticesPerHull: vertLimit });
               processed = {
                 hulls,
                 hullCount: hulls.length,

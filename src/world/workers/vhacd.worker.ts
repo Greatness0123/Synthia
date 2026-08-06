@@ -5,8 +5,8 @@ self.onmessage = async (e: MessageEvent) => {
   try {
     const decomposer = await ConvexMeshDecomposition.create();
     const hulls = decomposer.computeConvexHulls({ positions, indices }, options || {
-      maxHulls: 10,
-      maxVerticesPerHull: 16
+      maxHulls: 16,
+      maxVerticesPerHull: 32
     });
 
     const processedHulls = hulls.map((hull: any) => ({

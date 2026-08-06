@@ -3,6 +3,7 @@ export default {
   preset: 'ts-jest',
   testEnvironment: 'node',
   testMatch: [
+    '**/src/utils/mixamoStreamConverter.test.ts',
     '**/src/world/engine/__tests__/PhysicsEngine.test.ts',
     '**/src/world/engine/__tests__/MJCFHumanoidTemplate.test.ts',
     '**/src/world/engine/__tests__/CollisionAdapter.test.ts',
@@ -12,7 +13,7 @@ export default {
     '**/src/world/engine/__tests__/multiAgentComposition.test.ts'
   ],
   transform: {
-    '^.+\\.tsx?$': ['ts-jest', { useESM: true, tsconfig: { module: 'esnext', esModuleInterop: true, skipLibCheck: true, checkJs: false } }],
+    '^.+\\.tsx?$': ['ts-jest', { useESM: true, tsconfig: { module: 'esnext', esModuleInterop: true, skipLibCheck: true, checkJs: false, target: 'ES2022', lib: ['ES2022'], types: ['node', 'jest'] } }],
   },
   extensionsToTreatAsEsm: ['.ts'],
   moduleNameMapper: {

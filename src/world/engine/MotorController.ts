@@ -96,6 +96,19 @@ export class MotorController {
           targetAngle = parsedTarget.x;
         }
         ctrl[actuatorIds[0]] = targetAngle * rampFactor;
+      } else if (actuatorIds.length === 2) {
+        // 2-DOF joint (ankle/foot, wrist/hand): MJCF emits _pitch (axis 1 0 0) + _roll (axis 0 1 0).
+        // LLM/converter convention: x = pitch, z = roll; y is unused.
+        let pitch = 0;
+        let roll = 0;
+        if (parsedTarget.isScalar && typeof parsedTarget.scalar === 'number') {
+          pitch = parsedTarget.scalar;
+        } else if (parsedTarget.x !== undefined) {
+          pitch = parsedTarget.x || 0;
+          roll = parsedTarget.z || 0;
+        }
+        ctrl[actuatorIds[0]] = Number.isFinite(pitch) ? pitch * rampFactor : 0;
+        ctrl[actuatorIds[1]] = Number.isFinite(roll) ? roll * rampFactor : 0;
       } else if (actuatorIds.length === 3) {
         // Spherical joint decomposed into yaw, pitch, roll
         // MJCF actuator order: [yaw(axis 0 0 1), pitch(axis 1 0 0), roll(axis 0 1 0)]

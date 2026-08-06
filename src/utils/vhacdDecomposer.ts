@@ -1,7 +1,8 @@
 export function decomposeMesh(
   positions: Float32Array,
   indices: Uint32Array,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  options?: { maxHulls?: number; maxVerticesPerHull?: number }
 ): Promise<{ positions: number[]; indices: number[] }[]> {
   return new Promise((resolve, reject) => {
     const worker = new Worker(
@@ -45,9 +46,9 @@ export function decomposeMesh(
     worker.postMessage({
       positions,
       indices,
-      options: {
-        maxHulls: 8,
-        maxVerticesPerHull: 16
+      options: options || {
+        maxHulls: 16,
+        maxVerticesPerHull: 32
       }
     });
   });

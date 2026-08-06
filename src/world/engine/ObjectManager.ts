@@ -396,7 +396,10 @@ export class ObjectManager {
 
   public spawnObject(presetId: string, position: THREE.Vector3): WorldObject | null {
     const module = PhysicsEngine.getModule();
-    if (!module) return null;
+    if (!module) {
+      Logger.error('ObjectManager.spawnObject: MuJoCo module not loaded');
+      return null;
+    }
 
     if (presetId === 'piano') {
       const id = Math.random().toString(36).substring(2, 9);
@@ -404,7 +407,10 @@ export class ObjectManager {
     }
 
     const preset = OBJECT_PRESETS.find((p: any) => p.id === presetId);
-    if (!preset) return null;
+    if (!preset) {
+      Logger.error(`ObjectManager.spawnObject: Unknown preset '${presetId}'`);
+      return null;
+    }
 
     // 1. Find an unclaimed pre-allocated pool slot
     const slotIdx = this.slotClaimed.indexOf(false);
@@ -473,7 +479,10 @@ export class ObjectManager {
 
     const bodyName = `env_slot_${slotIdx}`;
     const bodyId = module.mj_name2id(model, module.mjtObj.mjOBJ_BODY.value, bodyName);
-    if (bodyId < 0) return null;
+    if (bodyId < 0) {
+      Logger.error(`ObjectManager.spawnObject: MuJoCo body '${bodyName}' not found`);
+      return null;
+    }
 
     // Activate the corresponding sibling geom size and collision bits
     // We map cube, wedge, slope, ramp to oriented dynamic box geoms as confirmed by the user
@@ -500,6 +509,8 @@ export class ObjectManager {
       model.geom_friction[geomId * 3] = preset.friction;
       model.geom_solref[geomId * 2] = 0.02; // default solref kp
       model.geom_solimp[geomId * 3 + 2] = preset.restitution; // default solimp damp
+    } else {
+      Logger.warn(`ObjectManager.spawnObject: MuJoCo geom '${activeGeomName}' not found — object will have no collision`);
     }
 
     // Move pre-allocated body slot position to spawn coordinates in qpos (freejoint has 7 coordinates: x,y,z, w,x,y,z)

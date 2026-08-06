@@ -1,0 +1,3974 @@
+{
+  "metadata": {
+    "name": "Mixamo Walking (converted)",
+    "fps": 30,
+    "frames": 32,
+    "source": "mixamo stream → synthia timeline",
+    "forwardSpeedMps": 1.659,
+    "notes": []
+  },
+  "rootMotion": [
+    {
+      "dx": 0,
+      "dz": 0
+    },
+    {
+      "dx": -0.0010637329999999999,
+      "dz": -0.054257078
+    },
+    {
+      "dx": -0.0006904099999999999,
+      "dz": -0.053591
+    },
+    {
+      "dx": -0.00008636000000000033,
+      "dz": -0.055778
+    },
+    {
+      "dx": -0.0000624199999999997,
+      "dz": -0.05424800000000001
+    },
+    {
+      "dx": 0.0005897499999999998,
+      "dz": -0.053764000000000006
+    },
+    {
+      "dx": 0.001566665,
+      "dz": -0.05503500000000003
+    },
+    {
+      "dx": 0.002646405,
+      "dz": -0.05903299999999995
+    },
+    {
+      "dx": 0.00474523,
+      "dz": -0.064745
+    },
+    {
+      "dx": 0.00475393,
+      "dz": -0.066415
+    },
+    {
+      "dx": 0.005093400000000001,
+      "dz": -0.06370800000000003
+    },
+    {
+      "dx": 0.004680900000000001,
+      "dz": -0.058990999999999974
+    },
+    {
+      "dx": 0.0048756999999999984,
+      "dz": -0.057154000000000024
+    },
+    {
+      "dx": 0.004083600000000001,
+      "dz": -0.055859999999999986
+    },
+    {
+      "dx": 0.002557800000000001,
+      "dz": -0.05414100000000005
+    },
+    {
+      "dx": 0.002076899999999999,
+      "dz": -0.05520699999999991
+    },
+    {
+      "dx": 0.0012993999999999994,
+      "dz": -0.051774000000000056
+    },
+    {
+      "dx": 0.00046949999999999824,
+      "dz": -0.05107
+    },
+    {
+      "dx": 0.00006220000000000337,
+      "dz": -0.05355800000000002
+    },
+    {
+      "dx": 0.0002102999999999966,
+      "dz": -0.054539999999999936
+    },
+    {
+      "dx": -0.0002104999999999979,
+      "dz": -0.05512
+    },
+    {
+      "dx": -0.0006586000000000026,
+      "dz": -0.05629000000000005
+    },
+    {
+      "dx": -0.0016893000000000003,
+      "dz": -0.05632000000000005
+    },
+    {
+      "dx": -0.0040239,
+      "dz": -0.06081999999999994
+    },
+    {
+      "dx": -0.0050151999999999974,
+      "dz": -0.06334000000000004
+    },
+    {
+      "dx": -0.0054534,
+      "dz": -0.06043000000000007
+    },
+    {
+      "dx": -0.005009600000000001,
+      "dz": -0.05906000000000006
+    },
+    {
+      "dx": -0.00613232,
+      "dz": -0.0572199999999998
+    },
+    {
+      "dx": -0.0037698500000000004,
+      "dz": -0.05659999999999997
+    },
+    {
+      "dx": -0.00250985,
+      "dz": -0.058209999999999984
+    },
+    {
+      "dx": -0.0019254850000000002,
+      "dz": -0.05814000000000021
+    },
+    {
+      "dx": -0.001410768,
+      "dz": -0.05509999999999991
+    },
+    {
+      "dx": 0,
+      "dz": 0
+    }
+  ],
+  "sequence": [
+    {
+      "timeOffsetMs": 0,
+      "overrides": {
+        "mixamorigspine": [
+          -0.007821373088531593,
+          0.005824009810660854,
+          -0.524
+        ],
+        "mixamorigspine1": [
+          -0.008672304980611329,
+          0.012085351336017161,
+          -0.524
+        ],
+        "mixamorigspine2": [
+          -0.008672284656810303,
+          0.012085411357965828,
+          -0.524
+        ],
+        "mixamorigneck": [
+          0.02108439913157063,
+          -1.222,
+          -0.007960323924904731
+        ],
+        "mixamorighead": [
+          -0.03325614646906105,
+          -1.047,
+          -0.05287113193331562
+        ],
+        "mixamorigleftshoulder": [
+          0.261,
+          -0.261,
+          -0.261
+        ],
+        "mixamorigleftarm": [
+          0.8762608623908272,
+          0.1769963581012649,
+          1.57
+        ],
+        "mixamorigleftforearm": 0.0751878166727637,
+        "mixamoriglefthand": [
+          -0.24135898756780994,
+          0,
+          -0.349
+        ],
+        "mixamoriglefthandthumb1": 0.13489177978932293,
+        "mixamoriglefthandthumb2": 0,
+        "mixamoriglefthandthumb3": 0.00001374598754513737,
+        "mixamoriglefthandindex1": 0.751003157497887,
+        "mixamoriglefthandindex2": 1.4186629019355272,
+        "mixamoriglefthandindex3": 0.000009630319999861191,
+        "mixamoriglefthandmiddle1": 1.1006558756425884,
+        "mixamoriglefthandmiddle2": 1.330931183724169,
+        "mixamoriglefthandmiddle3": 0,
+        "mixamoriglefthandring1": 1.1193162130658778,
+        "mixamoriglefthandring2": 1.2920546854941777,
+        "mixamoriglefthandring3": 0,
+        "mixamoriglefthandpinky1": 1.2589992152277318,
+        "mixamoriglefthandpinky2": 1.417980567856793,
+        "mixamoriglefthandpinky3": 0.00002551619039286003,
+        "mixamorigrightshoulder": [
+          -0.261,
+          0.135862476016105,
+          -0.261
+        ],
+        "mixamorigrightarm": [
+          -0.8848373694025142,
+          -0.5465221713938573,
+          1.57
+        ],
+        "mixamorigrightforearm": 0.17053542976206518,
+        "mixamorigrighthand": [
+          0.12657005881418737,
+          0,
+          -0.349
+        ],
+        "mixamorigrighthandthumb1": 0.061453166185376676,
+        "mixamorigrighthandthumb2": 0.02373176882465197,
+        "mixamorigrighthandthumb3": 4.071154549265226e-7,
+        "mixamorigrighthandindex1": 0,
+        "mixamorigrighthandindex2": 0,
+        "mixamorigrighthandindex3": 0.000009623659999652841,
+        "mixamorigrighthandmiddle1": 0,
+        "mixamorigrighthandmiddle2": 0,
+        "mixamorigrighthandmiddle3": 0,
+        "mixamorigrighthandring1": 0,
+        "mixamorigrighthandring2": 0,
+        "mixamorigrighthandring3": 0,
+        "mixamorigrighthandpinky1": 0,
+        "mixamorigrighthandpinky2": 0,
+        "mixamorigrighthandpinky3": 0.000025548400002204496,
+        "mixamorigleftupleg": [
+          -0.12082903215946827,
+          0.09853802078146641,
+          2.094
+        ],
+        "mixamorigleftleg": -0.013514584775297258,
+        "mixamorigleftfoot": [
+          0.022336120312128723,
+          0,
+          -0.785
+        ],
+        "mixamoriglefttoebase": -0.000195073639917601,
+        "mixamorigrightupleg": [
+          -0.04922993824774039,
+          -0.15458708101736016,
+          2.094
+        ],
+        "mixamorigrightleg": 0,
+        "mixamorigrightfoot": [
+          0.07894697869356902,
+          0,
+          0.785
+        ],
+        "mixamorigrighttoebase": -0.010189088704924514
+      }
+    },
+    {
+      "timeOffsetMs": 33,
+      "overrides": {
+        "mixamorigspine": [
+          -0.004606276320907287,
+          0.011607171930129489,
+          -0.524
+        ],
+        "mixamorigspine1": [
+          -0.0026095021372075,
+          0.02337947475862908,
+          -0.524
+        ],
+        "mixamorigspine2": [
+          -0.0026095021372075,
+          0.02337947475862908,
+          -0.524
+        ],
+        "mixamorigneck": [
+          0.008095135583142468,
+          -1.222,
+          -0.010777098408702496
+        ],
+        "mixamorighead": [
+          -0.027049345014220773,
+          -1.047,
+          -0.05141161270734092
+        ],
+        "mixamorigleftshoulder": [
+          0.261,
+          -0.24567620393791165,
+          -0.261
+        ],
+        "mixamorigleftarm": [
+          0.910870623184386,
+          0.29429109459281644,
+          1.57
+        ],
+        "mixamorigleftforearm": 0.06799186195689697,
+        "mixamoriglefthand": [
+          -0.22943845875670044,
+          0,
+          -0.349
+        ],
+        "mixamoriglefthandthumb1": 0.13489138613049356,
+        "mixamoriglefthandthumb2": 0,
+        "mixamoriglefthandthumb3": 0.000013593687332154273,
+        "mixamoriglefthandindex1": 0.7240346742949006,
+        "mixamoriglefthandindex2": 1.3707354082761964,
+        "mixamoriglefthandindex3": 0.000009605680003070156,
+        "mixamoriglefthandmiddle1": 1.0742450117546505,
+        "mixamoriglefthandmiddle2": 1.3784299550658505,
+        "mixamoriglefthandmiddle3": 0,
+        "mixamoriglefthandring1": 1.0938000570648083,
+        "mixamoriglefthandring2": 1.3425350042557207,
+        "mixamoriglefthandring3": 0,
+        "mixamoriglefthandpinky1": 1.2367903517687062,
+        "mixamoriglefthandpinky2": 1.4491954276419563,
+        "mixamoriglefthandpinky3": 0.000025484609171676636,
+        "mixamorigrightshoulder": [
+          -0.261,
+          0.14913536973925645,
+          -0.261
+        ],
+        "mixamorigrightarm": [
+          -0.8561914173558152,
+          -0.5979544221333588,
+          1.57
+        ],
+        "mixamorigrightforearm": 0.18654496956736996,
+        "mixamorigrighthand": [
+          0.0774267700627601,
+          0,
+          -0.349
+        ],
+        "mixamorigrighthandthumb1": 0.045334005947753865,
+        "mixamorigrighthandthumb2": 0.02175265242203342,
+        "mixamorigrighthandthumb3": 5.504049927599793e-7,
+        "mixamorigrighthandindex1": 0,
+        "mixamorigrighthandindex2": 0,
+        "mixamorigrighthandindex3": 0.000009650159996852285,
+        "mixamorigrighthandmiddle1": 0,
+        "mixamorigrighthandmiddle2": 0,
+        "mixamorigrighthandmiddle3": 0,
+        "mixamorigrighthandring1": 0,
+        "mixamorigrighthandring2": 0,
+        "mixamorigrighthandring3": 0,
+        "mixamorigrighthandpinky1": 0,
+        "mixamorigrighthandpinky2": 0,
+        "mixamorigrighthandpinky3": 0.00002558240000209738,
+        "mixamorigleftupleg": [
+          -0.11288834038206683,
+          0.09654424018494034,
+          2.094
+        ],
+        "mixamorigleftleg": 0,
+        "mixamorigleftfoot": [
+          0.012809596071328554,
+          0,
+          0.785
+        ],
+        "mixamoriglefttoebase": 0,
+        "mixamorigrightupleg": [
+          -0.054339497452125796,
+          -0.16537129969753978,
+          2.094
+        ],
+        "mixamorigrightleg": -0.002212388865016758,
+        "mixamorigrightfoot": [
+          0.08759801403773956,
+          0,
+          0.785
+        ],
+        "mixamorigrighttoebase": -0.007679669198384476
+      }
+    },
+    {
+      "timeOffsetMs": 67,
+      "overrides": {
+        "mixamorigspine": [
+          -0.002686023543828652,
+          0.016584178085972536,
+          -0.524
+        ],
+        "mixamorigspine1": [
+          0.000762219748089391,
+          0.03316256562174963,
+          -0.524
+        ],
+        "mixamorigspine2": [
+          0.0007622320779047445,
+          0.03316256554848261,
+          -0.524
+        ],
+        "mixamorigneck": [
+          -0.009063874973783559,
+          -1.222,
+          -0.01486398512944057
+        ],
+        "mixamorighead": [
+          -0.015367375515323377,
+          -1.047,
+          -0.04729058705661123
+        ],
+        "mixamorigleftshoulder": [
+          0.261,
+          -0.2361057332512186,
+          -0.261
+        ],
+        "mixamorigleftarm": [
+          0.9155278946258849,
+          0.38020738783591645,
+          1.57
+        ],
+        "mixamorigleftforearm": 0.05888328463011005,
+        "mixamoriglefthand": [
+          -0.22797947244834077,
+          0,
+          -0.349
+        ],
+        "mixamoriglefthandthumb1": 0.13489159536568093,
+        "mixamoriglefthandthumb2": 0,
+        "mixamoriglefthandthumb3": 0.000013574327725959424,
+        "mixamoriglefthandindex1": 0.6928759352522412,
+        "mixamoriglefthandindex2": 1.3159043224834872,
+        "mixamoriglefthandindex3": 0.000009571880007296304,
+        "mixamoriglefthandmiddle1": 1.043704253475807,
+        "mixamoriglefthandmiddle2": 1.4261147527388083,
+        "mixamoriglefthandmiddle3": 0,
+        "mixamoriglefthandring1": 1.0640476820653373,
+        "mixamoriglefthandring2": 1.3962554161697514,
+        "mixamoriglefthandring3": 0,
+        "mixamoriglefthandpinky1": 1.21022135509231,
+        "mixamoriglefthandpinky2": 1.4620131787082598,
+        "mixamoriglefthandpinky3": 0.00002555000040116788,
+        "mixamorigrightshoulder": [
+          -0.261,
+          0.1559330426048417,
+          -0.261
+        ],
+        "mixamorigrightarm": [
+          -0.8597699330658936,
+          -0.5265948788124506,
+          1.57
+        ],
+        "mixamorigrightforearm": 0.19760045001310542,
+        "mixamorigrighthand": [
+          0.06513531701406863,
+          0,
+          -0.349
+        ],
+        "mixamorigrighthandthumb1": 0.027237306743520606,
+        "mixamorigrighthandthumb2": 0.026910492431524834,
+        "mixamorigrighthandthumb3": 3.6943256912775734e-7,
+        "mixamorigrighthandindex1": 0,
+        "mixamorigrighthandindex2": 0,
+        "mixamorigrighthandindex3": 0.000009612919999598165,
+        "mixamorigrighthandmiddle1": 0,
+        "mixamorigrighthandmiddle2": 0,
+        "mixamorigrighthandmiddle3": 0,
+        "mixamorigrighthandring1": 0,
+        "mixamorigrighthandring2": 0,
+        "mixamorigrighthandring3": 0,
+        "mixamorigrighthandpinky1": 0,
+        "mixamorigrighthandpinky2": 0,
+        "mixamorigrighthandpinky3": 0.00002550520000241321,
+        "mixamorigleftupleg": [
+          -0.10351870313388128,
+          0.08505884215861967,
+          2.094
+        ],
+        "mixamorigleftleg": 0,
+        "mixamorigleftfoot": [
+          -0.0009817629418257226,
+          0,
+          0.785
+        ],
+        "mixamoriglefttoebase": 0,
+        "mixamorigrightupleg": [
+          -0.05518713162622246,
+          -0.1761432053679098,
+          2.094
+        ],
+        "mixamorigrightleg": -0.009515051035238118,
+        "mixamorigrightfoot": [
+          0.09475980816513589,
+          0,
+          0.785
+        ],
+        "mixamorigrighttoebase": -0.007997286264495048
+      }
+    },
+    {
+      "timeOffsetMs": 100,
+      "overrides": {
+        "mixamorigspine": [
+          -0.0016199864949843405,
+          0.020404003609699975,
+          -0.524
+        ],
+        "mixamorigspine1": [
+          0.002412379405597808,
+          0.04075527411639651,
+          -0.524
+        ],
+        "mixamorigspine2": [
+          0.002412379405597808,
+          0.04075527411639651,
+          -0.524
+        ],
+        "mixamorigneck": [
+          -0.021023949170346605,
+          -1.222,
+          -0.017356495058089727
+        ],
+        "mixamorighead": [
+          -0.007255908580905248,
+          -1.047,
+          -0.043750055793776346
+        ],
+        "mixamorigleftshoulder": [
+          0.261,
+          -0.21917135230033824,
+          -0.261
+        ],
+        "mixamorigleftarm": [
+          0.9370707776241218,
+          0.4482277740233435,
+          1.57
+        ],
+        "mixamorigleftforearm": 0.05677849735098969,
+        "mixamoriglefthand": [
+          -0.2302979978468047,
+          0,
+          -0.349
+        ],
+        "mixamoriglefthandthumb1": 0.13489159536568093,
+        "mixamoriglefthandthumb2": 0,
+        "mixamoriglefthandthumb3": 0.000013469528406660862,
+        "mixamoriglefthandindex1": 0.6602476529944072,
+        "mixamoriglefthandindex2": 1.2582032189877923,
+        "mixamoriglefthandindex3": 0.000009634179999614416,
+        "mixamoriglefthandmiddle1": 1.0117001910435972,
+        "mixamoriglefthandmiddle2": 1.4640464337422736,
+        "mixamoriglefthandmiddle3": 0,
+        "mixamoriglefthandring1": 1.0327806606708556,
+        "mixamoriglefthandring2": 1.4473183426232137,
+        "mixamoriglefthandring3": 0,
+        "mixamoriglefthandpinky1": 1.1817795110980218,
+        "mixamoriglefthandpinky2": 1.4448507241174111,
+        "mixamoriglefthandpinky3": 0.00002565219882602688,
+        "mixamorigrightshoulder": [
+          -0.2547273028744913,
+          0.16337402314138785,
+          -0.261
+        ],
+        "mixamorigrightarm": [
+          -0.8679360934259212,
+          -0.41860284272452314,
+          1.57
+        ],
+        "mixamorigrightforearm": 0.1910674129918996,
+        "mixamorigrighthand": [
+          0.07139700510674424,
+          0,
+          -0.349
+        ],
+        "mixamorigrighthandthumb1": 0.008280722019211569,
+        "mixamorigrighthandthumb2": 0.02782798643647688,
+        "mixamorigrighthandthumb3": 6.883950437217139e-7,
+        "mixamorigrighthandindex1": 0,
+        "mixamorigrighthandindex2": 0,
+        "mixamorigrighthandindex3": 0.000009640819998990226,
+        "mixamorigrighthandmiddle1": 0,
+        "mixamorigrighthandmiddle2": 0,
+        "mixamorigrighthandmiddle3": 0,
+        "mixamorigrighthandring1": 0,
+        "mixamorigrighthandring2": 0,
+        "mixamorigrighthandring3": 0,
+        "mixamorigrighthandpinky1": 0,
+        "mixamorigrighthandpinky2": 0,
+        "mixamorigrighthandpinky3": 0.000025441800004005637,
+        "mixamorigleftupleg": [
+          -0.0951487456070529,
+          0.07566678904080157,
+          2.094
+        ],
+        "mixamorigleftleg": 0,
+        "mixamorigleftfoot": [
+          -0.023018063482279524,
+          0,
+          0.785
+        ],
+        "mixamoriglefttoebase": 0,
+        "mixamorigrightupleg": [
+          -0.04806411100311996,
+          -0.19054163793301288,
+          -2.094
+        ],
+        "mixamorigrightleg": -0.022061461940298868,
+        "mixamorigrightfoot": [
+          0.10357609181141174,
+          0,
+          0.785
+        ],
+        "mixamorigrighttoebase": -0.009162875946692853
+      }
+    },
+    {
+      "timeOffsetMs": 133,
+      "overrides": {
+        "mixamorigspine": [
+          0.0002602529853725538,
+          0.02351449598491373,
+          -0.524
+        ],
+        "mixamorigspine1": [
+          0.005285453667703605,
+          0.047356110310475576,
+          -0.524
+        ],
+        "mixamorigspine2": [
+          0.005285433673724453,
+          0.04735611046414068,
+          -0.524
+        ],
+        "mixamorigneck": [
+          -0.03549490498731256,
+          -1.222,
+          -0.020395217935588957
+        ],
+        "mixamorighead": [
+          0.0007580313549392889,
+          -1.047,
+          -0.04060949470100225
+        ],
+        "mixamorigleftshoulder": [
+          0.25563276379995087,
+          -0.21193230954243447,
+          -0.261
+        ],
+        "mixamorigleftarm": [
+          0.9650645639202805,
+          0.5258975493569694,
+          1.57
+        ],
+        "mixamorigleftforearm": 0.04930503026779179,
+        "mixamoriglefthand": [
+          -0.22735116682519133,
+          0,
+          -0.349
+        ],
+        "mixamoriglefthandthumb1": 0.13489098515239675,
+        "mixamoriglefthandthumb2": 0,
+        "mixamoriglefthandthumb3": 0.00001364674497868179,
+        "mixamoriglefthandindex1": 0.628876819385334,
+        "mixamoriglefthandindex2": 1.201397974893909,
+        "mixamoriglefthandindex3": 0.000009605579999841268,
+        "mixamoriglefthandmiddle1": 0.9809164728466316,
+        "mixamoriglefthandmiddle2": 1.4759729713839231,
+        "mixamoriglefthandmiddle3": 0,
+        "mixamoriglefthandring1": 1.0027129210193744,
+        "mixamoriglefthandring2": 1.4851833482341137,
+        "mixamoriglefthandring3": 0,
+        "mixamoriglefthandpinky1": 1.1540876345303277,
+        "mixamoriglefthandpinky2": 1.4074471632500636,
+        "mixamoriglefthandpinky3": 0.000025526992116628905,
+        "mixamorigrightshoulder": [
+          -0.2459259502089164,
+          0.17173060547996552,
+          -0.261
+        ],
+        "mixamorigrightarm": [
+          -0.8793652125270036,
+          -0.2722004515020658,
+          1.57
+        ],
+        "mixamorigrightforearm": 0.15399759146646025,
+        "mixamorigrighthand": [
+          0.10043529256073694,
+          0,
+          -0.349
+        ],
+        "mixamorigrighthandthumb1": 0,
+        "mixamorigrighthandthumb2": 0.01940943770782986,
+        "mixamorigrighthandthumb3": 3.7128357549109803e-7,
+        "mixamorigrighthandindex1": 0,
+        "mixamorigrighthandindex2": 0,
+        "mixamorigrighthandindex3": 0.000009654839999527302,
+        "mixamorigrighthandmiddle1": 0,
+        "mixamorigrighthandmiddle2": 0,
+        "mixamorigrighthandmiddle3": 0,
+        "mixamorigrighthandring1": 0,
+        "mixamorigrighthandring2": 0,
+        "mixamorigrighthandring3": 0,
+        "mixamorigrighthandpinky1": 0,
+        "mixamorigrighthandpinky2": 0,
+        "mixamorigrighthandpinky3": 0.000025666199997545456,
+        "mixamorigleftupleg": [
+          -0.08587300967577767,
+          0.07368077922846215,
+          2.094
+        ],
+        "mixamorigleftleg": 0,
+        "mixamorigleftfoot": [
+          -0.03752136270456009,
+          0,
+          0.785
+        ],
+        "mixamoriglefttoebase": 0,
+        "mixamorigrightupleg": [
+          -0.03596273943526883,
+          -0.19921051207332954,
+          -2.094
+        ],
+        "mixamorigrightleg": -0.03349051200790392,
+        "mixamorigrightfoot": [
+          0.10918861986990587,
+          0,
+          0.785
+        ],
+        "mixamorigrighttoebase": -0.005577118085284233
+      }
+    },
+    {
+      "timeOffsetMs": 167,
+      "overrides": {
+        "mixamorigspine": [
+          0.002718039884126302,
+          0.02669181539213845,
+          -0.524
+        ],
+        "mixamorigspine1": [
+          0.009310764894019588,
+          0.054829118573425074,
+          -0.524
+        ],
+        "mixamorigspine2": [
+          0.009310744352581234,
+          0.05482911881547724,
+          -0.524
+        ],
+        "mixamorigneck": [
+          -0.053554089599785075,
+          -1.222,
+          -0.024793305185931532
+        ],
+        "mixamorighead": [
+          0.008478418282415504,
+          -1.047,
+          -0.038216933450724105
+        ],
+        "mixamorigleftshoulder": [
+          0.2496808322486488,
+          -0.21604295752157687,
+          -0.261
+        ],
+        "mixamorigleftarm": [
+          0.9821699945757472,
+          0.6149146085316372,
+          1.57
+        ],
+        "mixamorigleftforearm": 0.036664433934466466,
+        "mixamoriglefthand": [
+          -0.2203826118213665,
+          0,
+          -0.349
+        ],
+        "mixamoriglefthandthumb1": 0.13489159536568093,
+        "mixamoriglefthandthumb2": 0,
+        "mixamoriglefthandthumb3": 0.000013647165442657561,
+        "mixamoriglefthandindex1": 0.6014916016214727,
+        "mixamoriglefthandindex2": 1.1490661482186355,
+        "mixamoriglefthandindex3": 0.000009632600000827205,
+        "mixamoriglefthandmiddle1": 0.9540458681214887,
+        "mixamoriglefthandmiddle2": 1.4579173894750044,
+        "mixamoriglefthandmiddle3": 0,
+        "mixamoriglefthandring1": 0.9765754742609326,
+        "mixamoriglefthandring2": 1.49296945895565,
+        "mixamoriglefthandring3": 0,
+        "mixamoriglefthandpinky1": 1.1298725392509152,
+        "mixamoriglefthandpinky2": 1.3645052170700422,
+        "mixamoriglefthandpinky3": 0.000025582591648094334,
+        "mixamorigrightshoulder": [
+          -0.23219142853580238,
+          0.1778514783979051,
+          -0.261
+        ],
+        "mixamorigrightarm": [
+          -0.8996226113134481,
+          -0.12284970229093689,
+          1.57
+        ],
+        "mixamorigrightforearm": 0.10666836929608113,
+        "mixamorigrighthand": [
+          0.15532091757097796,
+          0,
+          -0.349
+        ],
+        "mixamorigrighthandthumb1": 0,
+        "mixamorigrighthandthumb2": 0.010019392054309182,
+        "mixamorigrighthandthumb3": 5.891805146041939e-7,
+        "mixamorigrighthandindex1": 0,
+        "mixamorigrighthandindex2": 0,
+        "mixamorigrighthandindex3": 0.000009618299998814742,
+        "mixamorigrighthandmiddle1": 0,
+        "mixamorigrighthandmiddle2": 0,
+        "mixamorigrighthandmiddle3": 0,
+        "mixamorigrighthandring1": 0,
+        "mixamorigrighthandring2": 0,
+        "mixamorigrighthandring3": 0,
+        "mixamorigrighthandpinky1": 0,
+        "mixamorigrighthandpinky2": 0,
+        "mixamorigrighthandpinky3": 0.00002565740000008169,
+        "mixamorigleftupleg": [
+          -0.0740081804675976,
+          0.06440734586620712,
+          2.094
+        ],
+        "mixamorigleftleg": -0.014460648051441044,
+        "mixamorigleftfoot": [
+          -0.021765970158758575,
+          0,
+          0.785
+        ],
+        "mixamoriglefttoebase": 0,
+        "mixamorigrightupleg": [
+          -0.01863335109920538,
+          -0.2088255318595959,
+          -2.094
+        ],
+        "mixamorigrightleg": -0.040385984721439734,
+        "mixamorigrightfoot": [
+          0.11121731743149002,
+          0,
+          0.785
+        ],
+        "mixamorigrighttoebase": 0
+      }
+    },
+    {
+      "timeOffsetMs": 200,
+      "overrides": {
+        "mixamorigspine": [
+          0.005116487409783201,
+          0.03052239934475466,
+          -0.524
+        ],
+        "mixamorigspine1": [
+          0.013702145149215177,
+          0.06368971661253142,
+          -0.524
+        ],
+        "mixamorigspine2": [
+          0.013702167369547057,
+          0.06368991665174785,
+          -0.524
+        ],
+        "mixamorigneck": [
+          -0.07291034234505457,
+          -1.222,
+          -0.03051127510588821
+        ],
+        "mixamorighead": [
+          0.013339281403429904,
+          -1.047,
+          -0.03738909997162585
+        ],
+        "mixamorigleftshoulder": [
+          0.24362448177317955,
+          -0.2113885643299966,
+          -0.261
+        ],
+        "mixamorigleftarm": [
+          0.9909144517825359,
+          0.6910382451639456,
+          1.57
+        ],
+        "mixamorigleftforearm": 0.023235094956482114,
+        "mixamoriglefthand": [
+          -0.18932059016249336,
+          0,
+          -0.349
+        ],
+        "mixamoriglefthandthumb1": 0.13489158661955034,
+        "mixamoriglefthandthumb2": 0,
+        "mixamoriglefthandthumb3": 0.000013671304335368065,
+        "mixamoriglefthandindex1": 0.5808161358056559,
+        "mixamoriglefthandindex2": 1.1046984296008713,
+        "mixamoriglefthandindex3": 0.000009606300001282674,
+        "mixamoriglefthandmiddle1": 0.9337870891040395,
+        "mixamoriglefthandmiddle2": 1.4281584968259673,
+        "mixamoriglefthandmiddle3": 0,
+        "mixamoriglefthandring1": 0.9571017357147217,
+        "mixamoriglefthandring2": 1.4736878232975439,
+        "mixamoriglefthandring3": 0,
+        "mixamoriglefthandpinky1": 1.111876571845068,
+        "mixamoriglefthandpinky2": 1.325010271257643,
+        "mixamoriglefthandpinky3": 0.000025551793527611353,
+        "mixamorigrightshoulder": [
+          -0.2188567704773871,
+          0.18206761435913388,
+          -0.261
+        ],
+        "mixamorigrightarm": [
+          -0.9177496808468507,
+          0.0054259010865284965,
+          1.57
+        ],
+        "mixamorigrightforearm": 0.06045217549508306,
+        "mixamorigrighthand": [
+          0.2288884011414918,
+          0,
+          -0.349
+        ],
+        "mixamorigrighthandthumb1": 0,
+        "mixamorigrighthandthumb2": 0.019279394823254817,
+        "mixamorigrighthandthumb3": 3.045259987410447e-7,
+        "mixamorigrighthandindex1": 0,
+        "mixamorigrighthandindex2": 0,
+        "mixamorigrighthandindex3": 0.000009621460000156842,
+        "mixamorigrighthandmiddle1": 0,
+        "mixamorigrighthandmiddle2": 0,
+        "mixamorigrighthandmiddle3": 0,
+        "mixamorigrighthandring1": 0,
+        "mixamorigrighthandring2": 0,
+        "mixamorigrighthandring3": 0,
+        "mixamorigrighthandpinky1": 0,
+        "mixamorigrighthandpinky2": 0,
+        "mixamorigrighthandpinky3": 0.00002539939998630659,
+        "mixamorigleftupleg": [
+          -0.06835125281582945,
+          0.053515748865728435,
+          2.094
+        ],
+        "mixamorigleftleg": -0.028795341751267817,
+        "mixamorigleftfoot": [
+          0.0071087093390219906,
+          0,
+          0.785
+        ],
+        "mixamoriglefttoebase": 0,
+        "mixamorigrightupleg": [
+          -0.003411952171549837,
+          -0.21720935936180136,
+          -2.094
+        ],
+        "mixamorigrightleg": -0.03964390254289399,
+        "mixamorigrightfoot": [
+          0.11306739240471457,
+          0,
+          0.785
+        ],
+        "mixamorigrighttoebase": 0
+      }
+    },
+    {
+      "timeOffsetMs": 233,
+      "overrides": {
+        "mixamorigspine": [
+          0.007251801519771434,
+          0.03438041741029734,
+          -0.524
+        ],
+        "mixamorigspine1": [
+          0.017380988120522124,
+          0.07242050725817671,
+          -0.524
+        ],
+        "mixamorigspine2": [
+          0.017380988120522124,
+          0.07242050725817671,
+          -0.524
+        ],
+        "mixamorigneck": [
+          -0.08560823790863308,
+          -1.222,
+          -0.035593062536397574
+        ],
+        "mixamorighead": [
+          0.01015317419798761,
+          -1.047,
+          -0.039970244047173246
+        ],
+        "mixamorigleftshoulder": [
+          0.24598833502689305,
+          -0.2051808345209254,
+          -0.261
+        ],
+        "mixamorigleftarm": [
+          0.9781416144264835,
+          0.7593320831871371,
+          1.57
+        ],
+        "mixamorigleftforearm": 0.008973588019565496,
+        "mixamoriglefthand": [
+          -0.1202399512430439,
+          0,
+          -0.349
+        ],
+        "mixamoriglefthandthumb1": 0.13489116957600356,
+        "mixamoriglefthandthumb2": 0,
+        "mixamoriglefthandthumb3": 0.00001378440602430156,
+        "mixamoriglefthandindex1": 0.5695800433156586,
+        "mixamoriglefthandindex2": 1.0717212812076196,
+        "mixamoriglefthandindex3": 0.000009625400000981932,
+        "mixamoriglefthandmiddle1": 0.9228399082742581,
+        "mixamoriglefthandmiddle2": 1.401658413680067,
+        "mixamoriglefthandmiddle3": 0,
+        "mixamoriglefthandring1": 0.947014782063762,
+        "mixamoriglefthandring2": 1.4501028867944334,
+        "mixamoriglefthandring3": 0,
+        "mixamoriglefthandpinky1": 1.102839940925459,
+        "mixamoriglefthandpinky2": 1.2946072483955824,
+        "mixamoriglefthandpinky3": 0.00002562079316973497,
+        "mixamorigrightshoulder": [
+          -0.19860180474626946,
+          0.18878639678216563,
+          -0.261
+        ],
+        "mixamorigrightarm": [
+          -0.9373412056832235,
+          0.0683481582262288,
+          1.57
+        ],
+        "mixamorigrightforearm": 0.021630909271375506,
+        "mixamorigrighthand": [
+          0.3071447145405176,
+          0,
+          -0.349
+        ],
+        "mixamorigrighthandthumb1": 0,
+        "mixamorigrighthandthumb2": 0.057450328419901074,
+        "mixamorigrighthandthumb3": 5.403309575184039e-7,
+        "mixamorigrighthandindex1": 0,
+        "mixamorigrighthandindex2": 0,
+        "mixamorigrighthandindex3": 0.000009625119999775287,
+        "mixamorigrighthandmiddle1": 0,
+        "mixamorigrighthandmiddle2": 0,
+        "mixamorigrighthandmiddle3": 0,
+        "mixamorigrighthandring1": 0,
+        "mixamorigrighthandring2": 0,
+        "mixamorigrighthandring3": 0,
+        "mixamorigrighthandpinky1": 0,
+        "mixamorigrighthandpinky2": 0,
+        "mixamorigrighthandpinky3": 0.000025604400000766,
+        "mixamorigleftupleg": [
+          -0.07105976941417597,
+          0.061785755092310546,
+          2.094
+        ],
+        "mixamorigleftleg": -0.029164236640999968,
+        "mixamorigleftfoot": [
+          0.01627914712576134,
+          0,
+          0.785
+        ],
+        "mixamoriglefttoebase": 0,
+        "mixamorigrightupleg": [
+          0.010301870827255557,
+          -0.22560124669606846,
+          -2.094
+        ],
+        "mixamorigrightleg": -0.028627050373184387,
+        "mixamorigrightfoot": [
+          0.10986890109215613,
+          0,
+          0.785
+        ],
+        "mixamorigrighttoebase": 0
+      }
+    },
+    {
+      "timeOffsetMs": 267,
+      "overrides": {
+        "mixamorigspine": [
+          0.009129534761857837,
+          0.03732556951647907,
+          -0.524
+        ],
+        "mixamorigspine1": [
+          0.020532695948065845,
+          0.07889695277795661,
+          -0.524
+        ],
+        "mixamorigspine2": [
+          0.020532695948065845,
+          0.07889695277795661,
+          -0.524
+        ],
+        "mixamorigneck": [
+          -0.08620773200359126,
+          -1.222,
+          -0.03754937526595969
+        ],
+        "mixamorighead": [
+          -0.003273563020097861,
+          -1.047,
+          -0.04608865747678793
+        ],
+        "mixamorigleftshoulder": [
+          0.25956446986166054,
+          -0.21150071488059555,
+          -0.261
+        ],
+        "mixamorigleftarm": [
+          0.9504210948666719,
+          0.8155328105956299,
+          1.57
+        ],
+        "mixamorigleftforearm": 0.0049818679138778025,
+        "mixamoriglefthand": [
+          -0.046909529880021034,
+          0,
+          -0.349
+        ],
+        "mixamoriglefthandthumb1": 0.13489118564144245,
+        "mixamoriglefthandthumb2": 0,
+        "mixamoriglefthandthumb3": 0.000013956047127545486,
+        "mixamoriglefthandindex1": 0.5730198497711397,
+        "mixamoriglefthandindex2": 1.055762949477161,
+        "mixamoriglefthandindex3": 0.000009622859999332556,
+        "mixamoriglefthandmiddle1": 0.9263628769530167,
+        "mixamoriglefthandmiddle2": 1.3880373053326973,
+        "mixamoriglefthandmiddle3": 0,
+        "mixamoriglefthandring1": 0.9515937045634322,
+        "mixamoriglefthandring2": 1.4371992015018646,
+        "mixamoriglefthandring3": 0,
+        "mixamoriglefthandpinky1": 1.1079511023908613,
+        "mixamoriglefthandpinky2": 1.2796694966293227,
+        "mixamoriglefthandpinky3": 0.000025508583450592267,
+        "mixamorigrightshoulder": [
+          -0.18585830897739553,
+          0.18404808693824387,
+          -0.261
+        ],
+        "mixamorigrightarm": [
+          -0.9542132466526634,
+          0.07860033363974618,
+          1.57
+        ],
+        "mixamorigrightforearm": 0.008463352644618363,
+        "mixamorigrighthand": [
+          0.3758812030980985,
+          0,
+          -0.349
+        ],
+        "mixamorigrighthandthumb1": 0,
+        "mixamorigrighthandthumb2": 0.08291535899564004,
+        "mixamorigrighthandthumb3": 4.932768204277407e-7,
+        "mixamorigrighthandindex1": 0,
+        "mixamorigrighthandindex2": 0,
+        "mixamorigrighthandindex3": 0.000009584659999449858,
+        "mixamorigrighthandmiddle1": 0,
+        "mixamorigrighthandmiddle2": 0,
+        "mixamorigrighthandmiddle3": 0,
+        "mixamorigrighthandring1": 0,
+        "mixamorigrighthandring2": 0,
+        "mixamorigrighthandring3": 0,
+        "mixamorigrighthandpinky1": 0,
+        "mixamorigrighthandpinky2": 0,
+        "mixamorigrighthandpinky3": 0.00002548440000323704,
+        "mixamorigleftupleg": [
+          -0.06987249831184011,
+          0.08345520080832457,
+          2.094
+        ],
+        "mixamorigleftleg": -0.02039069435306956,
+        "mixamorigleftfoot": [
+          -0.01973863269867527,
+          0,
+          0.785
+        ],
+        "mixamoriglefttoebase": 0,
+        "mixamorigrightupleg": [
+          0.024914454294808753,
+          -0.23185208955060532,
+          -2.094
+        ],
+        "mixamorigrightleg": -0.011067169748185196,
+        "mixamorigrightfoot": [
+          0.10490984021587942,
+          0,
+          0.785
+        ],
+        "mixamorigrighttoebase": 0
+      }
+    },
+    {
+      "timeOffsetMs": 300,
+      "overrides": {
+        "mixamorigspine": [
+          0.011209097297538056,
+          0.03815753334693656,
+          -0.524
+        ],
+        "mixamorigspine1": [
+          0.024179393361930222,
+          0.08141266566300913,
+          -0.524
+        ],
+        "mixamorigspine2": [
+          0.024179393361930222,
+          0.08141266566300913,
+          -0.524
+        ],
+        "mixamorigneck": [
+          -0.07998842848462501,
+          -1.222,
+          -0.03530756051634294
+        ],
+        "mixamorighead": [
+          -0.021052354412192324,
+          -1.047,
+          -0.05104293393523983
+        ],
+        "mixamorigleftshoulder": [
+          0.261,
+          -0.23036414727412663,
+          -0.261
+        ],
+        "mixamorigleftarm": [
+          0.9361035603795633,
+          0.8534162522093475,
+          1.57
+        ],
+        "mixamorigleftforearm": 0.01542528100853561,
+        "mixamoriglefthand": [
+          -0.0005922057437354716,
+          0,
+          -0.349
+        ],
+        "mixamoriglefthandthumb1": 0.1348913948766239,
+        "mixamoriglefthandthumb2": 0,
+        "mixamoriglefthandthumb3": 0.0000136928700885973,
+        "mixamoriglefthandindex1": 0.6027060173499031,
+        "mixamoriglefthandindex2": 1.068154392882679,
+        "mixamoriglefthandindex3": 0.000009625399999877947,
+        "mixamoriglefthandmiddle1": 0.9557082983413862,
+        "mixamoriglefthandmiddle2": 1.3986528702917203,
+        "mixamoriglefthandmiddle3": 0,
+        "mixamoriglefthandring1": 0.9825212207793347,
+        "mixamoriglefthandring2": 1.4472924596921133,
+        "mixamoriglefthandring3": 0,
+        "mixamoriglefthandpinky1": 1.1385575243948893,
+        "mixamoriglefthandpinky2": 1.2912769601295568,
+        "mixamoriglefthandpinky3": 0.000025466195362178735,
+        "mixamorigrightshoulder": [
+          -0.1865760244482602,
+          0.1717805425059885,
+          -0.261
+        ],
+        "mixamorigrightarm": [
+          -0.9755746681744226,
+          0.053608865007262606,
+          1.57
+        ],
+        "mixamorigrightforearm": 0.03613022633564471,
+        "mixamorigrighthand": [
+          0.4124819182105477,
+          0,
+          -0.349
+        ],
+        "mixamorigrighthandthumb1": 0,
+        "mixamorigrighthandthumb2": 0.0707951077733006,
+        "mixamorigrighthandthumb3": 4.167671706748419e-7,
+        "mixamorigrighthandindex1": 0,
+        "mixamorigrighthandindex2": 0,
+        "mixamorigrighthandindex3": 0.000009657479979910813,
+        "mixamorigrighthandmiddle1": 0,
+        "mixamorigrighthandmiddle2": 0,
+        "mixamorigrighthandmiddle3": 0,
+        "mixamorigrighthandring1": 0,
+        "mixamorigrighthandring2": 0,
+        "mixamorigrighthandring3": 0,
+        "mixamorigrighthandpinky1": 0,
+        "mixamorigrighthandpinky2": 0,
+        "mixamorigrighthandpinky3": 0.000025525600002861652,
+        "mixamorigleftupleg": [
+          -0.06807543031021492,
+          0.09209306082078923,
+          2.094
+        ],
+        "mixamorigleftleg": -0.01392950034833071,
+        "mixamorigleftfoot": [
+          -0.0013915668684668042,
+          0,
+          0.785
+        ],
+        "mixamoriglefttoebase": 0,
+        "mixamorigrightupleg": [
+          0.03835277832210451,
+          -0.23371806901893505,
+          -2.094
+        ],
+        "mixamorigrightleg": 0,
+        "mixamorigrightfoot": [
+          0.05673217929247413,
+          0,
+          -0.785
+        ],
+        "mixamorigrighttoebase": 0
+      }
+    },
+    {
+      "timeOffsetMs": 333,
+      "overrides": {
+        "mixamorigspine": [
+          0.013608160306957684,
+          0.03625467396990898,
+          0.524
+        ],
+        "mixamorigspine1": [
+          0.03018492274229391,
+          0.07876068236474831,
+          0.524
+        ],
+        "mixamorigspine2": [
+          0.03018492274229391,
+          0.07876068236474831,
+          0.524
+        ],
+        "mixamorigneck": [
+          -0.07947495538164329,
+          -1.222,
+          -0.03197743204892016
+        ],
+        "mixamorighead": [
+          -0.03222597655602164,
+          -1.047,
+          -0.04993679820081715
+        ],
+        "mixamorigleftshoulder": [
+          0.261,
+          -0.22532999424741654,
+          -0.261
+        ],
+        "mixamorigleftarm": [
+          0.9338223112100801,
+          0.8530943076674952,
+          1.57
+        ],
+        "mixamorigleftforearm": 0.010851085787784725,
+        "mixamoriglefthand": [
+          0.040570969186390554,
+          0,
+          -0.349
+        ],
+        "mixamoriglefthandthumb1": 0.1348913948766239,
+        "mixamoriglefthandthumb2": 0,
+        "mixamoriglefthandthumb3": 0.00001355892660889299,
+        "mixamoriglefthandindex1": 0.6395930115952656,
+        "mixamoriglefthandindex2": 1.0931044653930937,
+        "mixamoriglefthandindex3": 0.000009619079999771814,
+        "mixamoriglefthandmiddle1": 0.9919987289480823,
+        "mixamoriglefthandmiddle2": 1.4191565412360876,
+        "mixamoriglefthandmiddle3": 0,
+        "mixamoriglefthandring1": 1.0205681884248754,
+        "mixamoriglefthandring2": 1.4660085667254883,
+        "mixamoriglefthandring3": 0,
+        "mixamoriglefthandpinky1": 1.1758572058224466,
+        "mixamoriglefthandpinky2": 1.3144028011305233,
+        "mixamoriglefthandpinky3": 0.000025376396882875935,
+        "mixamorigrightshoulder": [
+          -0.2106692425102644,
+          0.16565577322853817,
+          -0.261
+        ],
+        "mixamorigrightarm": [
+          -0.9862649250680756,
+          -0.0059954642555212715,
+          1.57
+        ],
+        "mixamorigrightforearm": 0.071611601467925,
+        "mixamorigrighthand": [
+          0.4147046534495579,
+          0,
+          -0.349
+        ],
+        "mixamorigrighthandthumb1": 0,
+        "mixamorigrighthandthumb2": 0.06531426038588456,
+        "mixamorigrighthandthumb3": 4.7424917851994025e-7,
+        "mixamorigrighthandindex1": 0,
+        "mixamorigrighthandindex2": 0,
+        "mixamorigrighthandindex3": 0.000009645599999983247,
+        "mixamorigrighthandmiddle1": 0,
+        "mixamorigrighthandmiddle2": 0,
+        "mixamorigrighthandmiddle3": 0,
+        "mixamorigrighthandring1": 0,
+        "mixamorigrighthandring2": 0,
+        "mixamorigrighthandring3": 0,
+        "mixamorigrighthandpinky1": 0,
+        "mixamorigrighthandpinky2": 0,
+        "mixamorigrighthandpinky3": 0.000025535800002274463,
+        "mixamorigleftupleg": [
+          -0.05535881622357927,
+          0.09107271186566569,
+          2.094
+        ],
+        "mixamorigleftleg": -0.0070991043318310975,
+        "mixamorigleftfoot": [
+          -0.012466604301397453,
+          0,
+          -0.785
+        ],
+        "mixamoriglefttoebase": 0,
+        "mixamorigrightupleg": [
+          0.053147219027940305,
+          -0.22917941625596147,
+          -2.094
+        ],
+        "mixamorigrightleg": 0,
+        "mixamorigrightfoot": [
+          0.024793528115544906,
+          0,
+          -0.785
+        ],
+        "mixamorigrighttoebase": -0.007256044659147211
+      }
+    },
+    {
+      "timeOffsetMs": 367,
+      "overrides": {
+        "mixamorigspine": [
+          0.014483839970564086,
+          0.03207470668122704,
+          0.524
+        ],
+        "mixamorigspine1": [
+          0.03428132969954902,
+          0.07076253509087732,
+          0.524
+        ],
+        "mixamorigspine2": [
+          0.034281129738863464,
+          0.07076253364264276,
+          0.524
+        ],
+        "mixamorigneck": [
+          -0.07134065002453414,
+          -1.222,
+          -0.026984881688361443
+        ],
+        "mixamorighead": [
+          -0.040345266020635415,
+          -1.047,
+          -0.04386937285111195
+        ],
+        "mixamorigleftshoulder": [
+          0.261,
+          -0.23805165108888696,
+          -0.261
+        ],
+        "mixamorigleftarm": [
+          0.9172907527153791,
+          0.8431860949038187,
+          1.57
+        ],
+        "mixamorigleftforearm": 0.007546903653728613,
+        "mixamoriglefthand": [
+          0.07796290715886849,
+          0,
+          -0.349
+        ],
+        "mixamoriglefthandthumb1": 0.13489116082985328,
+        "mixamoriglefthandthumb2": 0,
+        "mixamoriglefthandthumb3": 0.000013497288274438605,
+        "mixamoriglefthandindex1": 0.6592872167108592,
+        "mixamoriglefthandindex2": 1.109579560075809,
+        "mixamoriglefthandindex3": 0.000009639959999794,
+        "mixamoriglefthandmiddle1": 1.0113150684076282,
+        "mixamoriglefthandmiddle2": 1.431835752623641,
+        "mixamoriglefthandmiddle3": 0,
+        "mixamoriglefthandring1": 1.0410106083936825,
+        "mixamoriglefthandring2": 1.4766656592626517,
+        "mixamoriglefthandring3": 0,
+        "mixamoriglefthandpinky1": 1.1959109385005111,
+        "mixamoriglefthandpinky2": 1.32944511628328,
+        "mixamoriglefthandpinky3": 0.00002574817956182244,
+        "mixamorigrightshoulder": [
+          -0.23065893848632635,
+          0.16149845518039452,
+          -0.261
+        ],
+        "mixamorigrightarm": [
+          -1.0074728676273825,
+          -0.06975872195656757,
+          1.57
+        ],
+        "mixamorigrightforearm": 0.11038179691090434,
+        "mixamorigrighthand": [
+          0.4052858758138334,
+          0,
+          -0.349
+        ],
+        "mixamorigrighthandthumb1": 0,
+        "mixamorigrighthandthumb2": 0.07213644517928929,
+        "mixamorigrighthandthumb3": 5.005676392256976e-7,
+        "mixamorigrighthandindex1": 0,
+        "mixamorigrighthandindex2": 0,
+        "mixamorigrighthandindex3": 0.000009586459999920803,
+        "mixamorigrighthandmiddle1": 0,
+        "mixamorigrighthandmiddle2": 0,
+        "mixamorigrighthandmiddle3": 0,
+        "mixamorigrighthandring1": 0,
+        "mixamorigrighthandring2": 0,
+        "mixamorigrighthandring3": 0,
+        "mixamorigrighthandpinky1": 0,
+        "mixamorigrighthandpinky2": 0,
+        "mixamorigrighthandpinky3": 0.00002541459999222348,
+        "mixamorigleftupleg": [
+          -0.041918075610892926,
+          0.08952176409885367,
+          2.094
+        ],
+        "mixamorigleftleg": -0.0022710174701760784,
+        "mixamorigleftfoot": [
+          -0.026456590278657315,
+          0,
+          -0.785
+        ],
+        "mixamoriglefttoebase": 0,
+        "mixamorigrightupleg": [
+          0.06291436882755631,
+          -0.2019384350949333,
+          -2.094
+        ],
+        "mixamorigrightleg": 0,
+        "mixamorigrightfoot": [
+          0.031865275150238064,
+          0,
+          -0.785
+        ],
+        "mixamorigrighttoebase": -0.08735425986598963
+      }
+    },
+    {
+      "timeOffsetMs": 400,
+      "overrides": {
+        "mixamorigspine": [
+          0.013297960055737733,
+          0.027318538270016242,
+          0.524
+        ],
+        "mixamorigspine1": [
+          0.0322743031152864,
+          0.05962252149130964,
+          0.524
+        ],
+        "mixamorigspine2": [
+          0.0322743031152864,
+          0.05962252149130964,
+          0.524
+        ],
+        "mixamorigneck": [
+          -0.04861908851851522,
+          -1.222,
+          -0.01850977356286606
+        ],
+        "mixamorighead": [
+          -0.04898087846730703,
+          -1.047,
+          -0.034556730540058776
+        ],
+        "mixamorigleftshoulder": [
+          0.261,
+          -0.261,
+          -0.261
+        ],
+        "mixamorigleftarm": [
+          0.8861424973381816,
+          0.8073984258807843,
+          1.57
+        ],
+        "mixamorigleftforearm": 0.014796651669330169,
+        "mixamoriglefthand": [
+          0.09108749589361222,
+          0,
+          -0.349
+        ],
+        "mixamoriglefthandthumb1": 0.13489119438757258,
+        "mixamoriglefthandthumb2": 0,
+        "mixamoriglefthandthumb3": 0.000013604386703203883,
+        "mixamoriglefthandindex1": 0.666483770760275,
+        "mixamoriglefthandindex2": 1.119004393942448,
+        "mixamoriglefthandindex3": 0.000009569400001951098,
+        "mixamoriglefthandmiddle1": 1.0183682729588104,
+        "mixamoriglefthandmiddle2": 1.4386974328911644,
+        "mixamoriglefthandmiddle3": 0,
+        "mixamoriglefthandring1": 1.0487382303936585,
+        "mixamoriglefthandring2": 1.4819199633315128,
+        "mixamoriglefthandring3": 0,
+        "mixamoriglefthandpinky1": 1.2036567500259407,
+        "mixamoriglefthandpinky2": 1.3379582590522578,
+        "mixamoriglefthandpinky3": 0.000025578390335208052,
+        "mixamorigrightshoulder": [
+          -0.21732392648751991,
+          0.1514454682842628,
+          -0.261
+        ],
+        "mixamorigrightarm": [
+          -1.0693122759634461,
+          -0.10157957348115267,
+          1.57
+        ],
+        "mixamorigrightforearm": 0.14032633821668272,
+        "mixamorigrighthand": [
+          0.3984982126753732,
+          0,
+          -0.349
+        ],
+        "mixamorigrighthandthumb1": 0,
+        "mixamorigrighthandthumb2": 0.07020181596160736,
+        "mixamorigrighthandthumb3": 4.1273459606242507e-7,
+        "mixamorigrighthandindex1": 0,
+        "mixamorigrighthandindex2": 0,
+        "mixamorigrighthandindex3": 0.000009641259999167335,
+        "mixamorigrighthandmiddle1": 0,
+        "mixamorigrighthandmiddle2": 0,
+        "mixamorigrighthandmiddle3": 0,
+        "mixamorigrighthandring1": 0,
+        "mixamorigrighthandring2": 0,
+        "mixamorigrighthandring3": 0,
+        "mixamorigrighthandpinky1": 0,
+        "mixamorigrighthandpinky2": 0,
+        "mixamorigrighthandpinky3": 0.000025533800003033526,
+        "mixamorigleftupleg": [
+          -0.024948109038578574,
+          0.09157749915802411,
+          2.094
+        ],
+        "mixamorigleftleg": -0.005212947302018549,
+        "mixamorigleftfoot": [
+          -0.03464504015569977,
+          0,
+          0.785
+        ],
+        "mixamoriglefttoebase": 0,
+        "mixamorigrightupleg": [
+          0.07309403784768044,
+          -0.18562698314417336,
+          -2.094
+        ],
+        "mixamorigrightleg": 0,
+        "mixamorigrightfoot": [
+          0.0870680231029848,
+          0,
+          -0.785
+        ],
+        "mixamorigrighttoebase": -0.0787862201998701
+      }
+    },
+    {
+      "timeOffsetMs": 433,
+      "overrides": {
+        "mixamorigspine": [
+          0.011891033822305556,
+          0.022467550173340237,
+          0.524
+        ],
+        "mixamorigspine1": [
+          0.02792636781147589,
+          0.0476506615300711,
+          0.524
+        ],
+        "mixamorigspine2": [
+          0.027926367859107862,
+          0.04765066150212655,
+          0.524
+        ],
+        "mixamorigneck": [
+          -0.03450848964248243,
+          -1.222,
+          -0.01161059827154375
+        ],
+        "mixamorighead": [
+          -0.049913679214735274,
+          -1.047,
+          -0.020566344014665342
+        ],
+        "mixamorigleftshoulder": [
+          0.261,
+          -0.261,
+          -0.261
+        ],
+        "mixamorigleftarm": [
+          0.9040150409834471,
+          0.7140350857311396,
+          1.57
+        ],
+        "mixamorigleftforearm": 0.005261281339759383,
+        "mixamoriglefthand": [
+          0.06427419178840829,
+          0,
+          -0.349
+        ],
+        "mixamoriglefthandthumb1": 0.13489158661955034,
+        "mixamoriglefthandthumb2": 0,
+        "mixamoriglefthandthumb3": 0.000013634708603648068,
+        "mixamoriglefthandindex1": 0.6682185782980211,
+        "mixamoriglefthandindex2": 1.1261665237236198,
+        "mixamoriglefthandindex3": 0.0000096340400000816,
+        "mixamoriglefthandmiddle1": 1.0200820143741367,
+        "mixamoriglefthandmiddle2": 1.4436686039765148,
+        "mixamoriglefthandmiddle3": 0,
+        "mixamoriglefthandring1": 1.0509323825859975,
+        "mixamoriglefthandring2": 1.4854122290898606,
+        "mixamoriglefthandring3": 0,
+        "mixamoriglefthandpinky1": 1.2060784546969525,
+        "mixamoriglefthandpinky2": 1.3443669994209793,
+        "mixamoriglefthandpinky3": 0.000025374585596742407,
+        "mixamorigrightshoulder": [
+          -0.23404229565905335,
+          0.14488330544640582,
+          -0.261
+        ],
+        "mixamorigrightarm": [
+          -1.098882028059918,
+          -0.12624020986103543,
+          1.57
+        ],
+        "mixamorigrightforearm": 0.1636014478969839,
+        "mixamorigrighthand": [
+          0.3835295280406163,
+          0,
+          -0.349
+        ],
+        "mixamorigrighthandthumb1": 0,
+        "mixamorigrighthandthumb2": 0.06296587320123657,
+        "mixamorigrighthandthumb3": 4.4970479772254753e-7,
+        "mixamorigrighthandindex1": 0,
+        "mixamorigrighthandindex2": 0,
+        "mixamorigrighthandindex3": 0.000009516539990204244,
+        "mixamorigrighthandmiddle1": 0,
+        "mixamorigrighthandmiddle2": 0,
+        "mixamorigrighthandmiddle3": 0,
+        "mixamorigrighthandring1": 0,
+        "mixamorigrighthandring2": 0,
+        "mixamorigrighthandring3": 0,
+        "mixamorigrighthandpinky1": 0,
+        "mixamorigrighthandpinky2": 0,
+        "mixamorigrighthandpinky3": 0.00002540679999740127,
+        "mixamorigleftupleg": [
+          -0.014145318683059462,
+          0.09772351238748153,
+          2.094
+        ],
+        "mixamorigleftleg": -0.010020072088145291,
+        "mixamorigleftfoot": [
+          -0.040007990806948335,
+          0,
+          0.785
+        ],
+        "mixamoriglefttoebase": 0,
+        "mixamorigrightupleg": [
+          0.0716438765033816,
+          -0.1638776810860387,
+          2.094
+        ],
+        "mixamorigrightleg": 0,
+        "mixamorigrightfoot": [
+          0.14682982565290123,
+          0,
+          -0.785
+        ],
+        "mixamorigrighttoebase": -0.02962741992475524
+      }
+    },
+    {
+      "timeOffsetMs": 467,
+      "overrides": {
+        "mixamorigspine": [
+          0.009276579253275824,
+          0.016636486397015517,
+          -0.524
+        ],
+        "mixamorigspine1": [
+          0.02060043695773173,
+          0.03421068133047543,
+          -0.524
+        ],
+        "mixamorigspine2": [
+          0.02060043695773173,
+          0.03421068133047543,
+          -0.524
+        ],
+        "mixamorigneck": [
+          -0.022409867245051857,
+          -1.222,
+          -0.005259585816654902
+        ],
+        "mixamorighead": [
+          -0.05036195923564551,
+          -1.047,
+          -0.007307133093054129
+        ],
+        "mixamorigleftshoulder": [
+          0.261,
+          -0.261,
+          -0.261
+        ],
+        "mixamorigleftarm": [
+          0.9358315431037691,
+          0.5848657196756079,
+          1.57
+        ],
+        "mixamorigleftforearm": 0.0013399543847765721,
+        "mixamoriglefthand": [
+          0.03315739641753229,
+          0,
+          -0.349
+        ],
+        "mixamoriglefthandthumb1": 0.1348913948766239,
+        "mixamoriglefthandthumb2": 0,
+        "mixamoriglefthandthumb3": 0.000013584747435334925,
+        "mixamoriglefthandindex1": 0.6654755185993577,
+        "mixamoriglefthandindex2": 1.1315975284659259,
+        "mixamoriglefthandindex3": 0.000009604600000565053,
+        "mixamoriglefthandmiddle1": 1.017420809863504,
+        "mixamoriglefthandmiddle2": 1.4472953985123054,
+        "mixamoriglefthandmiddle3": 0,
+        "mixamoriglefthandring1": 1.0485701693063185,
+        "mixamoriglefthandring2": 1.4877273957450228,
+        "mixamoriglefthandring3": 0,
+        "mixamoriglefthandpinky1": 1.2040930279681274,
+        "mixamoriglefthandpinky2": 1.3491952569185877,
+        "mixamoriglefthandpinky3": 0.00002562838415845718,
+        "mixamorigrightshoulder": [
+          -0.2595179831980052,
+          0.14569425614501907,
+          -0.261
+        ],
+        "mixamorigrightarm": [
+          -1.1063357720874945,
+          -0.1781222549646409,
+          1.57
+        ],
+        "mixamorigrightforearm": 0.1692228693643713,
+        "mixamorigrighthand": [
+          0.3621659228159231,
+          0,
+          -0.349
+        ],
+        "mixamorigrighthandthumb1": 0,
+        "mixamorigrighthandthumb2": 0.05308993826967364,
+        "mixamorigrighthandthumb3": 4.1282715408064254e-7,
+        "mixamorigrighthandindex1": 0,
+        "mixamorigrighthandindex2": 0,
+        "mixamorigrighthandindex3": 0.0000096504799981539,
+        "mixamorigrighthandmiddle1": 0,
+        "mixamorigrighthandmiddle2": 0,
+        "mixamorigrighthandmiddle3": 0,
+        "mixamorigrighthandring1": 0,
+        "mixamorigrighthandring2": 0,
+        "mixamorigrighthandring3": 0,
+        "mixamorigrighthandpinky1": 0,
+        "mixamorigrighthandpinky2": 0,
+        "mixamorigrighthandpinky3": 0.000025520800001425327,
+        "mixamorigleftupleg": [
+          -0.015621337900197206,
+          0.12112545218900274,
+          2.094
+        ],
+        "mixamorigleftleg": -0.013250707135873627,
+        "mixamorigleftfoot": [
+          -0.04818825535945868,
+          0,
+          0.785
+        ],
+        "mixamoriglefttoebase": 0,
+        "mixamorigrightupleg": [
+          0.058967670580620385,
+          -0.14366728247575863,
+          2.094
+        ],
+        "mixamorigrightleg": 0,
+        "mixamorigrightfoot": [
+          0.188153011287498,
+          0,
+          -0.785
+        ],
+        "mixamorigrighttoebase": -0.20685479265542248
+      }
+    },
+    {
+      "timeOffsetMs": 500,
+      "overrides": {
+        "mixamorigspine": [
+          0.005727023887316322,
+          0.008824085434121151,
+          -0.524
+        ],
+        "mixamorigspine1": [
+          0.0123302302871001,
+          0.017930209551720026,
+          -0.524
+        ],
+        "mixamorigspine2": [
+          0.012330230250767939,
+          0.017930189548197,
+          -0.524
+        ],
+        "mixamorigneck": [
+          -0.011586600817404142,
+          -1.222,
+          0.0005954792703620883
+        ],
+        "mixamorighead": [
+          -0.0537282888245235,
+          -1.047,
+          0.0027617800693214593
+        ],
+        "mixamorigleftshoulder": [
+          0.261,
+          -0.261,
+          -0.261
+        ],
+        "mixamorigleftarm": [
+          0.9507969119808345,
+          0.4645147740480809,
+          1.57
+        ],
+        "mixamorigleftforearm": 0.001062155358116218,
+        "mixamoriglefthand": [
+          0.015590104809741873,
+          0,
+          -0.349
+        ],
+        "mixamoriglefthandthumb1": 0.13489156180795983,
+        "mixamoriglefthandthumb2": 0,
+        "mixamoriglefthandthumb3": 0.000013796690374844574,
+        "mixamoriglefthandindex1": 0.6592318708901925,
+        "mixamoriglefthandindex2": 1.1358383761805606,
+        "mixamoriglefthandindex3": 0.000009611440000939226,
+        "mixamoriglefthandmiddle1": 1.011340331545619,
+        "mixamoriglefthandmiddle2": 1.4500272585306009,
+        "mixamoriglefthandmiddle3": 0,
+        "mixamoriglefthandring1": 1.0426118622498015,
+        "mixamoriglefthandring2": 1.4893200618160443,
+        "mixamoriglefthandring3": 0,
+        "mixamoriglefthandpinky1": 1.1986078808932659,
+        "mixamoriglefthandpinky2": 1.352942924676298,
+        "mixamoriglefthandpinky3": 0.000025249586957815215,
+        "mixamorigrightshoulder": [
+          -0.261,
+          0.13354249395760562,
+          -0.261
+        ],
+        "mixamorigrightarm": [
+          -1.1049313476042786,
+          -0.22524050703185294,
+          1.57
+        ],
+        "mixamorigrightforearm": 0.14609099709426343,
+        "mixamorigrighthand": [
+          0.3403100557657015,
+          0,
+          -0.349
+        ],
+        "mixamorigrighthandthumb1": 0,
+        "mixamorigrighthandthumb2": 0.036306480055528896,
+        "mixamorigrighthandthumb3": 5.48892002460196e-7,
+        "mixamorigrighthandindex1": 0,
+        "mixamorigrighthandindex2": 0,
+        "mixamorigrighthandindex3": 0.00000964227999570003,
+        "mixamorigrighthandmiddle1": 0,
+        "mixamorigrighthandmiddle2": 0,
+        "mixamorigrighthandmiddle3": 0,
+        "mixamorigrighthandring1": 0,
+        "mixamorigrighthandring2": 0,
+        "mixamorigrighthandring3": 0,
+        "mixamorigrighthandpinky1": 0,
+        "mixamorigrighthandpinky2": 0,
+        "mixamorigrighthandpinky3": 0.00002550920000384028,
+        "mixamorigleftupleg": [
+          -0.015244582818680361,
+          0.14603887422943132,
+          2.094
+        ],
+        "mixamorigleftleg": -0.01565529216614915,
+        "mixamorigleftfoot": [
+          -0.06955090243226905,
+          0,
+          0.785
+        ],
+        "mixamoriglefttoebase": 0,
+        "mixamorigrightupleg": [
+          0.043760676171982524,
+          -0.12924221702149705,
+          2.094
+        ],
+        "mixamorigrightleg": 0,
+        "mixamorigrightfoot": [
+          0.19829008515873184,
+          0,
+          -0.785
+        ],
+        "mixamorigrighttoebase": -0.2361493738960834
+      }
+    },
+    {
+      "timeOffsetMs": 533,
+      "overrides": {
+        "mixamorigspine": [
+          0.003423698363962882,
+          0.0000868062437146351,
+          -0.524
+        ],
+        "mixamorigspine1": [
+          0.0073831636537647636,
+          0.0002389089295404743,
+          -0.524
+        ],
+        "mixamorigspine2": [
+          0.007383163651183873,
+          0.0002389090033674848,
+          -0.524
+        ],
+        "mixamorigneck": [
+          -0.007402274564303103,
+          -1.222,
+          0.004883118819204853
+        ],
+        "mixamorighead": [
+          -0.05759586227611759,
+          -1.047,
+          0.009746123432014074
+        ],
+        "mixamorigleftshoulder": [
+          0.261,
+          -0.261,
+          -0.261
+        ],
+        "mixamorigleftarm": [
+          0.9502850782531864,
+          0.37103281374405095,
+          1.57
+        ],
+        "mixamorigleftforearm": 0.003738327947242123,
+        "mixamoriglefthand": [
+          0.011126672527871305,
+          0,
+          -0.349
+        ],
+        "mixamoriglefthandthumb1": 0.13489159536568093,
+        "mixamoriglefthandthumb2": 0,
+        "mixamoriglefthandthumb3": 0.000013633185620337665,
+        "mixamoriglefthandindex1": 0.6504645130157093,
+        "mixamoriglefthandindex2": 1.1394312584069841,
+        "mixamoriglefthandindex3": 0.000009636740000884468,
+        "mixamoriglefthandmiddle1": 1.002790073945221,
+        "mixamoriglefthandmiddle2": 1.452274292500103,
+        "mixamoriglefthandmiddle3": 0,
+        "mixamoriglefthandring1": 1.0340269692316575,
+        "mixamoriglefthandring2": 1.49051068224735,
+        "mixamoriglefthandring3": 0,
+        "mixamoriglefthandpinky1": 1.1905369824944936,
+        "mixamoriglefthandpinky2": 1.3561044416879804,
+        "mixamoriglefthandpinky3": 0.000025648994222167382,
+        "mixamorigrightshoulder": [
+          -0.261,
+          0.11271486961696746,
+          -0.261
+        ],
+        "mixamorigrightarm": [
+          -1.0854057686020826,
+          -0.2741720273298575,
+          1.57
+        ],
+        "mixamorigrightforearm": 0.10785817459306996,
+        "mixamorigrighthand": [
+          0.3110219945253134,
+          0,
+          -0.349
+        ],
+        "mixamorigrighthandthumb1": 0.028437882384980757,
+        "mixamorigrighthandthumb2": 0.009019089724077228,
+        "mixamorigrighthandthumb3": 3.819431837937195e-7,
+        "mixamorigrighthandindex1": 0,
+        "mixamorigrighthandindex2": 0,
+        "mixamorigrighthandindex3": 0.000009640920000450382,
+        "mixamorigrighthandmiddle1": 0,
+        "mixamorigrighthandmiddle2": 0,
+        "mixamorigrighthandmiddle3": 0,
+        "mixamorigrighthandring1": 0,
+        "mixamorigrighthandring2": 0,
+        "mixamorigrighthandring3": 0,
+        "mixamorigrighthandpinky1": 0,
+        "mixamorigrighthandpinky2": 0,
+        "mixamorigrighthandpinky3": 0.000025559199998117318,
+        "mixamorigleftupleg": [
+          -0.012122393449673396,
+          0.15797668200552092,
+          2.094
+        ],
+        "mixamorigleftleg": -0.015816146178112223,
+        "mixamorigleftfoot": [
+          -0.07192983941824498,
+          0,
+          0.785
+        ],
+        "mixamoriglefttoebase": 0,
+        "mixamorigrightupleg": [
+          0.03806130613371686,
+          -0.11996472454639841,
+          2.094
+        ],
+        "mixamorigrightleg": -0.006737294369991313,
+        "mixamorigrightfoot": [
+          0.184994305193714,
+          0,
+          -0.785
+        ],
+        "mixamorigrighttoebase": -0.2138290492886511
+      }
+    },
+    {
+      "timeOffsetMs": 567,
+      "overrides": {
+        "mixamorigspine": [
+          0.0031614643897841005,
+          -0.007394206428304405,
+          -0.524
+        ],
+        "mixamorigspine1": [
+          0.0065472685665077385,
+          -0.014877510924309834,
+          -0.524
+        ],
+        "mixamorigspine2": [
+          0.006547268351306127,
+          -0.0148775309921292,
+          -0.524
+        ],
+        "mixamorigneck": [
+          -0.006031303062483579,
+          -1.222,
+          0.008137897169941835
+        ],
+        "mixamorighead": [
+          -0.062133317961880236,
+          -1.047,
+          0.013929462248410572
+        ],
+        "mixamorigleftshoulder": [
+          0.261,
+          -0.261,
+          -0.261
+        ],
+        "mixamorigleftarm": [
+          0.9285203794448933,
+          0.30448164291706536,
+          1.57
+        ],
+        "mixamorigleftforearm": 0.0004981659686045788,
+        "mixamoriglefthand": [
+          0.017956778232234898,
+          0,
+          -0.349
+        ],
+        "mixamoriglefthandthumb1": 0.1348916041118115,
+        "mixamoriglefthandthumb2": 0,
+        "mixamoriglefthandthumb3": 0.000013439025356863583,
+        "mixamoriglefthandindex1": 0.6401463600214351,
+        "mixamoriglefthandindex2": 1.1429079970757976,
+        "mixamoriglefthandindex3": 0.000009634559999171807,
+        "mixamoriglefthandmiddle1": 0.9927108061858155,
+        "mixamoriglefthandmiddle2": 1.4543749317124581,
+        "mixamoriglefthandmiddle3": 0,
+        "mixamoriglefthandring1": 1.023797584155185,
+        "mixamoriglefthandring2": 1.4915475109644254,
+        "mixamoriglefthandring3": 0,
+        "mixamoriglefthandpinky1": 1.1807960351198497,
+        "mixamoriglefthandpinky2": 1.3591464084572735,
+        "mixamoriglefthandpinky3": 0.000025534392582564052,
+        "mixamorigrightshoulder": [
+          -0.261,
+          0.09669195528012117,
+          -0.261
+        ],
+        "mixamorigrightarm": [
+          -1.063493052617303,
+          -0.32039901440884927,
+          1.57
+        ],
+        "mixamorigrightforearm": 0.06363914064231377,
+        "mixamorigrighthand": [
+          0.2823505239260357,
+          0,
+          -0.349
+        ],
+        "mixamorigrighthandthumb1": 0.0735761047173741,
+        "mixamorigrighthandthumb2": 0,
+        "mixamorigrighthandthumb3": 5.499805721183656e-7,
+        "mixamorigrighthandindex1": 0,
+        "mixamorigrighthandindex2": 0,
+        "mixamorigrighthandindex3": 0.000009576259994890969,
+        "mixamorigrighthandmiddle1": 0,
+        "mixamorigrighthandmiddle2": 0,
+        "mixamorigrighthandmiddle3": 0,
+        "mixamorigrighthandring1": 0,
+        "mixamorigrighthandring2": 0,
+        "mixamorigrighthandring3": 0,
+        "mixamorigrighthandpinky1": 0,
+        "mixamorigrighthandpinky2": 0,
+        "mixamorigrighthandpinky3": 0.000025388799998742393,
+        "mixamorigleftupleg": [
+          -0.007762146769399158,
+          0.1725314357297782,
+          2.094
+        ],
+        "mixamorigleftleg": -0.00764461171281314,
+        "mixamorigleftfoot": [
+          -0.07122764732384357,
+          0,
+          0.785
+        ],
+        "mixamoriglefttoebase": 0,
+        "mixamorigrightupleg": [
+          0.04418413537721215,
+          -0.10728427991630211,
+          2.094
+        ],
+        "mixamorigrightleg": -0.009502499842142976,
+        "mixamorigrightfoot": [
+          0.1656129330186946,
+          0,
+          0.785
+        ],
+        "mixamorigrighttoebase": -0.04797246002886688
+      }
+    },
+    {
+      "timeOffsetMs": 600,
+      "overrides": {
+        "mixamorigspine": [
+          0.004113946244964545,
+          -0.012378749751687124,
+          -0.524
+        ],
+        "mixamorigspine1": [
+          0.007813286908057847,
+          -0.024921041954041497,
+          -0.524
+        ],
+        "mixamorigspine2": [
+          0.007813306657914451,
+          -0.0249210421164757,
+          -0.524
+        ],
+        "mixamorigneck": [
+          -0.0035187368967483706,
+          -1.222,
+          0.010672892814261356
+        ],
+        "mixamorighead": [
+          -0.0664655907973316,
+          -1.047,
+          0.015907035067647884
+        ],
+        "mixamorigleftshoulder": [
+          0.2577251960023162,
+          -0.261,
+          -0.261
+        ],
+        "mixamorigleftarm": [
+          0.9078336494083223,
+          0.22666198548167502,
+          1.57
+        ],
+        "mixamorigleftforearm": 0.0032466516108860285,
+        "mixamoriglefthand": [
+          0.01824090937659623,
+          0,
+          -0.349
+        ],
+        "mixamoriglefthandthumb1": 0.13489140219593293,
+        "mixamoriglefthandthumb2": 0,
+        "mixamoriglefthandthumb3": 0.000013399969994312655,
+        "mixamoriglefthandindex1": 0.6292510402146262,
+        "mixamoriglefthandindex2": 1.146814412971746,
+        "mixamoriglefthandindex3": 0.000009585759999250599,
+        "mixamoriglefthandmiddle1": 0.9820561625386084,
+        "mixamoriglefthandmiddle2": 1.4566440442999722,
+        "mixamoriglefthandmiddle3": 0,
+        "mixamoriglefthandring1": 1.0128843570495154,
+        "mixamoriglefthandring2": 1.492498220884639,
+        "mixamoriglefthandring3": 0,
+        "mixamoriglefthandpinky1": 1.1703056818940933,
+        "mixamoriglefthandpinky2": 1.3625497056663338,
+        "mixamoriglefthandpinky3": 0.00002563420811582344,
+        "mixamorigrightshoulder": [
+          -0.261,
+          0.09960670079580772,
+          -0.261
+        ],
+        "mixamorigrightarm": [
+          -1.0253409015823889,
+          -0.4042189675402332,
+          1.57
+        ],
+        "mixamorigrightforearm": 0.03810471662681674,
+        "mixamorigrighthand": [
+          0.24340172721415806,
+          0,
+          -0.349
+        ],
+        "mixamorigrighthandthumb1": 0.10413298487144429,
+        "mixamorigrighthandthumb2": 0,
+        "mixamorigrighthandthumb3": 3.964756921548161e-7,
+        "mixamorigrighthandindex1": 0,
+        "mixamorigrighthandindex2": 0,
+        "mixamorigrighthandindex3": 0.000009643299999994355,
+        "mixamorigrighthandmiddle1": 0,
+        "mixamorigrighthandmiddle2": 0,
+        "mixamorigrighthandmiddle3": 0,
+        "mixamorigrighthandring1": 0,
+        "mixamorigrighthandring2": 0,
+        "mixamorigrighthandring3": 0,
+        "mixamorigrighthandpinky1": 0,
+        "mixamorigrighthandpinky2": 0,
+        "mixamorigrighthandpinky3": 0.00002541479999210896,
+        "mixamorigleftupleg": [
+          -0.0010579562461228882,
+          0.18954620753211945,
+          -2.094
+        ],
+        "mixamorigleftleg": -0.00007094150425991655,
+        "mixamorigleftfoot": [
+          -0.08068581338445932,
+          0,
+          0.785
+        ],
+        "mixamoriglefttoebase": 0,
+        "mixamorigrightupleg": [
+          0.05437846841614271,
+          -0.09118965481699555,
+          2.094
+        ],
+        "mixamorigrightleg": -0.0010021288209336302,
+        "mixamorigrightfoot": [
+          0.15305209164203865,
+          0,
+          0.785
+        ],
+        "mixamorigrighttoebase": -0.03921476216277936
+      }
+    },
+    {
+      "timeOffsetMs": 633,
+      "overrides": {
+        "mixamorigspine": [
+          0.003899747799746748,
+          -0.015338367907616921,
+          -0.524
+        ],
+        "mixamorigspine1": [
+          0.006441138150314192,
+          -0.031084879130296825,
+          -0.524
+        ],
+        "mixamorigspine2": [
+          0.006441137529369312,
+          -0.03108487926255245,
+          -0.524
+        ],
+        "mixamorigneck": [
+          0.011057929799557853,
+          -1.222,
+          0.014285550509518963
+        ],
+        "mixamorighead": [
+          -0.07371820566509701,
+          1.047,
+          0.014480159240691806
+        ],
+        "mixamorigleftshoulder": [
+          0.2566208104380155,
+          -0.261,
+          -0.261
+        ],
+        "mixamorigleftarm": [
+          0.8773823920366335,
+          0.1746065741431488,
+          1.57
+        ],
+        "mixamorigleftforearm": 0.009041031880875856,
+        "mixamoriglefthand": [
+          0.0033041180016268276,
+          0,
+          -0.349
+        ],
+        "mixamoriglefthandthumb1": 0.13489137738436324,
+        "mixamoriglefthandthumb2": 0,
+        "mixamoriglefthandthumb3": 0.000013575106718645639,
+        "mixamoriglefthandindex1": 0.6187558850150674,
+        "mixamoriglefthandindex2": 1.151678692976856,
+        "mixamoriglefthandindex3": 0.000009557020003746482,
+        "mixamoriglefthandmiddle1": 0.9717749434519645,
+        "mixamoriglefthandmiddle2": 1.459353630704392,
+        "mixamoriglefthandmiddle3": 0,
+        "mixamoriglefthandring1": 1.0022641055402075,
+        "mixamoriglefthandring2": 1.493446963793979,
+        "mixamoriglefthandring3": 0,
+        "mixamoriglefthandpinky1": 1.1600037085723507,
+        "mixamoriglefthandpinky2": 1.3667641757417701,
+        "mixamoriglefthandpinky3": 0.00002551597288801902,
+        "mixamorigrightshoulder": [
+          -0.261,
+          0.09117586584996693,
+          -0.261
+        ],
+        "mixamorigrightarm": [
+          -1.0124694123893367,
+          -0.4235184652711034,
+          1.57
+        ],
+        "mixamorigrightforearm": 0.010888058175064538,
+        "mixamorigrighthand": [
+          0.2252509643800838,
+          0,
+          -0.349
+        ],
+        "mixamorigrighthandthumb1": 0.10461531613822143,
+        "mixamorigrighthandthumb2": 0.0006600024851160735,
+        "mixamorigrighthandthumb3": 7.695774817124944e-7,
+        "mixamorigrighthandindex1": 0,
+        "mixamorigrighthandindex2": 0,
+        "mixamorigrighthandindex3": 0.000009630159999825672,
+        "mixamorigrighthandmiddle1": 0,
+        "mixamorigrighthandmiddle2": 0,
+        "mixamorigrighthandmiddle3": 0,
+        "mixamorigrighthandring1": 0,
+        "mixamorigrighthandring2": 0,
+        "mixamorigrighthandring3": 0,
+        "mixamorigrighthandpinky1": 0,
+        "mixamorigrighthandpinky2": 0,
+        "mixamorigrighthandpinky3": 0.000025658600002634664,
+        "mixamorigleftupleg": [
+          -0.0036804932506202402,
+          0.20950086754160746,
+          -2.094
+        ],
+        "mixamorigleftleg": 0,
+        "mixamorigleftfoot": [
+          -0.09305496942487171,
+          0,
+          0.785
+        ],
+        "mixamoriglefttoebase": 0,
+        "mixamorigrightupleg": [
+          0.06362527087905188,
+          -0.07539506385039442,
+          2.094
+        ],
+        "mixamorigrightleg": 0,
+        "mixamorigrightfoot": [
+          0.13283861534602923,
+          0,
+          0.785
+        ],
+        "mixamorigrighttoebase": -0.029576438776988005
+      }
+    },
+    {
+      "timeOffsetMs": 667,
+      "overrides": {
+        "mixamorigspine": [
+          0.003411223300781089,
+          -0.017813373708746156,
+          -0.524
+        ],
+        "mixamorigspine1": [
+          0.004625739923224001,
+          -0.03662869985901605,
+          -0.524
+        ],
+        "mixamorigspine2": [
+          0.004625740289147916,
+          -0.036628699810141135,
+          -0.524
+        ],
+        "mixamorigneck": [
+          0.02120797691597908,
+          -1.222,
+          0.01603735678747637
+        ],
+        "mixamorighead": [
+          -0.07439481433852767,
+          1.047,
+          0.014296115926523413
+        ],
+        "mixamorigleftshoulder": [
+          0.2563518979621238,
+          -0.261,
+          -0.261
+        ],
+        "mixamorigleftarm": [
+          0.8507769972305795,
+          0.10430721466455713,
+          1.57
+        ],
+        "mixamorigleftforearm": 0.01583284361711041,
+        "mixamoriglefthand": [
+          -0.02910037590406064,
+          0,
+          -0.349
+        ],
+        "mixamoriglefthandthumb1": 0.13489116082985328,
+        "mixamoriglefthandthumb2": 0,
+        "mixamoriglefthandthumb3": 0.00001362718708709856,
+        "mixamoriglefthandindex1": 0.6096347365807527,
+        "mixamoriglefthandindex2": 1.1580399888861466,
+        "mixamoriglefthandindex3": 0.000009642480000015972,
+        "mixamoriglefthandmiddle1": 0.9628187124676238,
+        "mixamoriglefthandmiddle2": 1.4626494744294976,
+        "mixamoriglefthandmiddle3": 0,
+        "mixamoriglefthandring1": 0.9928968647088179,
+        "mixamoriglefthandring2": 1.4941951793106174,
+        "mixamoriglefthandring3": 0,
+        "mixamoriglefthandpinky1": 1.1508283444283205,
+        "mixamoriglefthandpinky2": 1.372217683278546,
+        "mixamoriglefthandpinky3": 0.00002552319056496293,
+        "mixamorigrightshoulder": [
+          -0.261,
+          0.08775310682197568,
+          -0.261
+        ],
+        "mixamorigrightarm": [
+          -1.0023301484440446,
+          -0.4502066401770219,
+          1.57
+        ],
+        "mixamorigrightforearm": 0.02331504654997168,
+        "mixamorigrighthand": [
+          0.1814444007600078,
+          0,
+          -0.349
+        ],
+        "mixamorigrighthandthumb1": 0.0827108188641275,
+        "mixamorigrighthandthumb2": 0.003261047286292661,
+        "mixamorigrighthandthumb3": 5.683548333018585e-7,
+        "mixamorigrighthandindex1": 0,
+        "mixamorigrighthandindex2": 0,
+        "mixamorigrighthandindex3": 0.000009613919999911367,
+        "mixamorigrighthandmiddle1": 0,
+        "mixamorigrighthandmiddle2": 0,
+        "mixamorigrighthandmiddle3": 0,
+        "mixamorigrighthandring1": 0,
+        "mixamorigrighthandring2": 0,
+        "mixamorigrighthandring3": 0,
+        "mixamorigrighthandpinky1": 0,
+        "mixamorigrighthandpinky2": 0,
+        "mixamorigrighthandpinky3": 0.000025680999999214296,
+        "mixamorigleftupleg": [
+          -0.018505106876505983,
+          0.22283867734631452,
+          -2.094
+        ],
+        "mixamorigleftleg": 0,
+        "mixamorigleftfoot": [
+          -0.11243633928213663,
+          0,
+          0.785
+        ],
+        "mixamoriglefttoebase": 0,
+        "mixamorigrightupleg": [
+          0.07135758124724871,
+          -0.0671985840309517,
+          2.094
+        ],
+        "mixamorigrightleg": 0,
+        "mixamorigrightfoot": [
+          0.08118915006951172,
+          0,
+          0.785
+        ],
+        "mixamorigrighttoebase": -0.011830836945218977
+      }
+    },
+    {
+      "timeOffsetMs": 700,
+      "overrides": {
+        "mixamorigspine": [
+          0.0017287215122665344,
+          -0.02091796740732844,
+          -0.524
+        ],
+        "mixamorigspine1": [
+          0.001341042130491149,
+          -0.04380101446500257,
+          -0.524
+        ],
+        "mixamorigspine2": [
+          0.0013410510040192353,
+          -0.0438010144963924,
+          -0.524
+        ],
+        "mixamorigneck": [
+          0.03368113647003195,
+          -1.222,
+          0.018143559048328314
+        ],
+        "mixamorighead": [
+          -0.07197811368620646,
+          1.047,
+          0.013841107693182728
+        ],
+        "mixamorigleftshoulder": [
+          0.2547371932897779,
+          -0.261,
+          -0.261
+        ],
+        "mixamorigleftarm": [
+          0.8317700764276932,
+          0.05142756404539837,
+          1.57
+        ],
+        "mixamorigleftforearm": 0.021323486979544205,
+        "mixamoriglefthand": [
+          -0.08362931500113699,
+          0,
+          -0.349
+        ],
+        "mixamoriglefthandthumb1": 0.1348913948766239,
+        "mixamoriglefthandthumb2": 0,
+        "mixamoriglefthandthumb3": 0.000013809406663786199,
+        "mixamoriglefthandindex1": 0.602862184965017,
+        "mixamoriglefthandindex2": 1.166433744296678,
+        "mixamoriglefthandindex3": 0.00000962285999985595,
+        "mixamoriglefthandmiddle1": 0.9561471046892298,
+        "mixamoriglefthandmiddle2": 1.466539262209744,
+        "mixamoriglefthandmiddle3": 0,
+        "mixamoriglefthandring1": 0.9857621255946785,
+        "mixamoriglefthandring2": 1.4943319293397326,
+        "mixamoriglefthandring3": 0,
+        "mixamoriglefthandpinky1": 1.1437073059630427,
+        "mixamoriglefthandpinky2": 1.3793174859198791,
+        "mixamoriglefthandpinky3": 0.0000257046079060017,
+        "mixamorigrightshoulder": [
+          -0.261,
+          0.08581900391886901,
+          -0.261
+        ],
+        "mixamorigrightarm": [
+          -1.0099848674242486,
+          -0.48653177733017905,
+          1.57
+        ],
+        "mixamorigrightforearm": 0.019632163837737943,
+        "mixamorigrighthand": [
+          0.12601998037464732,
+          0,
+          -0.349
+        ],
+        "mixamorigrighthandthumb1": 0.048096528923412575,
+        "mixamorigrighthandthumb2": 0,
+        "mixamorigrighthandthumb3": 5.658318890784061e-7,
+        "mixamorigrighthandindex1": 0,
+        "mixamorigrighthandindex2": 0,
+        "mixamorigrighthandindex3": 0.000009624919999829714,
+        "mixamorigrighthandmiddle1": 0,
+        "mixamorigrighthandmiddle2": 0,
+        "mixamorigrighthandmiddle3": 0,
+        "mixamorigrighthandring1": 0,
+        "mixamorigrighthandring2": 0,
+        "mixamorigrighthandring3": 0,
+        "mixamorigrighthandpinky1": 0,
+        "mixamorigrighthandpinky2": 0,
+        "mixamorigrighthandpinky3": 0.000025498800002454627,
+        "mixamorigleftupleg": [
+          -0.03443591467320125,
+          0.21388527446955538,
+          -2.094
+        ],
+        "mixamorigleftleg": 0,
+        "mixamorigleftfoot": [
+          -0.1278971420207015,
+          0,
+          0.785
+        ],
+        "mixamoriglefttoebase": 0,
+        "mixamorigrightupleg": [
+          0.08109803079477061,
+          -0.0708024364362933,
+          2.094
+        ],
+        "mixamorigrightleg": 0,
+        "mixamorigrightfoot": [
+          0.009129352444510328,
+          0,
+          0.785
+        ],
+        "mixamorigrighttoebase": -0.029191627051489973
+      }
+    },
+    {
+      "timeOffsetMs": 733,
+      "overrides": {
+        "mixamorigspine": [
+          -0.0008027467722873779,
+          -0.024598336685618807,
+          -0.524
+        ],
+        "mixamorigspine1": [
+          -0.002923046135960963,
+          -0.052156571361537694,
+          -0.524
+        ],
+        "mixamorigspine2": [
+          -0.002923046135960963,
+          -0.052156571361537694,
+          -0.524
+        ],
+        "mixamorigneck": [
+          0.04734960261384904,
+          -1.222,
+          0.021281931180764935
+        ],
+        "mixamorighead": [
+          -0.06724702177192089,
+          -1.047,
+          0.012548273587570147
+        ],
+        "mixamorigleftshoulder": [
+          0.261,
+          -0.261,
+          -0.261
+        ],
+        "mixamorigleftarm": [
+          0.8041776913148381,
+          0.03824812029378379,
+          1.57
+        ],
+        "mixamorigleftforearm": 0.02414941202486128,
+        "mixamoriglefthand": [
+          -0.15606950196330488,
+          0,
+          -0.349
+        ],
+        "mixamoriglefthandthumb1": 0.13489159536568093,
+        "mixamoriglefthandthumb2": 0,
+        "mixamoriglefthandthumb3": 0.000013642545711274272,
+        "mixamoriglefthandindex1": 0.599416108677337,
+        "mixamoriglefthandindex2": 1.1773912158853683,
+        "mixamoriglefthandindex3": 0.000009530540011928549,
+        "mixamoriglefthandmiddle1": 0.9527234532180192,
+        "mixamoriglefthandmiddle2": 1.470765934298761,
+        "mixamoriglefthandmiddle3": 0,
+        "mixamoriglefthandring1": 0.9818200560449482,
+        "mixamoriglefthandring2": 1.4931033053634517,
+        "mixamoriglefthandring3": 0,
+        "mixamoriglefthandpinky1": 1.1395905398601203,
+        "mixamoriglefthandpinky2": 1.388405612697573,
+        "mixamoriglefthandpinky3": 0.000025398742511220125,
+        "mixamorigrightshoulder": [
+          -0.261,
+          0.07034389813253897,
+          -0.261
+        ],
+        "mixamorigrightarm": [
+          -1.009633842762038,
+          -0.5340813507706039,
+          1.57
+        ],
+        "mixamorigrightforearm": 0.003247594497456726,
+        "mixamorigrighthand": [
+          0.06840480823208939,
+          0,
+          -0.349
+        ],
+        "mixamorigrighthandthumb1": 0.009574597436483695,
+        "mixamorigrighthandthumb2": 0,
+        "mixamorigrighthandthumb3": 2.6369645620197937e-7,
+        "mixamorigrighthandindex1": 0,
+        "mixamorigrighthandindex2": 0,
+        "mixamorigrighthandindex3": 0.000009621499999890676,
+        "mixamorigrighthandmiddle1": 0,
+        "mixamorigrighthandmiddle2": 0,
+        "mixamorigrighthandmiddle3": 0,
+        "mixamorigrighthandring1": 0,
+        "mixamorigrighthandring2": 0,
+        "mixamorigrighthandring3": 0,
+        "mixamorigrighthandpinky1": 0,
+        "mixamorigrighthandpinky2": 0,
+        "mixamorigrighthandpinky3": 0.000025498200002672168,
+        "mixamorigleftupleg": [
+          -0.0418590100355948,
+          0.2012329965003278,
+          -2.094
+        ],
+        "mixamorigleftleg": -0.004402167508311793,
+        "mixamorigleftfoot": [
+          -0.12441979054577217,
+          0,
+          0.785
+        ],
+        "mixamoriglefttoebase": 0,
+        "mixamorigrightupleg": [
+          0.08685493274656027,
+          -0.06951563280405991,
+          2.094
+        ],
+        "mixamorigrightleg": 0,
+        "mixamorigrightfoot": [
+          -0.03411742208885783,
+          0,
+          0.785
+        ],
+        "mixamorigrighttoebase": -0.009201173477091967
+      }
+    },
+    {
+      "timeOffsetMs": 767,
+      "overrides": {
+        "mixamorigspine": [
+          -0.002996843929750969,
+          -0.027765910618397276,
+          -0.524
+        ],
+        "mixamorigspine1": [
+          -0.0065345567602339335,
+          -0.058972404655496115,
+          -0.524
+        ],
+        "mixamorigspine2": [
+          -0.006534537359019505,
+          -0.05897240470927779,
+          -0.524
+        ],
+        "mixamorigneck": [
+          0.0522675200190834,
+          -1.222,
+          0.02275883977030075
+        ],
+        "mixamorighead": [
+          -0.057160573324885264,
+          -1.047,
+          0.011806091562696948
+        ],
+        "mixamorigleftshoulder": [
+          0.261,
+          -0.261,
+          -0.261
+        ],
+        "mixamorigleftarm": [
+          0.7902320937892355,
+          0.037331309477752275,
+          1.57
+        ],
+        "mixamorigleftforearm": 0.02338858519925826,
+        "mixamoriglefthand": [
+          -0.22299322845506245,
+          0,
+          -0.349
+        ],
+        "mixamoriglefthandthumb1": 0.13489138613049356,
+        "mixamoriglefthandthumb2": 0,
+        "mixamoriglefthandthumb3": 0.00001364068558015541,
+        "mixamoriglefthandindex1": 0.6002701387858345,
+        "mixamoriglefthandindex2": 1.191437122848422,
+        "mixamoriglefthandindex3": 0.00000969266001270095,
+        "mixamoriglefthandmiddle1": 0.9535025469012144,
+        "mixamoriglefthandmiddle2": 1.4745284127369376,
+        "mixamoriglefthandmiddle3": 0,
+        "mixamoriglefthandring1": 0.9820383747581021,
+        "mixamoriglefthandring2": 1.4892729404204168,
+        "mixamoriglefthandring3": 0,
+        "mixamoriglefthandpinky1": 1.1394023191175986,
+        "mixamoriglefthandpinky2": 1.3997185163544814,
+        "mixamoriglefthandpinky3": 0.000025470950448627806,
+        "mixamorigrightshoulder": [
+          -0.261,
+          0.06263394432727264,
+          -0.261
+        ],
+        "mixamorigrightarm": [
+          -1.0050438156148953,
+          -0.5943994438457607,
+          1.57
+        ],
+        "mixamorigrightforearm": 0.011571314993245648,
+        "mixamorigrighthand": [
+          0.021870456502317486,
+          0,
+          -0.349
+        ],
+        "mixamorigrighthandthumb1": 0,
+        "mixamorigrighthandthumb2": 0,
+        "mixamorigrighthandthumb3": 2.9845435895967473e-7,
+        "mixamorigrighthandindex1": 0,
+        "mixamorigrighthandindex2": 0,
+        "mixamorigrighthandindex3": 0.00000962831999969943,
+        "mixamorigrighthandmiddle1": 0,
+        "mixamorigrighthandmiddle2": 0,
+        "mixamorigrighthandmiddle3": 0,
+        "mixamorigrighthandring1": 0,
+        "mixamorigrighthandring2": 0,
+        "mixamorigrighthandring3": 0,
+        "mixamorigrighthandpinky1": 0,
+        "mixamorigrighthandpinky2": 0,
+        "mixamorigrighthandpinky3": 0.000025499800002684897,
+        "mixamorigleftupleg": [
+          -0.0512745739552847,
+          0.2150221276452329,
+          -2.094
+        ],
+        "mixamorigleftleg": -0.03560894107944936,
+        "mixamorigleftfoot": [
+          -0.10770520632241004,
+          0,
+          0.785
+        ],
+        "mixamoriglefttoebase": 0,
+        "mixamorigrightupleg": [
+          0.08216862786826161,
+          -0.06638286748332098,
+          2.094
+        ],
+        "mixamorigrightleg": 0,
+        "mixamorigrightfoot": [
+          -0.02532915074663221,
+          0,
+          0.785
+        ],
+        "mixamorigrighttoebase": 0
+      }
+    },
+    {
+      "timeOffsetMs": 800,
+      "overrides": {
+        "mixamorigspine": [
+          -0.005819604281639296,
+          -0.028700553789921042,
+          -0.524
+        ],
+        "mixamorigspine1": [
+          -0.011058810014173486,
+          -0.06094473411530737,
+          -0.524
+        ],
+        "mixamorigspine2": [
+          -0.011058809404652216,
+          -0.060944734224871885,
+          -0.524
+        ],
+        "mixamorigneck": [
+          0.053946207991370794,
+          -1.222,
+          0.02236264368508841
+        ],
+        "mixamorighead": [
+          -0.04788527304930937,
+          -1.047,
+          0.009114901987984899
+        ],
+        "mixamorigleftshoulder": [
+          0.261,
+          -0.261,
+          -0.261
+        ],
+        "mixamorigleftarm": [
+          0.763014074294287,
+          0.06540225298527252,
+          1.57
+        ],
+        "mixamorigleftforearm": 0.024385045805979375,
+        "mixamoriglefthand": [
+          -0.2721110526399829,
+          0,
+          -0.349
+        ],
+        "mixamoriglefthandthumb1": 0.13489159536568093,
+        "mixamoriglefthandthumb2": 0,
+        "mixamoriglefthandthumb3": 0.00001365032727481853,
+        "mixamoriglefthandindex1": 0.6065663454992609,
+        "mixamoriglefthandindex2": 1.2093906927760296,
+        "mixamoriglefthandindex3": 0.000009672419999629486,
+        "mixamoriglefthandmiddle1": 0.9596130613578852,
+        "mixamoriglefthandmiddle2": 1.4763590275058331,
+        "mixamoriglefthandmiddle3": 0,
+        "mixamoriglefthandring1": 0.9875272391619081,
+        "mixamoriglefthandring2": 1.481188544724692,
+        "mixamoriglefthandring3": 0,
+        "mixamoriglefthandpinky1": 1.1441847998831527,
+        "mixamoriglefthandpinky2": 1.413453591014514,
+        "mixamoriglefthandpinky3": 0.00002549136464817348,
+        "mixamorigrightshoulder": [
+          -0.261,
+          0.05296523148251602,
+          -0.261
+        ],
+        "mixamorigrightarm": [
+          -1.0076011862959304,
+          -0.6399283859864313,
+          1.57
+        ],
+        "mixamorigrightforearm": 0.019921871730090284,
+        "mixamorigrighthand": [
+          -0.010100887089487387,
+          0,
+          -0.349
+        ],
+        "mixamorigrighthandthumb1": 0,
+        "mixamorigrighthandthumb2": 0.008850230294253364,
+        "mixamorigrighthandthumb3": 4.1522752168406757e-7,
+        "mixamorigrighthandindex1": 0,
+        "mixamorigrighthandindex2": 0,
+        "mixamorigrighthandindex3": 0.000009617139999973753,
+        "mixamorigrighthandmiddle1": 0,
+        "mixamorigrighthandmiddle2": 0,
+        "mixamorigrighthandmiddle3": 0,
+        "mixamorigrighthandring1": 0,
+        "mixamorigrighthandring2": 0,
+        "mixamorigrighthandring3": 0,
+        "mixamorigrighthandpinky1": 0,
+        "mixamorigrighthandpinky2": 0,
+        "mixamorigrighthandpinky3": 0.00002548300000230107,
+        "mixamorigleftupleg": [
+          -0.06497318202093529,
+          0.21183337892726842,
+          -2.094
+        ],
+        "mixamorigleftleg": -0.05241326580182854,
+        "mixamorigleftfoot": [
+          -0.09667105282494051,
+          0,
+          0.785
+        ],
+        "mixamoriglefttoebase": 0,
+        "mixamorigrightupleg": [
+          0.06778040982532155,
+          -0.07093677274978395,
+          2.094
+        ],
+        "mixamorigrightleg": 0,
+        "mixamorigrightfoot": [
+          -0.020969769142898036,
+          0,
+          0.785
+        ],
+        "mixamorigrighttoebase": -0.004525724095232689
+      }
+    },
+    {
+      "timeOffsetMs": 833,
+      "overrides": {
+        "mixamorigspine": [
+          -0.00917180397192618,
+          -0.026598065226091032,
+          0.524
+        ],
+        "mixamorigspine1": [
+          -0.01636947829829455,
+          -0.056623209450162845,
+          0.524
+        ],
+        "mixamorigspine2": [
+          -0.016369498292173483,
+          -0.05662320953720817,
+          0.524
+        ],
+        "mixamorigneck": [
+          0.04578367323050091,
+          1.222,
+          0.018840561680583293
+        ],
+        "mixamorighead": [
+          -0.038062878266694335,
+          -1.047,
+          0.005223947593069187
+        ],
+        "mixamorigleftshoulder": [
+          0.261,
+          -0.261,
+          -0.261
+        ],
+        "mixamorigleftarm": [
+          0.7590500290668466,
+          0.07840779265694897,
+          1.57
+        ],
+        "mixamorigleftforearm": 0.013773669228633937,
+        "mixamoriglefthand": [
+          -0.3042721859206907,
+          0,
+          -0.349
+        ],
+        "mixamoriglefthandthumb1": 0.13489136274578561,
+        "mixamoriglefthandthumb2": 0,
+        "mixamoriglefthandthumb3": 0.000013600531197184953,
+        "mixamoriglefthandindex1": 0.6217026526837615,
+        "mixamoriglefthandindex2": 1.23650741425578,
+        "mixamoriglefthandindex3": 0.000009596180002812471,
+        "mixamoriglefthandmiddle1": 0.9743586800076178,
+        "mixamoriglefthandmiddle2": 1.4724564751165665,
+        "mixamoriglefthandmiddle3": 0,
+        "mixamoriglefthandring1": 1.0013077278477116,
+        "mixamoriglefthandring2": 1.4639726470618584,
+        "mixamoriglefthandring3": 0,
+        "mixamoriglefthandpinky1": 1.1565653918547854,
+        "mixamoriglefthandpinky2": 1.4322178205153482,
+        "mixamoriglefthandpinky3": 0.000025629170647689513,
+        "mixamorigrightshoulder": [
+          -0.261,
+          0.04516920057882524,
+          -0.261
+        ],
+        "mixamorigrightarm": [
+          -0.9999971487097885,
+          -0.668798380335843,
+          1.57
+        ],
+        "mixamorigrightforearm": 0.03444964646624379,
+        "mixamorigrighthand": [
+          -0.04221731563561436,
+          0,
+          -0.349
+        ],
+        "mixamorigrighthandthumb1": 0,
+        "mixamorigrighthandthumb2": 0.013150694634063514,
+        "mixamorigrighthandthumb3": 3.6916269517553745e-7,
+        "mixamorigrighthandindex1": 0,
+        "mixamorigrighthandindex2": 0,
+        "mixamorigrighthandindex3": 0.0000096389400027741,
+        "mixamorigrighthandmiddle1": 0,
+        "mixamorigrighthandmiddle2": 0,
+        "mixamorigrighthandmiddle3": 0,
+        "mixamorigrighthandring1": 0,
+        "mixamorigrighthandring2": 0,
+        "mixamorigrighthandring3": 0,
+        "mixamorigrighthandpinky1": 0,
+        "mixamorigrighthandpinky2": 0,
+        "mixamorigrighthandpinky3": 0.00002552200000228535,
+        "mixamorigleftupleg": [
+          -0.09645067592879605,
+          0.1985902137697182,
+          -2.094
+        ],
+        "mixamorigleftleg": -0.08039083428371425,
+        "mixamorigleftfoot": [
+          -0.11810561696741206,
+          0,
+          -0.785
+        ],
+        "mixamoriglefttoebase": 0,
+        "mixamorigrightupleg": [
+          0.04929436954227983,
+          -0.07967943176645588,
+          2.094
+        ],
+        "mixamorigrightleg": 0,
+        "mixamorigrightfoot": [
+          -0.006073283491947229,
+          0,
+          -0.785
+        ],
+        "mixamorigrighttoebase": -0.01672479178472791
+      }
+    },
+    {
+      "timeOffsetMs": 867,
+      "overrides": {
+        "mixamorigspine": [
+          -0.013116506327289237,
+          -0.022298574802024403,
+          0.524
+        ],
+        "mixamorigspine1": [
+          -0.024263711981688852,
+          -0.04827746938167311,
+          0.524
+        ],
+        "mixamorigspine2": [
+          -0.024263711981688852,
+          -0.04827746938167311,
+          0.524
+        ],
+        "mixamorigneck": [
+          0.043315582096519194,
+          1.222,
+          0.015694915025448317
+        ],
+        "mixamorighead": [
+          -0.03708881513164738,
+          -1.047,
+          -0.002828432362337471
+        ],
+        "mixamorigleftshoulder": [
+          0.261,
+          -0.261,
+          -0.261
+        ],
+        "mixamorigleftarm": [
+          0.778712559410134,
+          0.04438788571815014,
+          1.57
+        ],
+        "mixamorigleftforearm": 0.006003669478025827,
+        "mixamoriglefthand": [
+          -0.3199231285760114,
+          0,
+          -0.349
+        ],
+        "mixamoriglefthandthumb1": 0.1348913948766239,
+        "mixamoriglefthandthumb2": 0,
+        "mixamoriglefthandthumb3": 0.000013606668420977601,
+        "mixamoriglefthandindex1": 0.6451354431439142,
+        "mixamoriglefthandindex2": 1.2730040911322387,
+        "mixamoriglefthandindex3": 0.000009685679999878483,
+        "mixamoriglefthandmiddle1": 0.9972110423165895,
+        "mixamoriglefthandmiddle2": 1.4561198183026103,
+        "mixamoriglefthandmiddle3": 0,
+        "mixamoriglefthandring1": 1.0227545473833746,
+        "mixamoriglefthandring2": 1.4349772657555604,
+        "mixamoriglefthandring3": 0,
+        "mixamoriglefthandpinky1": 1.175770018630463,
+        "mixamoriglefthandpinky2": 1.4518247541846026,
+        "mixamoriglefthandpinky3": 0.000025406752137109864,
+        "mixamorigrightshoulder": [
+          -0.261,
+          0.06024661976626666,
+          -0.261
+        ],
+        "mixamorigrightarm": [
+          -0.9780317362098584,
+          -0.6914395045664724,
+          1.57
+        ],
+        "mixamorigrightforearm": 0.02395882819506246,
+        "mixamorigrighthand": [
+          -0.05244097579437197,
+          0,
+          -0.349
+        ],
+        "mixamorigrighthandthumb1": 0,
+        "mixamorigrighthandthumb2": 0,
+        "mixamorigrighthandthumb3": 3.9627110749288226e-7,
+        "mixamorigrighthandindex1": 0,
+        "mixamorigrighthandindex2": 0,
+        "mixamorigrighthandindex3": 0.000009646559999954806,
+        "mixamorigrighthandmiddle1": 0,
+        "mixamorigrighthandmiddle2": 0,
+        "mixamorigrighthandmiddle3": 0,
+        "mixamorigrighthandring1": 0,
+        "mixamorigrighthandring2": 0,
+        "mixamorigrighthandring3": 0,
+        "mixamorigrighthandpinky1": 0,
+        "mixamorigrighthandpinky2": 0,
+        "mixamorigrighthandpinky3": 0.00002552640000232586,
+        "mixamorigleftupleg": [
+          -0.1249053411415606,
+          0.17000285139071722,
+          -2.094
+        ],
+        "mixamorigleftleg": -0.07790826975584449,
+        "mixamorigleftfoot": [
+          -0.08000971619494707,
+          0,
+          -0.785
+        ],
+        "mixamoriglefttoebase": 0,
+        "mixamorigrightupleg": [
+          0.02334088016099933,
+          -0.09041092833992125,
+          2.094
+        ],
+        "mixamorigrightleg": 0,
+        "mixamorigrightfoot": [
+          0.01147051210259801,
+          0,
+          -0.785
+        ],
+        "mixamorigrighttoebase": -0.011380711091769649
+      }
+    },
+    {
+      "timeOffsetMs": 900,
+      "overrides": {
+        "mixamorigspine": [
+          -0.015140296991331103,
+          -0.018185699883028778,
+          0.524
+        ],
+        "mixamorigspine1": [
+          -0.02812967535969434,
+          -0.03909792611564267,
+          0.524
+        ],
+        "mixamorigspine2": [
+          -0.02812967497000417,
+          -0.03909792639868027,
+          0.524
+        ],
+        "mixamorigneck": [
+          0.02892566322273286,
+          1.222,
+          0.00939109333384128
+        ],
+        "mixamorighead": [
+          -0.03423960630954044,
+          -1.047,
+          -0.010824196817875284
+        ],
+        "mixamorigleftshoulder": [
+          0.261,
+          -0.261,
+          -0.261
+        ],
+        "mixamorigleftarm": [
+          0.7869768964808111,
+          0.0005034790572575246,
+          1.57
+        ],
+        "mixamorigleftforearm": 0.02974466082654482,
+        "mixamoriglefthand": [
+          -0.3188926687428677,
+          0,
+          -0.349
+        ],
+        "mixamoriglefthandthumb1": 0.13489136131890372,
+        "mixamoriglefthandthumb2": 0,
+        "mixamoriglefthandthumb3": 0.00001369420658090364,
+        "mixamoriglefthandindex1": 0.6729667504985501,
+        "mixamoriglefthandindex2": 1.3136872841075604,
+        "mixamoriglefthandindex3": 0.000009709499999139876,
+        "mixamoriglefthandmiddle1": 1.0243797426495043,
+        "mixamoriglefthandmiddle2": 1.4278598404705407,
+        "mixamoriglefthandmiddle3": 0,
+        "mixamoriglefthandring1": 1.0482328960552736,
+        "mixamoriglefthandring2": 1.3983331152011043,
+        "mixamoriglefthandring3": 0,
+        "mixamoriglefthandpinky1": 1.1983301360753233,
+        "mixamoriglefthandpinky2": 1.461893978008041,
+        "mixamoriglefthandpinky3": 0.000025235745179023804,
+        "mixamorigrightshoulder": [
+          -0.261,
+          0.08583711968446425,
+          -0.261
+        ],
+        "mixamorigrightarm": [
+          -0.9462501201881657,
+          -0.7153025003507516,
+          1.57
+        ],
+        "mixamorigrightforearm": 0.000127649020746958,
+        "mixamorigrighthand": [
+          -0.03747225599915106,
+          0,
+          -0.349
+        ],
+        "mixamorigrighthandthumb1": 0,
+        "mixamorigrighthandthumb2": 0,
+        "mixamorigrighthandthumb3": 3.1423000106974467e-7,
+        "mixamorigrighthandindex1": 0,
+        "mixamorigrighthandindex2": 0,
+        "mixamorigrighthandindex3": 0.000009647880003036433,
+        "mixamorigrighthandmiddle1": 0,
+        "mixamorigrighthandmiddle2": 0,
+        "mixamorigrighthandmiddle3": 0,
+        "mixamorigrighthandring1": 0,
+        "mixamorigrighthandring2": 0,
+        "mixamorigrighthandring3": 0,
+        "mixamorigrighthandpinky1": 0,
+        "mixamorigrighthandpinky2": 0,
+        "mixamorigrighthandpinky3": 0.00002556720000262354,
+        "mixamorigleftupleg": [
+          -0.1469146803263934,
+          0.15090616860032438,
+          2.094
+        ],
+        "mixamorigleftleg": -0.06965545511442862,
+        "mixamorigleftfoot": [
+          -0.14502323166783707,
+          0,
+          -0.785
+        ],
+        "mixamoriglefttoebase": 0,
+        "mixamorigrightupleg": [
+          -0.0068672158154476255,
+          -0.10707664579678737,
+          2.094
+        ],
+        "mixamorigrightleg": 0,
+        "mixamorigrightfoot": [
+          0.03902734816496435,
+          0,
+          -0.785
+        ],
+        "mixamorigrighttoebase": -0.007997141341516528
+      }
+    },
+    {
+      "timeOffsetMs": 933,
+      "overrides": {
+        "mixamorigspine": [
+          -0.01612743220456122,
+          -0.014525056998935963,
+          0.524
+        ],
+        "mixamorigspine1": [
+          -0.028060998395232864,
+          -0.0296763347759662,
+          0.524
+        ],
+        "mixamorigspine2": [
+          -0.028060998395232864,
+          -0.0296763347759662,
+          0.524
+        ],
+        "mixamorigneck": [
+          0.019128074334627893,
+          1.222,
+          0.0036946162597405957
+        ],
+        "mixamorighead": [
+          -0.03509510350352664,
+          -1.047,
+          -0.02078997114316054
+        ],
+        "mixamorigleftshoulder": [
+          0.261,
+          -0.261,
+          -0.261
+        ],
+        "mixamorigleftarm": [
+          0.8090762050472816,
+          -0.041432417403610464,
+          1.57
+        ],
+        "mixamorigleftforearm": 0.048627864196135295,
+        "mixamoriglefthand": [
+          -0.3100619307769815,
+          0,
+          -0.349
+        ],
+        "mixamoriglefthandthumb1": 0.13489179585474298,
+        "mixamoriglefthandthumb2": 0,
+        "mixamoriglefthandthumb3": 0.000013719207153685438,
+        "mixamoriglefthandindex1": 0.7013151979246437,
+        "mixamoriglefthandindex2": 1.353370942074841,
+        "mixamoriglefthandindex3": 0.0000095555400109721,
+        "mixamoriglefthandmiddle1": 1.0520694160765165,
+        "mixamoriglefthandmiddle2": 1.3943563319169043,
+        "mixamoriglefthandmiddle3": 0,
+        "mixamoriglefthandring1": 1.0741313262441465,
+        "mixamoriglefthandring2": 1.3599661912289602,
+        "mixamoriglefthandring3": 0,
+        "mixamoriglefthandpinky1": 1.2208887885400794,
+        "mixamoriglefthandpinky2": 1.4563098730677118,
+        "mixamoriglefthandpinky3": 0.00002559480296906103,
+        "mixamorigrightshoulder": [
+          -0.261,
+          0.1026167831893816,
+          -0.261
+        ],
+        "mixamorigrightarm": [
+          -0.9270784961828138,
+          -0.6854586725194627,
+          1.57
+        ],
+        "mixamorigrightforearm": 0.019767151605784634,
+        "mixamorigrighthand": [
+          0.0014714417949995623,
+          0,
+          -0.349
+        ],
+        "mixamorigrighthandthumb1": 0.010657474460455073,
+        "mixamorigrighthandthumb2": 0,
+        "mixamorigrighthandthumb3": 4.876176670037359e-7,
+        "mixamorigrighthandindex1": 0,
+        "mixamorigrighthandindex2": 0,
+        "mixamorigrighthandindex3": 0.000009655859999685247,
+        "mixamorigrighthandmiddle1": 0,
+        "mixamorigrighthandmiddle2": 0,
+        "mixamorigrighthandmiddle3": 0,
+        "mixamorigrighthandring1": 0,
+        "mixamorigrighthandring2": 0,
+        "mixamorigrighthandring3": 0,
+        "mixamorigrighthandpinky1": 0,
+        "mixamorigrighthandpinky2": 0,
+        "mixamorigrighthandpinky3": 0.000025641400002405866,
+        "mixamorigleftupleg": [
+          -0.1488301681773479,
+          0.1262682912776492,
+          2.094
+        ],
+        "mixamorigleftleg": -0.059306796822133405,
+        "mixamorigleftfoot": [
+          -0.20707304609679586,
+          0,
+          -0.785
+        ],
+        "mixamoriglefttoebase": 0,
+        "mixamorigrightupleg": [
+          -0.026395024233608663,
+          -0.13047379591275038,
+          2.094
+        ],
+        "mixamorigrightleg": 0,
+        "mixamorigrightfoot": [
+          0.053126248066287414,
+          0,
+          0.785
+        ],
+        "mixamorigrighttoebase": -0.00921941012834953
+      }
+    },
+    {
+      "timeOffsetMs": 967,
+      "overrides": {
+        "mixamorigspine": [
+          -0.015301615249116416,
+          -0.009627588021422297,
+          -0.524
+        ],
+        "mixamorigspine1": [
+          -0.023244853926419715,
+          -0.018244921754873716,
+          -0.524
+        ],
+        "mixamorigspine2": [
+          -0.023244853904170703,
+          -0.018244901748332112,
+          -0.524
+        ],
+        "mixamorigneck": [
+          0.011452661858347457,
+          1.222,
+          -0.0017963273647975068
+        ],
+        "mixamorighead": [
+          -0.035043222531942475,
+          -1.047,
+          -0.031167944749557506
+        ],
+        "mixamorigleftshoulder": [
+          0.261,
+          -0.261,
+          -0.261
+        ],
+        "mixamorigleftarm": [
+          0.824444938994439,
+          -0.023478495059091237,
+          1.57
+        ],
+        "mixamorigleftforearm": 0.07679951822872168,
+        "mixamoriglefthand": [
+          -0.29041514860617074,
+          0,
+          -0.349
+        ],
+        "mixamoriglefthandthumb1": 0.13489157055411058,
+        "mixamoriglefthandthumb2": 0,
+        "mixamoriglefthandthumb3": 0.000013746886462873804,
+        "mixamoriglefthandindex1": 0.7263276449486603,
+        "mixamoriglefthandindex2": 1.38703008425963,
+        "mixamoriglefthandindex3": 0.000009673280004548,
+        "mixamoriglefthandmiddle1": 1.0765211801587766,
+        "mixamoriglefthandmiddle2": 1.362868449424678,
+        "mixamoriglefthandmiddle3": 0,
+        "mixamoriglefthandring1": 1.0969146159927767,
+        "mixamoriglefthandring2": 1.3257957465877963,
+        "mixamoriglefthandring3": 0,
+        "mixamoriglefthandpinky1": 1.2403353943448352,
+        "mixamoriglefthandpinky2": 1.4403267945523264,
+        "mixamoriglefthandpinky3": 0.000025660798761585498,
+        "mixamorigrightshoulder": [
+          -0.261,
+          0.11046877631022786,
+          -0.261
+        ],
+        "mixamorigrightarm": [
+          -0.9370677617967582,
+          -0.5969188908113372,
+          1.57
+        ],
+        "mixamorigrightforearm": 0.03085852103262746,
+        "mixamorigrighthand": [
+          0.055427974652102203,
+          0,
+          -0.349
+        ],
+        "mixamorigrighthandthumb1": 0.03541637167073674,
+        "mixamorigrighthandthumb2": 0.000362315390726812,
+        "mixamorigrighthandthumb3": 6.873710404807281e-7,
+        "mixamorigrighthandindex1": 0,
+        "mixamorigrighthandindex2": 0,
+        "mixamorigrighthandindex3": 0.000009619519999826373,
+        "mixamorigrighthandmiddle1": 0,
+        "mixamorigrighthandmiddle2": 0,
+        "mixamorigrighthandmiddle3": 0,
+        "mixamorigrighthandring1": 0,
+        "mixamorigrighthandring2": 0,
+        "mixamorigrighthandring3": 0,
+        "mixamorigrighthandpinky1": 0,
+        "mixamorigrighthandpinky2": 0,
+        "mixamorigrighthandpinky3": 0.000025550000002529726,
+        "mixamorigleftupleg": [
+          -0.1358046498578578,
+          0.1025838415616863,
+          2.094
+        ],
+        "mixamorigleftleg": -0.04646770660362935,
+        "mixamorigleftfoot": [
+          -0.19596976856760642,
+          0,
+          -0.785
+        ],
+        "mixamoriglefttoebase": 0,
+        "mixamorigrightupleg": [
+          -0.03812471865248739,
+          -0.1423022754790928,
+          2.094
+        ],
+        "mixamorigrightleg": 0,
+        "mixamorigrightfoot": [
+          0.05874182114168388,
+          0,
+          0.785
+        ],
+        "mixamorigrighttoebase": -0.010480422508824139
+      }
+    },
+    {
+      "timeOffsetMs": 1000,
+      "overrides": {
+        "mixamorigspine": [
+          -0.011593455248680743,
+          -0.0023771879048286666,
+          -0.524
+        ],
+        "mixamorigspine1": [
+          -0.015886693463797067,
+          -0.00396923579421696,
+          -0.524
+        ],
+        "mixamorigspine2": [
+          -0.015886713465600995,
+          -0.003969235751925825,
+          -0.524
+        ],
+        "mixamorigneck": [
+          0.009975963776318101,
+          1.222,
+          -0.006056500083759123
+        ],
+        "mixamorighead": [
+          -0.03410532290109942,
+          -1.047,
+          -0.041678485944353603
+        ],
+        "mixamorigleftshoulder": [
+          0.261,
+          -0.261,
+          -0.261
+        ],
+        "mixamorigleftarm": [
+          0.8506979413527831,
+          0.052320949914657126,
+          1.57
+        ],
+        "mixamorigleftforearm": 0.10180387544823337,
+        "mixamoriglefthand": [
+          -0.2678665961524793,
+          0,
+          -0.349
+        ],
+        "mixamoriglefthandthumb1": 0.13489138613049356,
+        "mixamoriglefthandthumb2": 0,
+        "mixamoriglefthandthumb3": 0.000013643107368232767,
+        "mixamoriglefthandindex1": 0.7441642070428125,
+        "mixamoriglefthandindex2": 1.410098459597624,
+        "mixamoriglefthandindex3": 0.000009601499998443226,
+        "mixamoriglefthandmiddle1": 1.0939618983193315,
+        "mixamoriglefthandmiddle2": 1.339827404730257,
+        "mixamoriglefthandmiddle3": 0,
+        "mixamoriglefthandring1": 1.113114752699424,
+        "mixamoriglefthandring2": 1.3013916672019368,
+        "mixamoriglefthandring3": 0,
+        "mixamoriglefthandpinky1": 1.2538832388260996,
+        "mixamoriglefthandpinky2": 1.4246368314685027,
+        "mixamoriglefthandpinky3": 0.000025619994822659234,
+        "mixamorigrightshoulder": [
+          -0.261,
+          0.12436522975632736,
+          -0.261
+        ],
+        "mixamorigrightarm": [
+          -0.9311442094109563,
+          -0.5349742731276074,
+          1.57
+        ],
+        "mixamorigrightforearm": 0.06853342584139956,
+        "mixamorigrighthand": [
+          0.10355721503060485,
+          0,
+          -0.349
+        ],
+        "mixamorigrighthandthumb1": 0.05405445815585066,
+        "mixamorigrighthandthumb2": 0.014321149945689032,
+        "mixamorigrighthandthumb3": 5.817334378381422e-7,
+        "mixamorigrighthandindex1": 0,
+        "mixamorigrighthandindex2": 0,
+        "mixamorigrighthandindex3": 0.00000964539999955875,
+        "mixamorigrighthandmiddle1": 0,
+        "mixamorigrighthandmiddle2": 0,
+        "mixamorigrighthandmiddle3": 0,
+        "mixamorigrighthandring1": 0,
+        "mixamorigrighthandring2": 0,
+        "mixamorigrighthandring3": 0,
+        "mixamorigrighthandpinky1": 0,
+        "mixamorigrighthandpinky2": 0,
+        "mixamorigrighthandpinky3": 0.00002547359999948216,
+        "mixamorigleftupleg": [
+          -0.12402344774137218,
+          0.09531367981601804,
+          2.094
+        ],
+        "mixamorigleftleg": -0.031337818093082274,
+        "mixamorigleftfoot": [
+          -0.09232320281719365,
+          0,
+          -0.785
+        ],
+        "mixamoriglefttoebase": 0,
+        "mixamorigrightupleg": [
+          -0.04438507054965407,
+          -0.15078017819007336,
+          2.094
+        ],
+        "mixamorigrightleg": 0,
+        "mixamorigrightfoot": [
+          0.06985967785035242,
+          0,
+          0.785
+        ],
+        "mixamorigrighttoebase": -0.010460864663199775
+      }
+    },
+    {
+      "timeOffsetMs": 1033,
+      "overrides": {
+        "mixamorigspine": [
+          -0.007821273334180099,
+          0.005824069169554312,
+          -0.524
+        ],
+        "mixamorigspine1": [
+          -0.008672345847819314,
+          0.012085450612076509,
+          -0.524
+        ],
+        "mixamorigspine2": [
+          -0.008672345780104968,
+          0.012085470613622024,
+          -0.524
+        ],
+        "mixamorigneck": [
+          0.021084800369690754,
+          -1.222,
+          -0.007960480911467076
+        ],
+        "mixamorighead": [
+          -0.03325636788292926,
+          -1.047,
+          -0.05287111478064626
+        ],
+        "mixamorigleftshoulder": [
+          0.261,
+          -0.261,
+          -0.261
+        ],
+        "mixamorigleftarm": [
+          0.8762607313573456,
+          0.17699792153295693,
+          1.57
+        ],
+        "mixamorigleftforearm": 0.07518857603418834,
+        "mixamoriglefthand": [
+          -0.24135895517301598,
+          0,
+          -0.349
+        ],
+        "mixamoriglefthandthumb1": 0.13489117689531235,
+        "mixamoriglefthandthumb2": 0,
+        "mixamoriglefthandthumb3": 0.00001364530772371171,
+        "mixamoriglefthandindex1": 0.7510031628103688,
+        "mixamoriglefthandindex2": 1.4186631733032615,
+        "mixamoriglefthandindex3": 0.000009607299999677711,
+        "mixamoriglefthandmiddle1": 1.1006558901859722,
+        "mixamoriglefthandmiddle2": 1.3309327042132564,
+        "mixamoriglefthandmiddle3": 0,
+        "mixamoriglefthandring1": 1.1193161670656502,
+        "mixamoriglefthandring2": 1.2920537851802187,
+        "mixamoriglefthandring3": 0,
+        "mixamoriglefthandpinky1": 1.259013869566058,
+        "mixamoriglefthandpinky2": 1.4179806308379803,
+        "mixamoriglefthandpinky3": 0.000025774623051348833,
+        "mixamorigrightshoulder": [
+          -0.261,
+          0.13586205912780583,
+          -0.261
+        ],
+        "mixamorigrightarm": [
+          -0.8848374169359386,
+          -0.5465220487328807,
+          1.57
+        ],
+        "mixamorigrightforearm": 0.17053542976206518,
+        "mixamorigrighthand": [
+          0.12657005881418737,
+          0,
+          -0.349
+        ],
+        "mixamorigrighthandthumb1": 0.06145296697473782,
+        "mixamorigrighthandthumb2": 0.023731431761541202,
+        "mixamorigrighthandthumb3": 3.97623111848497e-7,
+        "mixamorigrighthandindex1": 0,
+        "mixamorigrighthandindex2": 0,
+        "mixamorigrighthandindex3": 0.000009620519999841552,
+        "mixamorigrighthandmiddle1": 0,
+        "mixamorigrighthandmiddle2": 0,
+        "mixamorigrighthandmiddle3": 0,
+        "mixamorigrighthandring1": 0,
+        "mixamorigrighthandring2": 0,
+        "mixamorigrighthandring3": 0,
+        "mixamorigrighthandpinky1": 0,
+        "mixamorigrighthandpinky2": 0,
+        "mixamorigrighthandpinky3": 0.000025548400002401834,
+        "mixamorigleftupleg": [
+          -0.1208289074465938,
+          0.09853811527715864,
+          2.094
+        ],
+        "mixamorigleftleg": -0.01351460170316321,
+        "mixamorigleftfoot": [
+          0.022336120362173525,
+          0,
+          -0.785
+        ],
+        "mixamoriglefttoebase": -0.0001950772817176094,
+        "mixamorigrightupleg": [
+          -0.04923043327349421,
+          -0.15458697433907467,
+          2.094
+        ],
+        "mixamorigrightleg": 0,
+        "mixamorigrightfoot": [
+          0.07894718018968344,
+          0,
+          0.785
+        ],
+        "mixamorigrighttoebase": -0.010189107832543608
+      }
+    },
+    {
+      "timeOffsetMs": 1067,
+      "overrides": {
+        "mixamorigspine": [
+          -0.007821373088531593,
+          0.005824009810660854,
+          -0.524
+        ],
+        "mixamorigspine1": [
+          -0.008672304980611329,
+          0.012085351336017161,
+          -0.524
+        ],
+        "mixamorigspine2": [
+          -0.008672284656810303,
+          0.012085411357965828,
+          -0.524
+        ],
+        "mixamorigneck": [
+          0.02108439913157063,
+          -1.222,
+          -0.007960323924904731
+        ],
+        "mixamorighead": [
+          -0.03325614646906105,
+          -1.047,
+          -0.05287113193331562
+        ],
+        "mixamorigleftshoulder": [
+          0.261,
+          -0.261,
+          -0.261
+        ],
+        "mixamorigleftarm": [
+          0.8762608623908272,
+          0.1769963581012649,
+          1.57
+        ],
+        "mixamorigleftforearm": 0.0751878166727637,
+        "mixamoriglefthand": [
+          -0.24135898756780994,
+          0,
+          -0.349
+        ],
+        "mixamoriglefthandthumb1": 0.13489177978932293,
+        "mixamoriglefthandthumb2": 0,
+        "mixamoriglefthandthumb3": 0.00001374598754513737,
+        "mixamoriglefthandindex1": 0.751003157497887,
+        "mixamoriglefthandindex2": 1.4186629019355272,
+        "mixamoriglefthandindex3": 0.000009630319999861191,
+        "mixamoriglefthandmiddle1": 1.1006558756425884,
+        "mixamoriglefthandmiddle2": 1.330931183724169,
+        "mixamoriglefthandmiddle3": 0,
+        "mixamoriglefthandring1": 1.1193162130658778,
+        "mixamoriglefthandring2": 1.2920546854941777,
+        "mixamoriglefthandring3": 0,
+        "mixamoriglefthandpinky1": 1.2589992152277318,
+        "mixamoriglefthandpinky2": 1.417980567856793,
+        "mixamoriglefthandpinky3": 0.00002551619039286003,
+        "mixamorigrightshoulder": [
+          -0.261,
+          0.135862476016105,
+          -0.261
+        ],
+        "mixamorigrightarm": [
+          -0.8848373694025142,
+          -0.5465221713938573,
+          1.57
+        ],
+        "mixamorigrightforearm": 0.17053542976206518,
+        "mixamorigrighthand": [
+          0.12657005881418737,
+          0,
+          -0.349
+        ],
+        "mixamorigrighthandthumb1": 0.061453166185376676,
+        "mixamorigrighthandthumb2": 0.02373176882465197,
+        "mixamorigrighthandthumb3": 4.071154549265226e-7,
+        "mixamorigrighthandindex1": 0,
+        "mixamorigrighthandindex2": 0,
+        "mixamorigrighthandindex3": 0.000009623659999652841,
+        "mixamorigrighthandmiddle1": 0,
+        "mixamorigrighthandmiddle2": 0,
+        "mixamorigrighthandmiddle3": 0,
+        "mixamorigrighthandring1": 0,
+        "mixamorigrighthandring2": 0,
+        "mixamorigrighthandring3": 0,
+        "mixamorigrighthandpinky1": 0,
+        "mixamorigrighthandpinky2": 0,
+        "mixamorigrighthandpinky3": 0.000025548400002204496,
+        "mixamorigleftupleg": [
+          -0.12082903215946827,
+          0.09853802078146641,
+          2.094
+        ],
+        "mixamorigleftleg": -0.013514584775297258,
+        "mixamorigleftfoot": [
+          0.022336120312128723,
+          0,
+          -0.785
+        ],
+        "mixamoriglefttoebase": -0.000195073639917601,
+        "mixamorigrightupleg": [
+          -0.04922993824774039,
+          -0.15458708101736016,
+          2.094
+        ],
+        "mixamorigrightleg": 0,
+        "mixamorigrightfoot": [
+          0.07894697869356902,
+          0,
+          0.785
+        ],
+        "mixamorigrighttoebase": -0.010189088704924514
+      }
+    }
+  ]
+}

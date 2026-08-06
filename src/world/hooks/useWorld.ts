@@ -963,19 +963,26 @@ export const useWorld = (containerRef: React.RefObject<HTMLDivElement>) => {
     const humanoidPos = new THREE.Vector3(0, 0, 5);
     const binder = humanoidPhysicsBindersRef.current.get(useAgentStore.getState().activeAgentId) || humanoidPhysicsBindersRef.current.get('agent_0');
     if (binder) {
-      const headTransform = binder.getHeadTransform();
-      if (headTransform) {
-        humanoidPos.set(headTransform.position.x, 0, headTransform.position.z);
+      // Use capsule body position (pelvis) for more reliable location than headTransform
+      const capsuleBody = binder.getCapsuleBody();
+      if (capsuleBody && capsuleBody.isValid()) {
+        const t = capsuleBody.translation();
+        humanoidPos.set(t.x, 0, t.z);
+      } else {
+        const headTransform = binder.getHeadTransform();
+        if (headTransform) {
+          humanoidPos.set(headTransform.position.x, 0, headTransform.position.z);
+        }
       }
     }
 
     const activeObjManager = objectManagerRef.current;
-    const spawnRadius = 2.2;
+    const spawnRadius = 3.0;
     const spawnPos = new THREE.Vector3();
     let placed = false;
 
-    for (let attempt = 0; attempt < 8; attempt++) {
-      const angle = (attempt / 8) * Math.PI * 2;
+    for (let attempt = 0; attempt < 12; attempt++) {
+      const angle = (attempt / 12) * Math.PI * 2;
       const candidateX = humanoidPos.x + Math.sin(angle) * spawnRadius;
       const candidateZ = humanoidPos.z + Math.cos(angle) * spawnRadius;
       const candidateY = 0.6;
@@ -983,14 +990,14 @@ export const useWorld = (containerRef: React.RefObject<HTMLDivElement>) => {
       let overlaps = false;
       activeObjManager?.getObjects().forEach((obj) => {
         if (overlaps) return;
-        const dx = Math.abs(obj.mesh.position.x - candidateX);
-        const dz = Math.abs(obj.mesh.position.z - candidateZ);
-        if (dx < 1.2 && dz < 1.2) overlaps = true;
+        const dx = obj.mesh.position.x - candidateX;
+        const dz = obj.mesh.position.z - candidateZ;
+        if (dx * dx + dz * dz < 1.44) overlaps = true; // 1.2m Euclidean distance
       });
       if (!skipHumanoidCheck) {
-        const dhx = Math.abs(humanoidPos.x - candidateX);
-        const dhz = Math.abs(humanoidPos.z - candidateZ);
-        if (dhx < 0.8 && dhz < 0.8) overlaps = true;
+        const dhx = humanoidPos.x - candidateX;
+        const dhz = humanoidPos.z - candidateZ;
+        if (dhx * dhx + dhz * dhz < 1.0) overlaps = true; // 1.0m Euclidean distance from humanoid
       }
 
       if (!overlaps) {
@@ -1001,7 +1008,13 @@ export const useWorld = (containerRef: React.RefObject<HTMLDivElement>) => {
     }
 
     if (!placed) {
-      spawnPos.set(humanoidPos.x + 4, 0.6, humanoidPos.z);
+      // Spiral outward to find a clear spot
+      const fallbackAngle = Math.random() * Math.PI * 2;
+      spawnPos.set(
+        humanoidPos.x + Math.cos(fallbackAngle) * 5,
+        0.6,
+        humanoidPos.z + Math.sin(fallbackAngle) * 5
+      );
     }
     return spawnPos;
   }, []);
@@ -1012,17 +1025,25 @@ export const useWorld = (containerRef: React.RefObject<HTMLDivElement>) => {
       const { presetId } = (e as CustomEvent).detail;
       const activeObjManager = objectManagerRef.current;
       if (!activeObjManager) {
+        Logger.error('useWorld: Object Manager is not ready for spawning');
         synthiaToast.error('Spawning failed: Object Manager is not ready');
         return;
       }
       const physicsEngine = physicsEngineRef.current;
-      if (!physicsEngine || !physicsEngine.isReady) {
-        synthiaToast.error('Spawning failed: Physics engine is not ready');
+      if (!physicsEngine) {
+        Logger.error('useWorld: Physics engine ref is null');
+        synthiaToast.error('Spawning failed: Physics engine not initialized');
+        return;
+      }
+      if (!physicsEngine.isReady) {
+        Logger.warn('useWorld: Physics engine not ready yet, retrying...');
+        synthiaToast.warning('Physics engine is still loading, please wait...');
         return;
       }
 
       try {
         const spawnPos = findSpawnPosition();
+        Logger.info(`useWorld: Spawning '${presetId}' at (${spawnPos.x.toFixed(2)}, ${spawnPos.y.toFixed(2)}, ${spawnPos.z.toFixed(2)})`);
         const obj = activeObjManager.spawnObject(presetId, spawnPos);
         if (obj) {
           Logger.info(`useWorld: Object '${presetId}' spawned successfully (id=${obj.id}). Total objects: ${activeObjManager.getObjects().size}`);
@@ -1032,6 +1053,7 @@ export const useWorld = (containerRef: React.RefObject<HTMLDivElement>) => {
           if (unclaimedIndex < 0 && presetId !== 'piano') {
             synthiaToast.error('Spawning failed: Primitive slot pool exhausted (20/20)');
           } else {
+            Logger.error(`useWorld: spawnObject returned null for preset '${presetId}'`);
             synthiaToast.error(`Spawning failed: Could not create object for preset '${presetId}'`);
           }
         }
@@ -1717,25 +1739,33 @@ export const useWorld = (containerRef: React.RefObject<HTMLDivElement>) => {
 
     return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isReady, worldStore.dayNightCycleMs, worldStore.lightState, worldStore.setLightState]);
+  }, [isReady, worldStore.dayNightCycleMs]);
 
   useEffect(() => {
     if (!worldEngineRef.current) return;
 
+    let cancelled = false;
+    let rafId: number | null = null;
     const startTime = Date.now();
     const duration = 30000;
 
     const update = () => {
+      if (cancelled) return;
       const elapsed = Date.now() - startTime;
       const progress = Math.min(elapsed / duration, 1);
       worldEngineRef.current?.updateLighting(worldStore.lightState, progress);
 
       if (progress < 1) {
-        requestAnimationFrame(update);
+        rafId = requestAnimationFrame(update);
       }
     };
 
-    update();
+    rafId = requestAnimationFrame(update);
+
+    return () => {
+      cancelled = true;
+      if (rafId !== null) cancelAnimationFrame(rafId);
+    };
   }, [worldStore.lightState]);
 
   // Escape to deselect + Delete to remove selected object

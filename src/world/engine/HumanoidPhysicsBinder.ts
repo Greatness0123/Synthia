@@ -1642,6 +1642,13 @@ export class HumanoidPhysicsBinder {
     this.setCapsulePosition(spawnPoint.x, spawnPoint.y, spawnPoint.z);
     this.resetToBindPose();
     this.previousFootPositions.clear();
+
+    // Apply a temporary stiffness boost to stabilize the humanoid after teleport.
+    // Without this, gravity and contact forces can kick a leg loose before the PD
+    // motors converge to the zero-angle bind pose.  The gain scale decays back to
+    // 1.0 over ~1 second via the motor ramp in the next animation frames.
+    this.setStiffnessScale(3.0);
+    setTimeout(() => this.setStiffnessScale(1.0), 1000);
   }
 
   public isOutOfWorldBounds(): boolean {
@@ -1713,9 +1720,15 @@ export class HumanoidPhysicsBinder {
     this.currentTargets.set('mixamorigspine', { x: 0, y: 0, z: 0, isQuaternion: false });
     this.currentTargets.set('mixamorigspine1', { x: 0, y: 0, z: 0, isQuaternion: false });
     this.currentTargets.set('mixamorigspine2', { x: 0, y: 0, z: 0, isQuaternion: false });
-    // Hips: neutral target in bind pose. Explicitly zero the right hip roll
+    // Hips: neutral target in bind pose. Explicitly zero both hip roll
     // qpos/qvel as a safety net — a lingering non-zero roll here manifests as
-    // the right leg drifting backward right after spawn.
+    // a leg drifting backward right after spawn.
+    const leftHipRollJoint = this.prefix + 'mixamorigleftupleg_roll';
+    const leftHipRollId = module.mj_name2id(model, module.mjtObj.mjOBJ_JOINT.value, leftHipRollJoint);
+    if (leftHipRollId >= 0) {
+      qpos[model.jnt_qposadr[leftHipRollId]] = 0;
+      qvel[model.jnt_dofadr[leftHipRollId]] = 0;
+    }
     const rightHipRollJoint = this.prefix + 'mixamorigrightupleg_roll';
     const rightHipRollId = module.mj_name2id(model, module.mjtObj.mjOBJ_JOINT.value, rightHipRollJoint);
     if (rightHipRollId >= 0) {
