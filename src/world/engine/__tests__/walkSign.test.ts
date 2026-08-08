@@ -146,4 +146,27 @@ describe('walkSign tests', () => {
     console.log(`[FORWARD-KICK] Target: 0.785, displacement Y: ${displacementY.toFixed(6)}`);
     expect(displacementY).toBeGreaterThan(0);
   });
+
+  test('Probe 3: Arm Hinge Direction under standard and negated axis', () => {
+    // Determine displacement of left and right arms under +0.5 rad pitch
+    const leftArmDispStandard = getDisplacementY('mixamorigleftarm', 'mixamorigleftshoulder', 0.5, [1, 0, 0]);
+    const rightArmDispStandard = getDisplacementY('mixamorigrightarm', 'mixamorigrightshoulder', 0.5, [1, 0, 0]);
+
+    console.log(`[ARM-PROBE] Left arm +0.5 rad (standard axis 1 0 0) displacement Y: ${leftArmDispStandard.toFixed(6)}`);
+    console.log(`[ARM-PROBE] Right arm +0.5 rad (standard axis 1 0 0) displacement Y: ${rightArmDispStandard.toFixed(6)}`);
+
+    const leftArmDispNegated = getDisplacementY('mixamorigleftarm', 'mixamorigleftshoulder', 0.5, [-1, 0, 0]);
+    const rightArmDispNegated = getDisplacementY('mixamorigrightarm', 'mixamorigrightshoulder', 0.5, [-1, 0, 0]);
+
+    console.log(`[ARM-PROBE] Left arm +0.5 rad (negated axis -1 0 0) displacement Y: ${leftArmDispNegated.toFixed(6)}`);
+    console.log(`[ARM-PROBE] Right arm +0.5 rad (negated axis -1 0 0) displacement Y: ${rightArmDispNegated.toFixed(6)}`);
+
+    // Standard axis should produce negative (backward) displacement
+    expect(leftArmDispStandard).toBeLessThan(0);
+    expect(rightArmDispStandard).toBeLessThan(0);
+
+    // Negated axis must produce positive (forward) displacement
+    expect(leftArmDispNegated).toBeGreaterThan(0);
+    expect(rightArmDispNegated).toBeGreaterThan(0);
+  });
 });

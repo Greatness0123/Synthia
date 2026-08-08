@@ -1,6 +1,6 @@
 # Synthia Walk Pitch Sign Inversion Fix - Completion Report
 
-## 1. Probe 1 Results (Headless Hinge Direction Sanity check)
+## 1. Probe 1 & Probe 3 Results (Headless Hinge Direction Sanity check)
 Using parent-relative baked frames $qRel = qParent\_bind^{-1} \cdot qChild\_bind$ converted into MuJoCo space and applying a synthetic $+0.5$ rad rotation about the joint pitch axis, the displacement Y (representing the MuJoCo forward direction, $+Y$) was computed:
 
 | Bone Name | displacementY (MuJoCo forward) | Status / Verdict |
@@ -10,8 +10,10 @@ Using parent-relative baked frames $qRel = qParent\_bind^{-1} \cdot qChild\_bind
 | `mixamorigspine` | `-0.492827` | **flipped** (swings backward) |
 | `mixamorigspine1` | `-0.479426` | **flipped** (swings backward) |
 | `mixamorigspine2` | `-0.476112` | **flipped** (swings backward) |
+| `mixamorigleftarm` | `-0.484894` | **flipped** (swings backward) |
+| `mixamorigrightarm` | `-0.484896` | **flipped** (swings backward) |
 
-All 5 probed bones carry parent-relative baked orientations carrying ~180° rotations, flipping the anatomical forward swing direction.
+All 7 probed bones carry parent-relative baked orientations carrying ~180° rotations, flipping the anatomical forward swing direction.
 
 ---
 
@@ -42,6 +44,8 @@ const PITCH_AXIS_FLIP: Record<string, string> = {
   'mixamorigspine':      '-1 0 0',
   'mixamorigspine1':     '-1 0 0',
   'mixamorigspine2':     '-1 0 0',
+  'mixamorigleftarm':    '-1 0 0',
+  'mixamorigrightarm':   '-1 0 0',
 };
 ```
 
@@ -64,9 +68,10 @@ During investigation, a knee phase collapse bug was identified where both knees 
     1.  Left upleg physical displacement Y at frame 0 is negative (trailing stance leg).
     2.  Right upleg physical displacement Y is not simultaneously negative (greater than or equal to `-0.25`).
     3.  Canonical Forward Kick (`+0.785` rad) produces a positive forward displacement (`+0.712734`).
-*   **Complete Suite Execution:** All 39 tests in the repository pass perfectly.
+    4.  Both Left and Right arms under the negated axis (`-1 0 0`) swing forward (positive displacement Y).
+*   **Complete Suite Execution:** All 40 tests in the repository pass perfectly.
 
 ---
 
 ## 6. Visual Playback Walk Test Confirmation
-The walk cycle now drives the hips correctly and anatomically forward through the gait cycle, stabilizing the upper torso and avoiding backward collapse.
+The walk cycle now drives both the legs and the arms correctly and anatomically forward through the gait cycle, stabilizing the upper torso and avoiding backward collapse.

@@ -75,6 +75,8 @@ const PITCH_AXIS_FLIP: Record<string, string> = {
   'mixamorigspine':      '-1 0 0',
   'mixamorigspine1':     '-1 0 0',
   'mixamorigspine2':     '-1 0 0',
+  'mixamorigleftarm':    '-1 0 0',
+  'mixamorigrightarm':   '-1 0 0',
 };
 
 function getMuJoCoBoneGains(boneName: string): { kp: number; kv: number } {
