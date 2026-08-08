@@ -203,3 +203,68 @@ expect(rightUpLegPitch).toBeLessThan(0);      // must not be backward too
 3. `src/world/engine/PhysicsEngine.ts` → `threeQuatToMuJoCo` — the conjugation (why Path A ≡ Path B)
 4. `src/utils/mixamoStreamConverter.test.ts` — the regression test that needs sign-aware assertions
 5. `src/world/engine/BodyManager.ts` → `syncRigidBodiesFromBones` — the engine's own quat→Euler path (latent inconsistency noted in §1g)
+
+
+
+The console log you provided reveals a major anomaly that explains why the character keeps falling backward.
+
+---
+
+## 1. Primary Diagnosis: The Knee Phase Collapse
+
+Look directly at line 292 of your `analyzeWalk()` console output:
+
+```text
+PHASE SYMMETRY:
+  leftupleg/rightupleg        18 frames offset (expect ~16) ✓
+  leftleg/rightleg             0 frames offset (expect ~16) ⚠
+  leftfoot/rightfoot          17 frames offset (expect ~16) ✓
+```[cite: 6]
+
+### What This Means:
+* **Hips (`upleg`)** are alternating properly (18 frames apart, near the expected 16-frame half-cycle)[cite: 6].
+* **Knees (`leftleg/rightleg`)** have an offset of **0 frames**[cite: 6]. **Both knees are flexing and extending in exact synchrony at the same time**[cite: 6].
+
+When alternating hip strides are paired with knees that bend together in phase, the character cannot perform a walking step. Instead, both lower legs collapse backward simultaneously, causing the hips to drop and sending the torso arching backward flat onto the floor[cite: 5].
+
+---
+
+## 2. Why the Previous Fix Produced "No Changes"
+
+If your agent updated `MJCFHumanoidTemplate.ts` or `mixamoStreamConverter.ts`, but you saw zero visual difference, one of two things occurred:
+
+1. **Artifact Stale / Not Regenerated**: `playWalk()` fetches `/animations/mixamo-walking-synthia.json` directly[cite: 6]. If the generator script (`scripts/generateMixamoWalkArtifacts.ts`) was not re-run, the engine is still playing back the old corrupted JSON[cite: 5, 6].
+2. **Knee Channel Mirror Bug**: `mixamoStreamConverter.ts` is extracting or mapping `mixamorigleftleg` and `mixamorigrightleg` from the same track index or applying an identical sign operation that collapses the 16-frame phase offset down to 0[cite: 6].
+
+---
+
+## 3. Agent Prompt for Jules
+
+Copy and paste this prompt to Jules to fix the knee channel phase collapse and force a clean runtime reload:
+
+***
+
+```markdown
+Jules, the `analyzeWalk()` console report exposed the exact reason the character is still falling backward:
+
+`leftleg/rightleg  0 frames offset (expect ~16) ⚠`
+
+Both knees are bending together in phase (0 frame offset) instead of alternating by 16 frames. This causes both lower legs to buckle simultaneously, driving the body flat onto its back.
+
+Run this targeted fix:
+
+### 1. Fix Knee Track Extraction in `mixamoStreamConverter.ts`
+- Inspect `convertMixamoStreamToTimeline()` for `mixamorigleftleg` and `mixamorigrightleg`.
+- Verify that the right leg and left leg streams are reading from their distinct track channels and not defaulting to a shared track or mirrored value.
+- Confirm that `leftleg` and `rightleg` pitch values show a ~16-frame phase offset in the generated timeline.
+
+### 2. Regenerate & Hard Reload
+- Run `npx ts-node --esm scripts/generateMixamoWalkArtifacts.ts` to update `public/animations/mixamo-walking-synthia.json`.
+- Run `analyzeWalk()` in the browser console and verify that `leftleg/rightleg` reports an offset near 16 frames (`✓`).
+
+### 3. Verify Playback
+- Hard-refresh the browser page (to clear cached MJCF / JSON assets) and run `playWalk()`. Confirm the character stays upright with alternating leg strides.
+
+```
+
+---
