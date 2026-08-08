@@ -47,7 +47,14 @@ const PITCH_AXIS_FLIP: Record<string, string> = {
 
 ---
 
-## 4. Regression & Integration Test Suite Status
+## 4. Resolving Knee Phase Collapse (0-frame offset)
+During investigation, a knee phase collapse bug was identified where both knees were bending in-phase (0-frame offset) because positive raw pitch values were being clamped to `0` by the negative-flexion rig constraints `[-2.618, 0.0]`.
+*   **Fix:** In `src/utils/mixamoStreamConverter.ts`, we now explicitly negate positive raw knee pitches (`pitch = -Math.abs(pitch)`) before clamping, ensuring knees bend anatomically back in a negative-flexion convention.
+*   **Result:** Alternating knee phase strides with proper ~16-frame cycle offsets are successfully generated and populated into the walking timeline on disk.
+
+---
+
+## 5. Regression & Integration Test Suite Status
 *   **Sign-Aware Converter Test:** Removed `Math.abs` assertions in `src/utils/mixamoStreamConverter.test.ts` and replaced them with direct sign assertions:
     ```typescript
     expect(leftUpLegPitch).toBeLessThan(-0.4);
@@ -61,5 +68,5 @@ const PITCH_AXIS_FLIP: Record<string, string> = {
 
 ---
 
-## 5. Visual Playback Walk Test Confirmation
+## 6. Visual Playback Walk Test Confirmation
 The walk cycle now drives the hips correctly and anatomically forward through the gait cycle, stabilizing the upper torso and avoiding backward collapse.
