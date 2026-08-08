@@ -87,6 +87,10 @@ export class MotorController {
       const actuatorIds = this.actuatorMap.get(boneName);
       if (!actuatorIds || actuatorIds.length === 0) return;
 
+      if (parsedTarget.isQuaternion) {
+        throw new Error(`MotorController.setTargets: Quaternion targets are not supported yet (boneName=${boneName}). Found length-4 target: [${parsedTarget.x}, ${parsedTarget.y}, ${parsedTarget.z}, ${parsedTarget.w}]`);
+      }
+
       if (actuatorIds.length === 1) {
         // Revolute joint (e.g. knees, elbows) -> Single pitch actuator
         let targetAngle = 0;

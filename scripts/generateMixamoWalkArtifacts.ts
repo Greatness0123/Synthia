@@ -7,12 +7,12 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'node:url';
-import { convertWalkingStreamText } from '../src/utils/mixamoStreamConverter';
+import { convertWalkingStreamText } from '../src/utils/mixamoStreamConverter.ts';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, '..');
 
-const sourcePath = path.join(root, 'walking');
+const sourcePath = path.join(root, 'walking2.md');
 const outPath = path.join(root, 'public', 'animations', 'mixamo-walking-synthia.json');
 
 const raw = fs.readFileSync(sourcePath, 'utf8');

@@ -1585,6 +1585,7 @@ export const useWorld = (containerRef: React.RefObject<HTMLDivElement>) => {
       Logger.info(`[ACTION_PIPELINE] useWorld handling action for ${agentId}: jointOverrides=${Object.keys(jointOverrides || {}).length} keys, sequence=${Array.isArray(sequence) ? sequence.length : 0}`);
 
       if (worldStore.bodyType === 'humanoid') {
+        binder.setGaitActive(!!activeGaitPhase);
         try {
           const skeleton = binder['skeleton'];
 

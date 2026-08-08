@@ -281,7 +281,7 @@ export class BodyManager {
     }
 
     // 2. Position and orient all nested joints based on bone quaternions
-    const CAPSULE_ATTACH_BONES = new Set(['mixamorigspine', 'mixamorigleftupleg', 'mixamorigrightupleg']);
+    const CAPSULE_ATTACH_BONES = new Set<string>();
 
     for (const [boneName, info] of boneInfoMap) {
       const bone = info.bone;
