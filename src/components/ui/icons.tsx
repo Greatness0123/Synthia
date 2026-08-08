@@ -117,7 +117,7 @@ import {
   RotateCw,
 } from 'lucide-react';
 
-export type IconComponent = ComponentType<{ size?: number | string; className?: string; strokeWidth?: number }>;
+export type IconComponent = ComponentType<{ size?: number | string; className?: string; strokeWidth?: number | string }>;
 
 export const PRESET_ICONS: Record<string, IconComponent> = {
   Cube: Box,

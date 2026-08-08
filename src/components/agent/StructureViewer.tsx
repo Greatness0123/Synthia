@@ -84,7 +84,7 @@ export const StructureViewer: React.FC = () => {
   if (!selectedEntityId || !entityData) {
     return (
       <div className="flex flex-col items-center justify-center h-full text-text-tertiary p-8 text-center">
-        <Cube size={48} weight="thin" className="mb-4 opacity-20" />
+        <Cube size={48} className="mb-4 opacity-20" />
         <p className="text-xs font-mono uppercase tracking-widest">No Entity Selected</p>
         <p className="text-[10px] mt-2 leading-relaxed">Click an object in the world to view its structure and properties.</p>
       </div>

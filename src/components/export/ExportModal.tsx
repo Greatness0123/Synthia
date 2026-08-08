@@ -219,7 +219,7 @@ export const ExportModal: React.FC = () => {
   if (!exportModalOpen) return null;
 
   const exportTypes: { id: ExportType; name: string; icon: React.ComponentType<{ size?: string | number }>; desc: string }[] = [
-    { id: 'dataset', name: 'Dataset', icon: Database, desc: 'ML training datasets (LeRobot, JSONL, CSV)' },
+    { id: 'dataset', name: 'Dataset', icon: Database, desc: 'ML training datasets (LeRobot, JSONL, CSV, Parquet)' },
     { id: 'thoughts_report', name: 'Thoughts Report', icon: Notebook, desc: STRINGS.EXPORT.EXPORT_TYPE_THOUGHTS_DESC },
     { id: 'session_full', name: 'Session Full', icon: Archive, desc: STRINGS.EXPORT.EXPORT_TYPE_SESSION_FULL_DESC },
   ];
@@ -228,6 +228,7 @@ export const ExportModal: React.FC = () => {
     { id: 'LeRobot', name: 'LeRobot', icon: Robot, tag: 'Hugging Face' },
     { id: 'JSONL', name: 'JSONL', icon: FileCode },
     { id: 'CSV', name: 'CSV', icon: FileCsv },
+    { id: 'Parquet', name: 'Parquet', icon: Database, tag: 'Apache' },
   ];
 
   const scopeOptions = [
@@ -360,21 +361,21 @@ export const ExportModal: React.FC = () => {
                     className="space-y-2 overflow-hidden border-b border-border-subtle pb-3"
                   >
                     <label className="text-[10px] font-bold uppercase tracking-widest text-text-tertiary">{STRINGS.EXPORT.SELECT_FORMAT}</label>
-                    <div className="flex gap-2">
+                    <div className="grid grid-cols-2 gap-2">
                       {formats.map((f) => (
                         <button
                           key={f.id}
                           onClick={() => setFormat(f.id)}
-                          className={`flex-1 h-9 flex items-center justify-center gap-2 border rounded-btn transition-all relative ${
+                          className={`h-10 flex items-center justify-center gap-2 border rounded-btn transition-all relative ${
                             format === f.id
                               ? "border-accent-blue bg-accent-blue/10 text-text-primary font-bold"
                               : "border-border text-text-tertiary hover:border-text-secondary"
                           }`}
                         >
-                          <f.icon size={16} />
+                          <f.icon size={15} />
                           <span className="text-[10px] font-bold">{f.name}</span>
                           {f.tag && (
-                            <span className="text-[10px] bg-accent-blue/20 text-accent-blue px-1.5 py-0.5 rounded font-mono font-normal">
+                            <span className="text-[9px] bg-accent-blue/20 text-accent-blue px-1 py-0.5 rounded font-mono font-normal">
                               {f.tag}
                             </span>
                           )}

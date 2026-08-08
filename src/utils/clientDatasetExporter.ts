@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 import JSZip from 'jszip';
 import { ExportConfig } from '../types/export';
 import { useAgentStore } from '../store/agentStore';
+import { writeParquet } from './parquetWriter';
 
 // Simple function to trigger browser download of a Blob
 function triggerDownload(blob: Blob, filename: string) {
@@ -147,6 +148,8 @@ export async function runClientSideExport(
           zip.file(`${agentId}/export.csv`, formatCSV(agentMemories));
         } else if (format === 'LeRobot') {
           zip.file(`${agentId}/lerobot_dataset.jsonl`, formatLeRobot(agentMemories));
+        } else if (format === 'Parquet') {
+          zip.file(`${agentId}/data.parquet`, formatParquet(agentMemories));
         } else {
           zip.file(`${agentId}/data.jsonl`, formatJSONL(agentMemories));
         }
@@ -164,6 +167,10 @@ export async function runClientSideExport(
         const leRobotContent = formatLeRobot(memories);
         const blob = new Blob([leRobotContent], { type: 'application/x-jsonlines;charset=utf-8;' });
         triggerDownload(blob, `${baseFilename}_lerobot.jsonl`);
+      } else if (format === 'Parquet') {
+        const parquetBytes = formatParquet(memories);
+        const blob = new Blob([parquetBytes.buffer as ArrayBuffer], { type: 'application/octet-stream' });
+        triggerDownload(blob, `${baseFilename}.parquet`);
       } else {
         const jsonlContent = formatJSONL(memories);
         const blob = new Blob([jsonlContent], { type: 'application/x-jsonlines;charset=utf-8;' });
@@ -241,6 +248,26 @@ export async function runClientSideExport(
   }
 
   onProgress(100);
+}
+
+// Helper: Parquet Format
+function formatParquet(memories: any[]): Uint8Array {
+  const rows = memories.map((m) => ({
+    agent_id: String(m.agent_id || 'agent_0'),
+    session_id: String(m.session_id || ''),
+    heartbeat: typeof m.heartbeat === 'number' ? m.heartbeat : 0,
+    tier: typeof m.tier === 'number' ? m.tier : 1,
+    thought: String(m.thought || ''),
+    visual_description: String(m.visual_description || ''),
+    audio_state: String(m.audio_state || ''),
+    action_taken: JSON.stringify(m.action_taken || null),
+    outcome: String(m.outcome || ''),
+    reward_signal: typeof m.reward_signal === 'number' ? m.reward_signal : 0,
+    goal_at_time: String(m.goal_at_time || ''),
+    injected: Boolean(m.injected),
+    created_at: String(m.created_at || ''),
+  }));
+  return writeParquet(rows);
 }
 
 // Helper: CSV Format

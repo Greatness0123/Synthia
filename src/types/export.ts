@@ -1,7 +1,7 @@
 // Kept in sync with coordinator/src/types — update both if schema changes
 
 export type ExportType = 'dataset' | 'frames_zip' | 'thoughts_report' | 'session_full';
-export type ExportFormat = 'LeRobot' | 'JSONL' | 'CSV';
+export type ExportFormat = 'LeRobot' | 'JSONL' | 'CSV' | 'Parquet';
 export type ExportScope = 'all' | 'date_range' | 'session' | 'heartbeat_range';
 
 export interface ExportConfig {

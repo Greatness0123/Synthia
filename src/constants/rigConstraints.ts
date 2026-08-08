@@ -1,4 +1,4 @@
-import { JointLimit } from '../types/joint';
+import type { JointLimit } from '../types/joint';
 
 // Radian constants provided directly per specification
 export const SYNTHIA_RIG_CONSTRAINTS: Record<string, JointLimit> = (() => {
