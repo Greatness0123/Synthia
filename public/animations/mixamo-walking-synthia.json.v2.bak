@@ -1,7 +1,7 @@
 {
   "metadata": {
-    "name": "Synthia Authored Walk v3",
-    "description": "Torque-budget gait: near-standing start phase, reduced amplitudes, matched stride.",
+    "name": "Synthia Authored Walk v2",
+    "description": "Stride-matched gait with verified channel signs; stance knee straightens, arms swing fore-aft.",
     "source": "qwen-authored",
     "schema": "synthia-action-timeline-v1",
     "fps": 30,
@@ -14,18 +14,19 @@
       1
     ],
     "rootMotion": "per-tick deltas (m), -Z = forward",
-    "generatedBy": "scripts/authorSynthiaGait.mjs"
+    "generatedBy": "scripts/authorSynthiaGait.mjs",
+    "fixes": "reduced stride 1.77→0.50, straightened stance knee, fixed arm swing channel"
   },
   "sequence": [
     {
       "timeOffsetMs": 0,
       "overrides": {
         "mixamorigleftupleg": [
-          0,
+          0.35,
           0,
           0
         ],
-        "mixamorigleftleg": 0.188197,
+        "mixamorigleftleg": 0.598988,
         "mixamorigleftfoot": [
           0,
           0,
@@ -33,11 +34,11 @@
         ],
         "mixamoriglefttoebase": 0,
         "mixamorigrightupleg": [
-          0,
+          -0.35,
           0,
           0
         ],
-        "mixamorigrightleg": 0.311803,
+        "mixamorigrightleg": 0.171012,
         "mixamorigrightfoot": [
           0,
           0,
@@ -45,7 +46,7 @@
         ],
         "mixamorigrighttoebase": 0,
         "mixamorigleftshoulder": [
-          -0.4618,
+          -0.2618,
           0,
           0
         ],
@@ -76,7 +77,7 @@
         "mixamoriglefthandpinky2": 0.45,
         "mixamoriglefthandpinky3": 0.25,
         "mixamorigrightshoulder": [
-          -0.0618,
+          -0.2618,
           0,
           0
         ],
@@ -107,17 +108,17 @@
         "mixamorigrighthandpinky2": 0.45,
         "mixamorigrighthandpinky3": 0.25,
         "mixamorigspine": [
-          0.075,
+          0.1,
           0,
           0
         ],
         "mixamorigspine1": [
-          0.02,
+          0.03,
           0,
           0
         ],
         "mixamorigspine2": [
-          0.02,
+          0.03,
           0,
           0
         ],
@@ -127,7 +128,7 @@
           0
         ],
         "mixamorighead": [
-          -0.05,
+          -0.06,
           0,
           0
         ]
@@ -137,11 +138,11 @@
       "timeOffsetMs": 33,
       "overrides": {
         "mixamorigleftupleg": [
-          -0.04292,
+          0.343275,
           0,
           0
         ],
-        "mixamorigleftleg": 0.167119,
+        "mixamorigleftleg": 0.575283,
         "mixamorigleftfoot": [
           0,
           0,
@@ -149,11 +150,11 @@
         ],
         "mixamoriglefttoebase": 0,
         "mixamorigrightupleg": [
-          0.04292,
+          -0.343275,
           0,
           0
         ],
-        "mixamorigrightleg": 0.332881,
+        "mixamorigrightleg": 0.194717,
         "mixamorigrightfoot": [
           0,
           0,
@@ -161,7 +162,7 @@
         ],
         "mixamorigrighttoebase": 0,
         "mixamorigleftshoulder": [
-          -0.457957,
+          -0.320327,
           0,
           0
         ],
@@ -192,7 +193,7 @@
         "mixamoriglefthandpinky2": 0.45,
         "mixamoriglefthandpinky3": 0.25,
         "mixamorigrightshoulder": [
-          -0.065643,
+          -0.203273,
           0,
           0
         ],
@@ -223,28 +224,28 @@
         "mixamorigrighthandpinky2": 0.45,
         "mixamorigrighthandpinky3": 0.25,
         "mixamorigspine": [
-          0.073858,
-          0.007804,
-          0.003902
+          0.098478,
+          0.011705,
+          0.005853
         ],
         "mixamorigspine1": [
-          0.02,
-          0.003902,
-          0.001951
+          0.03,
+          0.005853,
+          0.002926
         ],
         "mixamorigspine2": [
-          0.02,
-          0.003902,
-          0.001951
+          0.03,
+          0.005853,
+          0.002926
         ],
         "mixamorigneck": [
           0,
-          -0.005853,
+          -0.007804,
           0
         ],
         "mixamorighead": [
-          -0.05,
-          -0.005853,
+          -0.06,
+          -0.007804,
           0
         ]
       }
@@ -253,11 +254,11 @@
       "timeOffsetMs": 67,
       "overrides": {
         "mixamorigleftupleg": [
-          -0.08419,
+          0.323358,
           0,
           0
         ],
-        "mixamorigleftleg": 0.149227,
+        "mixamorigleftleg": 0.544266,
         "mixamorigleftfoot": [
           0,
           0,
@@ -265,11 +266,11 @@
         ],
         "mixamoriglefttoebase": 0,
         "mixamorigrightupleg": [
-          0.08419,
+          -0.323358,
           0,
           0
         ],
-        "mixamorigrightleg": 0.350773,
+        "mixamorigrightleg": 0.225734,
         "mixamorigrightfoot": [
           0,
           0,
@@ -277,7 +278,7 @@
         ],
         "mixamorigrighttoebase": 0,
         "mixamorigleftshoulder": [
-          -0.446576,
+          -0.376605,
           0,
           0
         ],
@@ -308,7 +309,7 @@
         "mixamoriglefthandpinky2": 0.45,
         "mixamoriglefthandpinky3": 0.25,
         "mixamorigrightshoulder": [
-          -0.077024,
+          -0.146995,
           0,
           0
         ],
@@ -339,28 +340,28 @@
         "mixamorigrighthandpinky2": 0.45,
         "mixamorigrighthandpinky3": 0.25,
         "mixamorigspine": [
-          0.070607,
-          0.015307,
-          0.007654
+          0.094142,
+          0.022961,
+          0.011481
         ],
         "mixamorigspine1": [
-          0.02,
-          0.007654,
-          0.003827
+          0.03,
+          0.011481,
+          0.00574
         ],
         "mixamorigspine2": [
-          0.02,
-          0.007654,
-          0.003827
+          0.03,
+          0.011481,
+          0.00574
         ],
         "mixamorigneck": [
           0,
-          -0.011481,
+          -0.015307,
           0
         ],
         "mixamorighead": [
-          -0.05,
-          -0.011481,
+          -0.06,
+          -0.015307,
           0
         ]
       }
@@ -369,11 +370,11 @@
       "timeOffsetMs": 100,
       "overrides": {
         "mixamorigleftupleg": [
-          -0.122225,
+          0.291014,
           0,
           0
         ],
-        "mixamorigleftleg": 0.135207,
+        "mixamorigleftleg": 0.507128,
         "mixamorigleftfoot": [
           0,
           0,
@@ -381,11 +382,11 @@
         ],
         "mixamoriglefttoebase": 0,
         "mixamorigrightupleg": [
-          0.122225,
+          -0.291014,
           0,
           0
         ],
-        "mixamorigrightleg": 0.364793,
+        "mixamorigrightleg": 0.262872,
         "mixamorigrightfoot": [
           0,
           0,
@@ -393,7 +394,7 @@
         ],
         "mixamorigrighttoebase": 0,
         "mixamorigleftshoulder": [
-          -0.428094,
+          -0.428471,
           0,
           0
         ],
@@ -424,7 +425,7 @@
         "mixamoriglefthandpinky2": 0.45,
         "mixamoriglefthandpinky3": 0.25,
         "mixamorigrightshoulder": [
-          -0.095506,
+          -0.095129,
           0,
           0
         ],
@@ -455,28 +456,28 @@
         "mixamorigrighthandpinky2": 0.45,
         "mixamorigrighthandpinky3": 0.25,
         "mixamorigspine": [
-          0.06574,
-          0.022223,
-          0.011111
+          0.087654,
+          0.033334,
+          0.016667
         ],
         "mixamorigspine1": [
-          0.02,
-          0.011111,
-          0.005556
+          0.03,
+          0.016667,
+          0.008334
         ],
         "mixamorigspine2": [
-          0.02,
-          0.011111,
-          0.005556
+          0.03,
+          0.016667,
+          0.008334
         ],
         "mixamorigneck": [
           0,
-          -0.016667,
+          -0.022223,
           0
         ],
         "mixamorighead": [
-          -0.05,
-          -0.016667,
+          -0.06,
+          -0.022223,
           0
         ]
       }
@@ -485,11 +486,11 @@
       "timeOffsetMs": 133,
       "overrides": {
         "mixamorigleftupleg": [
-          -0.155563,
+          0.247487,
           0,
           0
         ],
-        "mixamorigleftleg": 0.125599,
+        "mixamorigleftleg": 0.465297,
         "mixamorigleftfoot": [
           0,
           0,
@@ -497,11 +498,11 @@
         ],
         "mixamoriglefttoebase": 0,
         "mixamorigrightupleg": [
-          0.155563,
+          -0.247487,
           0,
           0
         ],
-        "mixamorigrightleg": 0.374401,
+        "mixamorigrightleg": 0.304703,
         "mixamorigrightfoot": [
           0,
           0,
@@ -509,7 +510,7 @@
         ],
         "mixamorigrighttoebase": 0,
         "mixamorigleftshoulder": [
-          -0.403221,
+          -0.473932,
           0,
           0
         ],
@@ -540,7 +541,7 @@
         "mixamoriglefthandpinky2": 0.45,
         "mixamoriglefthandpinky3": 0.25,
         "mixamorigrightshoulder": [
-          -0.120379,
+          -0.049668,
           0,
           0
         ],
@@ -571,28 +572,28 @@
         "mixamorigrighthandpinky2": 0.45,
         "mixamorigrighthandpinky3": 0.25,
         "mixamorigspine": [
-          0.06,
-          0.028284,
-          0.014142
+          0.08,
+          0.042426,
+          0.021213
         ],
         "mixamorigspine1": [
-          0.02,
-          0.014142,
-          0.007071
+          0.03,
+          0.021213,
+          0.010607
         ],
         "mixamorigspine2": [
-          0.02,
-          0.014142,
-          0.007071
+          0.03,
+          0.021213,
+          0.010607
         ],
         "mixamorigneck": [
           0,
-          -0.021213,
+          -0.028284,
           0
         ],
         "mixamorighead": [
-          -0.05,
-          -0.021213,
+          -0.06,
+          -0.028284,
           0
         ]
       }
@@ -601,11 +602,11 @@
       "timeOffsetMs": 167,
       "overrides": {
         "mixamorigleftupleg": [
-          -0.182923,
+          0.19445,
           0,
           0
         ],
-        "mixamorigleftleg": 0.120771,
+        "mixamorigleftleg": 0.42038,
         "mixamorigleftfoot": [
           0,
           0,
@@ -613,11 +614,11 @@
         ],
         "mixamoriglefttoebase": 0,
         "mixamorigrightupleg": [
-          0.182923,
+          -0.19445,
           0,
           0
         ],
-        "mixamorigrightleg": 0.379229,
+        "mixamorigrightleg": 0.34962,
         "mixamorigrightfoot": [
           0,
           0,
@@ -625,7 +626,7 @@
         ],
         "mixamorigrighttoebase": 0,
         "mixamorigleftshoulder": [
-          -0.372914,
+          -0.511241,
           0,
           0
         ],
@@ -656,7 +657,7 @@
         "mixamoriglefthandpinky2": 0.45,
         "mixamoriglefthandpinky3": 0.25,
         "mixamorigrightshoulder": [
-          -0.150686,
+          -0.012359,
           0,
           0
         ],
@@ -687,28 +688,28 @@
         "mixamorigrighthandpinky2": 0.45,
         "mixamorigrighthandpinky3": 0.25,
         "mixamorigspine": [
-          0.05426,
-          0.033259,
-          0.016629
+          0.072346,
+          0.049888,
+          0.024944
         ],
         "mixamorigspine1": [
-          0.02,
-          0.016629,
-          0.008315
+          0.03,
+          0.024944,
+          0.012472
         ],
         "mixamorigspine2": [
-          0.02,
-          0.016629,
-          0.008315
+          0.03,
+          0.024944,
+          0.012472
         ],
         "mixamorigneck": [
           0,
-          -0.024944,
+          -0.033259,
           0
         ],
         "mixamorighead": [
-          -0.05,
-          -0.024944,
+          -0.06,
+          -0.033259,
           0
         ]
       }
@@ -717,11 +718,11 @@
       "timeOffsetMs": 200,
       "overrides": {
         "mixamorigleftupleg": [
-          -0.203253,
+          0.133939,
           0,
           0
         ],
-        "mixamorigleftleg": 0.120909,
+        "mixamorigleftleg": 0.374104,
         "mixamorigleftfoot": [
           0,
           0,
@@ -729,11 +730,11 @@
         ],
         "mixamoriglefttoebase": 0,
         "mixamorigrightupleg": [
-          0.203253,
+          -0.133939,
           0,
           0
         ],
-        "mixamorigrightleg": 0.379091,
+        "mixamorigrightleg": 0.395896,
         "mixamorigrightfoot": [
           0,
           0,
@@ -741,7 +742,7 @@
         ],
         "mixamorigrighttoebase": 0,
         "mixamorigleftshoulder": [
-          -0.338337,
+          -0.538964,
           0,
           0
         ],
@@ -772,7 +773,7 @@
         "mixamoriglefthandpinky2": 0.45,
         "mixamoriglefthandpinky3": 0.25,
         "mixamorigrightshoulder": [
-          -0.185263,
+          0.015364,
           0,
           0
         ],
@@ -803,28 +804,28 @@
         "mixamorigrighthandpinky2": 0.45,
         "mixamorigrighthandpinky3": 0.25,
         "mixamorigspine": [
-          0.049393,
-          0.036955,
-          0.018478
+          0.065858,
+          0.055433,
+          0.027716
         ],
         "mixamorigspine1": [
-          0.02,
-          0.018478,
-          0.009239
+          0.03,
+          0.027716,
+          0.013858
         ],
         "mixamorigspine2": [
-          0.02,
-          0.018478,
-          0.009239
+          0.03,
+          0.027716,
+          0.013858
         ],
         "mixamorigneck": [
           0,
-          -0.027716,
+          -0.036955,
           0
         ],
         "mixamorighead": [
-          -0.05,
-          -0.027716,
+          -0.06,
+          -0.036955,
           0
         ]
       }
@@ -833,11 +834,11 @@
       "timeOffsetMs": 233,
       "overrides": {
         "mixamorigleftupleg": [
-          -0.215773,
+          0.068282,
           0,
           0
         ],
-        "mixamorigleftleg": 0.126009,
+        "mixamorigleftleg": 0.328246,
         "mixamorigleftfoot": [
           0,
           0,
@@ -845,11 +846,11 @@
         ],
         "mixamoriglefttoebase": 0,
         "mixamorigrightupleg": [
-          0.215773,
+          -0.068282,
           0,
           0
         ],
-        "mixamorigrightleg": 0.373991,
+        "mixamorigrightleg": 0.441754,
         "mixamorigrightfoot": [
           0,
           0,
@@ -857,7 +858,7 @@
         ],
         "mixamorigrighttoebase": 0,
         "mixamorigleftshoulder": [
-          -0.300818,
+          -0.556036,
           0,
           0
         ],
@@ -888,7 +889,7 @@
         "mixamoriglefthandpinky2": 0.45,
         "mixamoriglefthandpinky3": 0.25,
         "mixamorigrightshoulder": [
-          -0.222782,
+          0.032436,
           0,
           0
         ],
@@ -919,28 +920,28 @@
         "mixamorigrighthandpinky2": 0.45,
         "mixamorigrighthandpinky3": 0.25,
         "mixamorigspine": [
-          0.046142,
-          0.039231,
-          0.019616
+          0.061522,
+          0.058847,
+          0.029424
         ],
         "mixamorigspine1": [
-          0.02,
-          0.019616,
-          0.009808
+          0.03,
+          0.029424,
+          0.014712
         ],
         "mixamorigspine2": [
-          0.02,
-          0.019616,
-          0.009808
+          0.03,
+          0.029424,
+          0.014712
         ],
         "mixamorigneck": [
           0,
-          -0.029424,
+          -0.039231,
           0
         ],
         "mixamorighead": [
-          -0.05,
-          -0.029424,
+          -0.06,
+          -0.039231,
           0
         ]
       }
@@ -949,11 +950,11 @@
       "timeOffsetMs": 267,
       "overrides": {
         "mixamorigleftupleg": [
-          -0.22,
+          0,
           0,
           0
         ],
-        "mixamorigleftleg": 0.135873,
+        "mixamorigleftleg": 0.284569,
         "mixamorigleftfoot": [
           0,
           0,
@@ -961,11 +962,11 @@
         ],
         "mixamoriglefttoebase": 0,
         "mixamorigrightupleg": [
-          0.22,
+          0,
           0,
           0
         ],
-        "mixamorigrightleg": 0.364127,
+        "mixamorigrightleg": 0.485431,
         "mixamorigrightfoot": [
           0,
           0,
@@ -973,7 +974,7 @@
         ],
         "mixamorigrighttoebase": 0,
         "mixamorigleftshoulder": [
-          -0.2618,
+          -0.5618,
           0,
           0
         ],
@@ -1004,471 +1005,7 @@
         "mixamoriglefthandpinky2": 0.45,
         "mixamoriglefthandpinky3": 0.25,
         "mixamorigrightshoulder": [
-          -0.2618,
-          0,
-          0
-        ],
-        "mixamorigrightarm": [
-          1.25,
-          0,
-          0
-        ],
-        "mixamorigrightforearm": 0.12,
-        "mixamorigrighthand": [
-          0,
-          0,
-          0
-        ],
-        "mixamorigrighthandthumb1": 0.25,
-        "mixamorigrighthandthumb2": 0.5,
-        "mixamorigrighthandthumb3": 0.2,
-        "mixamorigrighthandindex1": 0.35,
-        "mixamorigrighthandindex2": 0.5,
-        "mixamorigrighthandindex3": 0.3,
-        "mixamorigrighthandmiddle1": 0.35,
-        "mixamorigrighthandmiddle2": 0.5,
-        "mixamorigrighthandmiddle3": 0.3,
-        "mixamorigrighthandring1": 0.35,
-        "mixamorigrighthandring2": 0.5,
-        "mixamorigrighthandring3": 0.3,
-        "mixamorigrighthandpinky1": 0.3,
-        "mixamorigrighthandpinky2": 0.45,
-        "mixamorigrighthandpinky3": 0.25,
-        "mixamorigspine": [
-          0.045,
-          0.04,
-          0.02
-        ],
-        "mixamorigspine1": [
-          0.02,
-          0.02,
-          0.01
-        ],
-        "mixamorigspine2": [
-          0.02,
-          0.02,
-          0.01
-        ],
-        "mixamorigneck": [
-          0,
-          -0.03,
-          0
-        ],
-        "mixamorighead": [
-          -0.05,
-          -0.03,
-          0
-        ]
-      }
-    },
-    {
-      "timeOffsetMs": 300,
-      "overrides": {
-        "mixamorigleftupleg": [
-          -0.215773,
-          0,
-          0
-        ],
-        "mixamorigleftleg": 0.150123,
-        "mixamorigleftfoot": [
-          0,
-          0,
-          0
-        ],
-        "mixamoriglefttoebase": 0,
-        "mixamorigrightupleg": [
-          0.215773,
-          0,
-          0
-        ],
-        "mixamorigrightleg": 0.349877,
-        "mixamorigrightfoot": [
-          0,
-          0,
-          0
-        ],
-        "mixamorigrighttoebase": 0,
-        "mixamorigleftshoulder": [
-          -0.222782,
-          0,
-          0
-        ],
-        "mixamorigleftarm": [
-          1.25,
-          0,
-          0
-        ],
-        "mixamorigleftforearm": 0.12,
-        "mixamoriglefthand": [
-          0,
-          0,
-          0
-        ],
-        "mixamoriglefthandthumb1": 0.25,
-        "mixamoriglefthandthumb2": 0.5,
-        "mixamoriglefthandthumb3": 0.2,
-        "mixamoriglefthandindex1": 0.35,
-        "mixamoriglefthandindex2": 0.5,
-        "mixamoriglefthandindex3": 0.3,
-        "mixamoriglefthandmiddle1": 0.35,
-        "mixamoriglefthandmiddle2": 0.5,
-        "mixamoriglefthandmiddle3": 0.3,
-        "mixamoriglefthandring1": 0.35,
-        "mixamoriglefthandring2": 0.5,
-        "mixamoriglefthandring3": 0.3,
-        "mixamoriglefthandpinky1": 0.3,
-        "mixamoriglefthandpinky2": 0.45,
-        "mixamoriglefthandpinky3": 0.25,
-        "mixamorigrightshoulder": [
-          -0.300818,
-          0,
-          0
-        ],
-        "mixamorigrightarm": [
-          1.25,
-          0,
-          0
-        ],
-        "mixamorigrightforearm": 0.12,
-        "mixamorigrighthand": [
-          0,
-          0,
-          0
-        ],
-        "mixamorigrighthandthumb1": 0.25,
-        "mixamorigrighthandthumb2": 0.5,
-        "mixamorigrighthandthumb3": 0.2,
-        "mixamorigrighthandindex1": 0.35,
-        "mixamorigrighthandindex2": 0.5,
-        "mixamorigrighthandindex3": 0.3,
-        "mixamorigrighthandmiddle1": 0.35,
-        "mixamorigrighthandmiddle2": 0.5,
-        "mixamorigrighthandmiddle3": 0.3,
-        "mixamorigrighthandring1": 0.35,
-        "mixamorigrighthandring2": 0.5,
-        "mixamorigrighthandring3": 0.3,
-        "mixamorigrighthandpinky1": 0.3,
-        "mixamorigrighthandpinky2": 0.45,
-        "mixamorigrighthandpinky3": 0.25,
-        "mixamorigspine": [
-          0.046142,
-          0.039231,
-          0.019616
-        ],
-        "mixamorigspine1": [
-          0.02,
-          0.019616,
-          0.009808
-        ],
-        "mixamorigspine2": [
-          0.02,
-          0.019616,
-          0.009808
-        ],
-        "mixamorigneck": [
-          0,
-          -0.029424,
-          0
-        ],
-        "mixamorighead": [
-          -0.05,
-          -0.029424,
-          0
-        ]
-      }
-    },
-    {
-      "timeOffsetMs": 333,
-      "overrides": {
-        "mixamorigleftupleg": [
-          -0.203253,
-          0,
-          0
-        ],
-        "mixamorigleftleg": 0.168212,
-        "mixamorigleftfoot": [
-          0,
-          0,
-          0
-        ],
-        "mixamoriglefttoebase": 0,
-        "mixamorigrightupleg": [
-          0.203253,
-          0,
-          0
-        ],
-        "mixamorigrightleg": 0.331788,
-        "mixamorigrightfoot": [
-          0,
-          0,
-          0
-        ],
-        "mixamorigrighttoebase": 0,
-        "mixamorigleftshoulder": [
-          -0.185263,
-          0,
-          0
-        ],
-        "mixamorigleftarm": [
-          1.25,
-          0,
-          0
-        ],
-        "mixamorigleftforearm": 0.12,
-        "mixamoriglefthand": [
-          0,
-          0,
-          0
-        ],
-        "mixamoriglefthandthumb1": 0.25,
-        "mixamoriglefthandthumb2": 0.5,
-        "mixamoriglefthandthumb3": 0.2,
-        "mixamoriglefthandindex1": 0.35,
-        "mixamoriglefthandindex2": 0.5,
-        "mixamoriglefthandindex3": 0.3,
-        "mixamoriglefthandmiddle1": 0.35,
-        "mixamoriglefthandmiddle2": 0.5,
-        "mixamoriglefthandmiddle3": 0.3,
-        "mixamoriglefthandring1": 0.35,
-        "mixamoriglefthandring2": 0.5,
-        "mixamoriglefthandring3": 0.3,
-        "mixamoriglefthandpinky1": 0.3,
-        "mixamoriglefthandpinky2": 0.45,
-        "mixamoriglefthandpinky3": 0.25,
-        "mixamorigrightshoulder": [
-          -0.338337,
-          0,
-          0
-        ],
-        "mixamorigrightarm": [
-          1.25,
-          0,
-          0
-        ],
-        "mixamorigrightforearm": 0.12,
-        "mixamorigrighthand": [
-          0,
-          0,
-          0
-        ],
-        "mixamorigrighthandthumb1": 0.25,
-        "mixamorigrighthandthumb2": 0.5,
-        "mixamorigrighthandthumb3": 0.2,
-        "mixamorigrighthandindex1": 0.35,
-        "mixamorigrighthandindex2": 0.5,
-        "mixamorigrighthandindex3": 0.3,
-        "mixamorigrighthandmiddle1": 0.35,
-        "mixamorigrighthandmiddle2": 0.5,
-        "mixamorigrighthandmiddle3": 0.3,
-        "mixamorigrighthandring1": 0.35,
-        "mixamorigrighthandring2": 0.5,
-        "mixamorigrighthandring3": 0.3,
-        "mixamorigrighthandpinky1": 0.3,
-        "mixamorigrighthandpinky2": 0.45,
-        "mixamorigrighthandpinky3": 0.25,
-        "mixamorigspine": [
-          0.049393,
-          0.036955,
-          0.018478
-        ],
-        "mixamorigspine1": [
-          0.02,
-          0.018478,
-          0.009239
-        ],
-        "mixamorigspine2": [
-          0.02,
-          0.018478,
-          0.009239
-        ],
-        "mixamorigneck": [
-          0,
-          -0.027716,
-          0
-        ],
-        "mixamorighead": [
-          -0.05,
-          -0.027716,
-          0
-        ]
-      }
-    },
-    {
-      "timeOffsetMs": 367,
-      "overrides": {
-        "mixamorigleftupleg": [
-          -0.182923,
-          0,
-          0
-        ],
-        "mixamorigleftleg": 0.189443,
-        "mixamorigleftfoot": [
-          0,
-          0,
-          0
-        ],
-        "mixamoriglefttoebase": 0,
-        "mixamorigrightupleg": [
-          0.182923,
-          0,
-          0
-        ],
-        "mixamorigrightleg": 0.310557,
-        "mixamorigrightfoot": [
-          0,
-          0,
-          0
-        ],
-        "mixamorigrighttoebase": 0,
-        "mixamorigleftshoulder": [
-          -0.150686,
-          0,
-          0
-        ],
-        "mixamorigleftarm": [
-          1.25,
-          0,
-          0
-        ],
-        "mixamorigleftforearm": 0.12,
-        "mixamoriglefthand": [
-          0,
-          0,
-          0
-        ],
-        "mixamoriglefthandthumb1": 0.25,
-        "mixamoriglefthandthumb2": 0.5,
-        "mixamoriglefthandthumb3": 0.2,
-        "mixamoriglefthandindex1": 0.35,
-        "mixamoriglefthandindex2": 0.5,
-        "mixamoriglefthandindex3": 0.3,
-        "mixamoriglefthandmiddle1": 0.35,
-        "mixamoriglefthandmiddle2": 0.5,
-        "mixamoriglefthandmiddle3": 0.3,
-        "mixamoriglefthandring1": 0.35,
-        "mixamoriglefthandring2": 0.5,
-        "mixamoriglefthandring3": 0.3,
-        "mixamoriglefthandpinky1": 0.3,
-        "mixamoriglefthandpinky2": 0.45,
-        "mixamoriglefthandpinky3": 0.25,
-        "mixamorigrightshoulder": [
-          -0.372914,
-          0,
-          0
-        ],
-        "mixamorigrightarm": [
-          1.25,
-          0,
-          0
-        ],
-        "mixamorigrightforearm": 0.12,
-        "mixamorigrighthand": [
-          0,
-          0,
-          0
-        ],
-        "mixamorigrighthandthumb1": 0.25,
-        "mixamorigrighthandthumb2": 0.5,
-        "mixamorigrighthandthumb3": 0.2,
-        "mixamorigrighthandindex1": 0.35,
-        "mixamorigrighthandindex2": 0.5,
-        "mixamorigrighthandindex3": 0.3,
-        "mixamorigrighthandmiddle1": 0.35,
-        "mixamorigrighthandmiddle2": 0.5,
-        "mixamorigrighthandmiddle3": 0.3,
-        "mixamorigrighthandring1": 0.35,
-        "mixamorigrighthandring2": 0.5,
-        "mixamorigrighthandring3": 0.3,
-        "mixamorigrighthandpinky1": 0.3,
-        "mixamorigrighthandpinky2": 0.45,
-        "mixamorigrighthandpinky3": 0.25,
-        "mixamorigspine": [
-          0.05426,
-          0.033259,
-          0.016629
-        ],
-        "mixamorigspine1": [
-          0.02,
-          0.016629,
-          0.008315
-        ],
-        "mixamorigspine2": [
-          0.02,
-          0.016629,
-          0.008315
-        ],
-        "mixamorigneck": [
-          0,
-          -0.024944,
-          0
-        ],
-        "mixamorighead": [
-          -0.05,
-          -0.024944,
-          0
-        ]
-      }
-    },
-    {
-      "timeOffsetMs": 400,
-      "overrides": {
-        "mixamorigleftupleg": [
-          -0.155563,
-          0,
-          0
-        ],
-        "mixamorigleftleg": 0.213002,
-        "mixamorigleftfoot": [
-          0,
-          0,
-          0
-        ],
-        "mixamoriglefttoebase": 0,
-        "mixamorigrightupleg": [
-          0.155563,
-          0,
-          0
-        ],
-        "mixamorigrightleg": 0.286998,
-        "mixamorigrightfoot": [
-          0,
-          0,
-          0
-        ],
-        "mixamorigrighttoebase": 0,
-        "mixamorigleftshoulder": [
-          -0.120379,
-          0,
-          0
-        ],
-        "mixamorigleftarm": [
-          1.25,
-          0,
-          0
-        ],
-        "mixamorigleftforearm": 0.12,
-        "mixamoriglefthand": [
-          0,
-          0,
-          0
-        ],
-        "mixamoriglefthandthumb1": 0.25,
-        "mixamoriglefthandthumb2": 0.5,
-        "mixamoriglefthandthumb3": 0.2,
-        "mixamoriglefthandindex1": 0.35,
-        "mixamoriglefthandindex2": 0.5,
-        "mixamoriglefthandindex3": 0.3,
-        "mixamoriglefthandmiddle1": 0.35,
-        "mixamoriglefthandmiddle2": 0.5,
-        "mixamoriglefthandmiddle3": 0.3,
-        "mixamoriglefthandring1": 0.35,
-        "mixamoriglefthandring2": 0.5,
-        "mixamoriglefthandring3": 0.3,
-        "mixamoriglefthandpinky1": 0.3,
-        "mixamoriglefthandpinky2": 0.45,
-        "mixamoriglefthandpinky3": 0.25,
-        "mixamorigrightshoulder": [
-          -0.403221,
+          0.0382,
           0,
           0
         ],
@@ -1500,27 +1037,491 @@
         "mixamorigrighthandpinky3": 0.25,
         "mixamorigspine": [
           0.06,
-          0.028284,
-          0.014142
+          0.06,
+          0.03
         ],
         "mixamorigspine1": [
-          0.02,
-          0.014142,
-          0.007071
+          0.03,
+          0.03,
+          0.015
         ],
         "mixamorigspine2": [
-          0.02,
-          0.014142,
-          0.007071
+          0.03,
+          0.03,
+          0.015
         ],
         "mixamorigneck": [
           0,
-          -0.021213,
+          -0.04,
           0
         ],
         "mixamorighead": [
-          -0.05,
-          -0.021213,
+          -0.06,
+          -0.04,
+          0
+        ]
+      }
+    },
+    {
+      "timeOffsetMs": 300,
+      "overrides": {
+        "mixamorigleftupleg": [
+          -0.068282,
+          0,
+          0
+        ],
+        "mixamorigleftleg": 0.244752,
+        "mixamorigleftfoot": [
+          0,
+          0,
+          0
+        ],
+        "mixamoriglefttoebase": 0,
+        "mixamorigrightupleg": [
+          0.068282,
+          0,
+          0
+        ],
+        "mixamorigrightleg": 0.525248,
+        "mixamorigrightfoot": [
+          0,
+          0,
+          0
+        ],
+        "mixamorigrighttoebase": 0,
+        "mixamorigleftshoulder": [
+          -0.556036,
+          0,
+          0
+        ],
+        "mixamorigleftarm": [
+          1.25,
+          0,
+          0
+        ],
+        "mixamorigleftforearm": 0.12,
+        "mixamoriglefthand": [
+          0,
+          0,
+          0
+        ],
+        "mixamoriglefthandthumb1": 0.25,
+        "mixamoriglefthandthumb2": 0.5,
+        "mixamoriglefthandthumb3": 0.2,
+        "mixamoriglefthandindex1": 0.35,
+        "mixamoriglefthandindex2": 0.5,
+        "mixamoriglefthandindex3": 0.3,
+        "mixamoriglefthandmiddle1": 0.35,
+        "mixamoriglefthandmiddle2": 0.5,
+        "mixamoriglefthandmiddle3": 0.3,
+        "mixamoriglefthandring1": 0.35,
+        "mixamoriglefthandring2": 0.5,
+        "mixamoriglefthandring3": 0.3,
+        "mixamoriglefthandpinky1": 0.3,
+        "mixamoriglefthandpinky2": 0.45,
+        "mixamoriglefthandpinky3": 0.25,
+        "mixamorigrightshoulder": [
+          0.032436,
+          0,
+          0
+        ],
+        "mixamorigrightarm": [
+          1.25,
+          0,
+          0
+        ],
+        "mixamorigrightforearm": 0.12,
+        "mixamorigrighthand": [
+          0,
+          0,
+          0
+        ],
+        "mixamorigrighthandthumb1": 0.25,
+        "mixamorigrighthandthumb2": 0.5,
+        "mixamorigrighthandthumb3": 0.2,
+        "mixamorigrighthandindex1": 0.35,
+        "mixamorigrighthandindex2": 0.5,
+        "mixamorigrighthandindex3": 0.3,
+        "mixamorigrighthandmiddle1": 0.35,
+        "mixamorigrighthandmiddle2": 0.5,
+        "mixamorigrighthandmiddle3": 0.3,
+        "mixamorigrighthandring1": 0.35,
+        "mixamorigrighthandring2": 0.5,
+        "mixamorigrighthandring3": 0.3,
+        "mixamorigrighthandpinky1": 0.3,
+        "mixamorigrighthandpinky2": 0.45,
+        "mixamorigrighthandpinky3": 0.25,
+        "mixamorigspine": [
+          0.061522,
+          0.058847,
+          0.029424
+        ],
+        "mixamorigspine1": [
+          0.03,
+          0.029424,
+          0.014712
+        ],
+        "mixamorigspine2": [
+          0.03,
+          0.029424,
+          0.014712
+        ],
+        "mixamorigneck": [
+          0,
+          -0.039231,
+          0
+        ],
+        "mixamorighead": [
+          -0.06,
+          -0.039231,
+          0
+        ]
+      }
+    },
+    {
+      "timeOffsetMs": 333,
+      "overrides": {
+        "mixamorigleftupleg": [
+          -0.133939,
+          0,
+          0
+        ],
+        "mixamorigleftleg": 0.210325,
+        "mixamorigleftfoot": [
+          0,
+          0,
+          0
+        ],
+        "mixamoriglefttoebase": 0,
+        "mixamorigrightupleg": [
+          0.133939,
+          0,
+          0
+        ],
+        "mixamorigrightleg": 0.559675,
+        "mixamorigrightfoot": [
+          0,
+          0,
+          0
+        ],
+        "mixamorigrighttoebase": 0,
+        "mixamorigleftshoulder": [
+          -0.538964,
+          0,
+          0
+        ],
+        "mixamorigleftarm": [
+          1.25,
+          0,
+          0
+        ],
+        "mixamorigleftforearm": 0.12,
+        "mixamoriglefthand": [
+          0,
+          0,
+          0
+        ],
+        "mixamoriglefthandthumb1": 0.25,
+        "mixamoriglefthandthumb2": 0.5,
+        "mixamoriglefthandthumb3": 0.2,
+        "mixamoriglefthandindex1": 0.35,
+        "mixamoriglefthandindex2": 0.5,
+        "mixamoriglefthandindex3": 0.3,
+        "mixamoriglefthandmiddle1": 0.35,
+        "mixamoriglefthandmiddle2": 0.5,
+        "mixamoriglefthandmiddle3": 0.3,
+        "mixamoriglefthandring1": 0.35,
+        "mixamoriglefthandring2": 0.5,
+        "mixamoriglefthandring3": 0.3,
+        "mixamoriglefthandpinky1": 0.3,
+        "mixamoriglefthandpinky2": 0.45,
+        "mixamoriglefthandpinky3": 0.25,
+        "mixamorigrightshoulder": [
+          0.015364,
+          0,
+          0
+        ],
+        "mixamorigrightarm": [
+          1.25,
+          0,
+          0
+        ],
+        "mixamorigrightforearm": 0.12,
+        "mixamorigrighthand": [
+          0,
+          0,
+          0
+        ],
+        "mixamorigrighthandthumb1": 0.25,
+        "mixamorigrighthandthumb2": 0.5,
+        "mixamorigrighthandthumb3": 0.2,
+        "mixamorigrighthandindex1": 0.35,
+        "mixamorigrighthandindex2": 0.5,
+        "mixamorigrighthandindex3": 0.3,
+        "mixamorigrighthandmiddle1": 0.35,
+        "mixamorigrighthandmiddle2": 0.5,
+        "mixamorigrighthandmiddle3": 0.3,
+        "mixamorigrighthandring1": 0.35,
+        "mixamorigrighthandring2": 0.5,
+        "mixamorigrighthandring3": 0.3,
+        "mixamorigrighthandpinky1": 0.3,
+        "mixamorigrighthandpinky2": 0.45,
+        "mixamorigrighthandpinky3": 0.25,
+        "mixamorigspine": [
+          0.065858,
+          0.055433,
+          0.027716
+        ],
+        "mixamorigspine1": [
+          0.03,
+          0.027716,
+          0.013858
+        ],
+        "mixamorigspine2": [
+          0.03,
+          0.027716,
+          0.013858
+        ],
+        "mixamorigneck": [
+          0,
+          -0.036955,
+          0
+        ],
+        "mixamorighead": [
+          -0.06,
+          -0.036955,
+          0
+        ]
+      }
+    },
+    {
+      "timeOffsetMs": 367,
+      "overrides": {
+        "mixamorigleftupleg": [
+          -0.19445,
+          0,
+          0
+        ],
+        "mixamorigleftleg": 0.18261,
+        "mixamorigleftfoot": [
+          0,
+          0,
+          0
+        ],
+        "mixamoriglefttoebase": 0,
+        "mixamorigrightupleg": [
+          0.19445,
+          0,
+          0
+        ],
+        "mixamorigrightleg": 0.58739,
+        "mixamorigrightfoot": [
+          0,
+          0,
+          0
+        ],
+        "mixamorigrighttoebase": 0,
+        "mixamorigleftshoulder": [
+          -0.511241,
+          0,
+          0
+        ],
+        "mixamorigleftarm": [
+          1.25,
+          0,
+          0
+        ],
+        "mixamorigleftforearm": 0.12,
+        "mixamoriglefthand": [
+          0,
+          0,
+          0
+        ],
+        "mixamoriglefthandthumb1": 0.25,
+        "mixamoriglefthandthumb2": 0.5,
+        "mixamoriglefthandthumb3": 0.2,
+        "mixamoriglefthandindex1": 0.35,
+        "mixamoriglefthandindex2": 0.5,
+        "mixamoriglefthandindex3": 0.3,
+        "mixamoriglefthandmiddle1": 0.35,
+        "mixamoriglefthandmiddle2": 0.5,
+        "mixamoriglefthandmiddle3": 0.3,
+        "mixamoriglefthandring1": 0.35,
+        "mixamoriglefthandring2": 0.5,
+        "mixamoriglefthandring3": 0.3,
+        "mixamoriglefthandpinky1": 0.3,
+        "mixamoriglefthandpinky2": 0.45,
+        "mixamoriglefthandpinky3": 0.25,
+        "mixamorigrightshoulder": [
+          -0.012359,
+          0,
+          0
+        ],
+        "mixamorigrightarm": [
+          1.25,
+          0,
+          0
+        ],
+        "mixamorigrightforearm": 0.12,
+        "mixamorigrighthand": [
+          0,
+          0,
+          0
+        ],
+        "mixamorigrighthandthumb1": 0.25,
+        "mixamorigrighthandthumb2": 0.5,
+        "mixamorigrighthandthumb3": 0.2,
+        "mixamorigrighthandindex1": 0.35,
+        "mixamorigrighthandindex2": 0.5,
+        "mixamorigrighthandindex3": 0.3,
+        "mixamorigrighthandmiddle1": 0.35,
+        "mixamorigrighthandmiddle2": 0.5,
+        "mixamorigrighthandmiddle3": 0.3,
+        "mixamorigrighthandring1": 0.35,
+        "mixamorigrighthandring2": 0.5,
+        "mixamorigrighthandring3": 0.3,
+        "mixamorigrighthandpinky1": 0.3,
+        "mixamorigrighthandpinky2": 0.45,
+        "mixamorigrighthandpinky3": 0.25,
+        "mixamorigspine": [
+          0.072346,
+          0.049888,
+          0.024944
+        ],
+        "mixamorigspine1": [
+          0.03,
+          0.024944,
+          0.012472
+        ],
+        "mixamorigspine2": [
+          0.03,
+          0.024944,
+          0.012472
+        ],
+        "mixamorigneck": [
+          0,
+          -0.033259,
+          0
+        ],
+        "mixamorighead": [
+          -0.06,
+          -0.033259,
+          0
+        ]
+      }
+    },
+    {
+      "timeOffsetMs": 400,
+      "overrides": {
+        "mixamorigleftupleg": [
+          -0.247487,
+          0,
+          0
+        ],
+        "mixamorigleftleg": 0.162673,
+        "mixamorigleftfoot": [
+          0,
+          0,
+          0
+        ],
+        "mixamoriglefttoebase": 0,
+        "mixamorigrightupleg": [
+          0.247487,
+          0,
+          0
+        ],
+        "mixamorigrightleg": 0.607327,
+        "mixamorigrightfoot": [
+          0,
+          0,
+          0
+        ],
+        "mixamorigrighttoebase": 0,
+        "mixamorigleftshoulder": [
+          -0.473932,
+          0,
+          0
+        ],
+        "mixamorigleftarm": [
+          1.25,
+          0,
+          0
+        ],
+        "mixamorigleftforearm": 0.12,
+        "mixamoriglefthand": [
+          0,
+          0,
+          0
+        ],
+        "mixamoriglefthandthumb1": 0.25,
+        "mixamoriglefthandthumb2": 0.5,
+        "mixamoriglefthandthumb3": 0.2,
+        "mixamoriglefthandindex1": 0.35,
+        "mixamoriglefthandindex2": 0.5,
+        "mixamoriglefthandindex3": 0.3,
+        "mixamoriglefthandmiddle1": 0.35,
+        "mixamoriglefthandmiddle2": 0.5,
+        "mixamoriglefthandmiddle3": 0.3,
+        "mixamoriglefthandring1": 0.35,
+        "mixamoriglefthandring2": 0.5,
+        "mixamoriglefthandring3": 0.3,
+        "mixamoriglefthandpinky1": 0.3,
+        "mixamoriglefthandpinky2": 0.45,
+        "mixamoriglefthandpinky3": 0.25,
+        "mixamorigrightshoulder": [
+          -0.049668,
+          0,
+          0
+        ],
+        "mixamorigrightarm": [
+          1.25,
+          0,
+          0
+        ],
+        "mixamorigrightforearm": 0.12,
+        "mixamorigrighthand": [
+          0,
+          0,
+          0
+        ],
+        "mixamorigrighthandthumb1": 0.25,
+        "mixamorigrighthandthumb2": 0.5,
+        "mixamorigrighthandthumb3": 0.2,
+        "mixamorigrighthandindex1": 0.35,
+        "mixamorigrighthandindex2": 0.5,
+        "mixamorigrighthandindex3": 0.3,
+        "mixamorigrighthandmiddle1": 0.35,
+        "mixamorigrighthandmiddle2": 0.5,
+        "mixamorigrighthandmiddle3": 0.3,
+        "mixamorigrighthandring1": 0.35,
+        "mixamorigrighthandring2": 0.5,
+        "mixamorigrighthandring3": 0.3,
+        "mixamorigrighthandpinky1": 0.3,
+        "mixamorigrighthandpinky2": 0.45,
+        "mixamorigrighthandpinky3": 0.25,
+        "mixamorigspine": [
+          0.08,
+          0.042426,
+          0.021213
+        ],
+        "mixamorigspine1": [
+          0.03,
+          0.021213,
+          0.010607
+        ],
+        "mixamorigspine2": [
+          0.03,
+          0.021213,
+          0.010607
+        ],
+        "mixamorigneck": [
+          0,
+          -0.028284,
+          0
+        ],
+        "mixamorighead": [
+          -0.06,
+          -0.028284,
           0
         ]
       }
@@ -1529,11 +1530,11 @@
       "timeOffsetMs": 433,
       "overrides": {
         "mixamorigleftupleg": [
-          -0.122225,
+          -0.291014,
           0,
           0
         ],
-        "mixamorigleftleg": 0.237982,
+        "mixamorigleftleg": 0.15128,
         "mixamorigleftfoot": [
           0,
           0,
@@ -1541,11 +1542,11 @@
         ],
         "mixamoriglefttoebase": 0,
         "mixamorigrightupleg": [
-          0.122225,
+          0.291014,
           0,
           0
         ],
-        "mixamorigrightleg": 0.262018,
+        "mixamorigrightleg": 0.61872,
         "mixamorigrightfoot": [
           0,
           0,
@@ -1553,7 +1554,7 @@
         ],
         "mixamorigrighttoebase": 0,
         "mixamorigleftshoulder": [
-          -0.095506,
+          -0.428471,
           0,
           0
         ],
@@ -1584,7 +1585,7 @@
         "mixamoriglefthandpinky2": 0.45,
         "mixamoriglefthandpinky3": 0.25,
         "mixamorigrightshoulder": [
-          -0.428094,
+          -0.095129,
           0,
           0
         ],
@@ -1615,28 +1616,28 @@
         "mixamorigrighthandpinky2": 0.45,
         "mixamorigrighthandpinky3": 0.25,
         "mixamorigspine": [
-          0.06574,
-          0.022223,
-          0.011111
+          0.087654,
+          0.033334,
+          0.016667
         ],
         "mixamorigspine1": [
-          0.02,
-          0.011111,
-          0.005556
+          0.03,
+          0.016667,
+          0.008334
         ],
         "mixamorigspine2": [
-          0.02,
-          0.011111,
-          0.005556
+          0.03,
+          0.016667,
+          0.008334
         ],
         "mixamorigneck": [
           0,
-          -0.016667,
+          -0.022223,
           0
         ],
         "mixamorighead": [
-          -0.05,
-          -0.016667,
+          -0.06,
+          -0.022223,
           0
         ]
       }
@@ -1645,11 +1646,11 @@
       "timeOffsetMs": 467,
       "overrides": {
         "mixamorigleftupleg": [
-          -0.08419,
+          -0.323358,
           0,
           0
         ],
-        "mixamorigleftleg": 0.263424,
+        "mixamorigleftleg": 0.148868,
         "mixamorigleftfoot": [
           0,
           0,
@@ -1657,11 +1658,11 @@
         ],
         "mixamoriglefttoebase": 0,
         "mixamorigrightupleg": [
-          0.08419,
+          0.323358,
           0,
           0
         ],
-        "mixamorigrightleg": 0.236576,
+        "mixamorigrightleg": 0.621132,
         "mixamorigrightfoot": [
           0,
           0,
@@ -1669,7 +1670,7 @@
         ],
         "mixamorigrighttoebase": 0,
         "mixamorigleftshoulder": [
-          -0.077024,
+          -0.376605,
           0,
           0
         ],
@@ -1700,7 +1701,7 @@
         "mixamoriglefthandpinky2": 0.45,
         "mixamoriglefthandpinky3": 0.25,
         "mixamorigrightshoulder": [
-          -0.446576,
+          -0.146995,
           0,
           0
         ],
@@ -1731,28 +1732,28 @@
         "mixamorigrighthandpinky2": 0.45,
         "mixamorigrighthandpinky3": 0.25,
         "mixamorigspine": [
-          0.070607,
-          0.015307,
-          0.007654
+          0.094142,
+          0.022961,
+          0.011481
         ],
         "mixamorigspine1": [
-          0.02,
-          0.007654,
-          0.003827
+          0.03,
+          0.011481,
+          0.00574
         ],
         "mixamorigspine2": [
-          0.02,
-          0.007654,
-          0.003827
+          0.03,
+          0.011481,
+          0.00574
         ],
         "mixamorigneck": [
           0,
-          -0.011481,
+          -0.015307,
           0
         ],
         "mixamorighead": [
-          -0.05,
-          -0.011481,
+          -0.06,
+          -0.015307,
           0
         ]
       }
@@ -1761,11 +1762,11 @@
       "timeOffsetMs": 500,
       "overrides": {
         "mixamorigleftupleg": [
-          -0.04292,
+          -0.343275,
           0,
           0
         ],
-        "mixamorigleftleg": 0.288351,
+        "mixamorigleftleg": 0.155531,
         "mixamorigleftfoot": [
           0,
           0,
@@ -1773,11 +1774,11 @@
         ],
         "mixamoriglefttoebase": 0,
         "mixamorigrightupleg": [
-          0.04292,
+          0.343275,
           0,
           0
         ],
-        "mixamorigrightleg": 0.211649,
+        "mixamorigrightleg": 0.614469,
         "mixamorigrightfoot": [
           0,
           0,
@@ -1785,7 +1786,7 @@
         ],
         "mixamorigrighttoebase": 0,
         "mixamorigleftshoulder": [
-          -0.065643,
+          -0.320327,
           0,
           0
         ],
@@ -1816,7 +1817,7 @@
         "mixamoriglefthandpinky2": 0.45,
         "mixamoriglefthandpinky3": 0.25,
         "mixamorigrightshoulder": [
-          -0.457957,
+          -0.203273,
           0,
           0
         ],
@@ -1847,28 +1848,28 @@
         "mixamorigrighthandpinky2": 0.45,
         "mixamorigrighthandpinky3": 0.25,
         "mixamorigspine": [
-          0.073858,
-          0.007804,
-          0.003902
+          0.098478,
+          0.011705,
+          0.005853
         ],
         "mixamorigspine1": [
-          0.02,
-          0.003902,
-          0.001951
+          0.03,
+          0.005853,
+          0.002926
         ],
         "mixamorigspine2": [
-          0.02,
-          0.003902,
-          0.001951
+          0.03,
+          0.005853,
+          0.002926
         ],
         "mixamorigneck": [
           0,
-          -0.005853,
+          -0.007804,
           0
         ],
         "mixamorighead": [
-          -0.05,
-          -0.005853,
+          -0.06,
+          -0.007804,
           0
         ]
       }
@@ -1877,11 +1878,11 @@
       "timeOffsetMs": 533,
       "overrides": {
         "mixamorigleftupleg": [
-          0,
+          -0.35,
           0,
           0
         ],
-        "mixamorigleftleg": 0.311803,
+        "mixamorigleftleg": 0.171012,
         "mixamorigleftfoot": [
           0,
           0,
@@ -1889,11 +1890,11 @@
         ],
         "mixamoriglefttoebase": 0,
         "mixamorigrightupleg": [
-          0,
+          0.35,
           0,
           0
         ],
-        "mixamorigrightleg": 0.188197,
+        "mixamorigrightleg": 0.598988,
         "mixamorigrightfoot": [
           0,
           0,
@@ -1901,7 +1902,7 @@
         ],
         "mixamorigrighttoebase": 0,
         "mixamorigleftshoulder": [
-          -0.0618,
+          -0.2618,
           0,
           0
         ],
@@ -1932,7 +1933,7 @@
         "mixamoriglefthandpinky2": 0.45,
         "mixamoriglefthandpinky3": 0.25,
         "mixamorigrightshoulder": [
-          -0.4618,
+          -0.2618,
           0,
           0
         ],
@@ -1963,17 +1964,17 @@
         "mixamorigrighthandpinky2": 0.45,
         "mixamorigrighthandpinky3": 0.25,
         "mixamorigspine": [
-          0.075,
+          0.1,
           0,
           0
         ],
         "mixamorigspine1": [
-          0.02,
+          0.03,
           0,
           0
         ],
         "mixamorigspine2": [
-          0.02,
+          0.03,
           0,
           0
         ],
@@ -1983,7 +1984,7 @@
           0
         ],
         "mixamorighead": [
-          -0.05,
+          -0.06,
           0,
           0
         ]
@@ -1993,11 +1994,11 @@
       "timeOffsetMs": 567,
       "overrides": {
         "mixamorigleftupleg": [
-          0.04292,
+          -0.343275,
           0,
           0
         ],
-        "mixamorigleftleg": 0.332881,
+        "mixamorigleftleg": 0.194717,
         "mixamorigleftfoot": [
           0,
           0,
@@ -2005,11 +2006,11 @@
         ],
         "mixamoriglefttoebase": 0,
         "mixamorigrightupleg": [
-          -0.04292,
+          0.343275,
           0,
           0
         ],
-        "mixamorigrightleg": 0.167119,
+        "mixamorigrightleg": 0.575283,
         "mixamorigrightfoot": [
           0,
           0,
@@ -2017,7 +2018,7 @@
         ],
         "mixamorigrighttoebase": 0,
         "mixamorigleftshoulder": [
-          -0.065643,
+          -0.203273,
           0,
           0
         ],
@@ -2048,7 +2049,7 @@
         "mixamoriglefthandpinky2": 0.45,
         "mixamoriglefthandpinky3": 0.25,
         "mixamorigrightshoulder": [
-          -0.457957,
+          -0.320327,
           0,
           0
         ],
@@ -2079,28 +2080,28 @@
         "mixamorigrighthandpinky2": 0.45,
         "mixamorigrighthandpinky3": 0.25,
         "mixamorigspine": [
-          0.073858,
-          -0.007804,
-          -0.003902
+          0.098478,
+          -0.011705,
+          -0.005853
         ],
         "mixamorigspine1": [
-          0.02,
-          -0.003902,
-          -0.001951
+          0.03,
+          -0.005853,
+          -0.002926
         ],
         "mixamorigspine2": [
-          0.02,
-          -0.003902,
-          -0.001951
+          0.03,
+          -0.005853,
+          -0.002926
         ],
         "mixamorigneck": [
           0,
-          0.005853,
+          0.007804,
           0
         ],
         "mixamorighead": [
-          -0.05,
-          0.005853,
+          -0.06,
+          0.007804,
           0
         ]
       }
@@ -2109,11 +2110,11 @@
       "timeOffsetMs": 600,
       "overrides": {
         "mixamorigleftupleg": [
-          0.08419,
+          -0.323358,
           0,
           0
         ],
-        "mixamorigleftleg": 0.350773,
+        "mixamorigleftleg": 0.225734,
         "mixamorigleftfoot": [
           0,
           0,
@@ -2121,11 +2122,11 @@
         ],
         "mixamoriglefttoebase": 0,
         "mixamorigrightupleg": [
-          -0.08419,
+          0.323358,
           0,
           0
         ],
-        "mixamorigrightleg": 0.149227,
+        "mixamorigrightleg": 0.544266,
         "mixamorigrightfoot": [
           0,
           0,
@@ -2133,7 +2134,7 @@
         ],
         "mixamorigrighttoebase": 0,
         "mixamorigleftshoulder": [
-          -0.077024,
+          -0.146995,
           0,
           0
         ],
@@ -2164,7 +2165,7 @@
         "mixamoriglefthandpinky2": 0.45,
         "mixamoriglefthandpinky3": 0.25,
         "mixamorigrightshoulder": [
-          -0.446576,
+          -0.376605,
           0,
           0
         ],
@@ -2195,28 +2196,28 @@
         "mixamorigrighthandpinky2": 0.45,
         "mixamorigrighthandpinky3": 0.25,
         "mixamorigspine": [
-          0.070607,
-          -0.015307,
-          -0.007654
+          0.094142,
+          -0.022961,
+          -0.011481
         ],
         "mixamorigspine1": [
-          0.02,
-          -0.007654,
-          -0.003827
+          0.03,
+          -0.011481,
+          -0.00574
         ],
         "mixamorigspine2": [
-          0.02,
-          -0.007654,
-          -0.003827
+          0.03,
+          -0.011481,
+          -0.00574
         ],
         "mixamorigneck": [
           0,
-          0.011481,
+          0.015307,
           0
         ],
         "mixamorighead": [
-          -0.05,
-          0.011481,
+          -0.06,
+          0.015307,
           0
         ]
       }
@@ -2225,11 +2226,11 @@
       "timeOffsetMs": 633,
       "overrides": {
         "mixamorigleftupleg": [
-          0.122225,
+          -0.291014,
           0,
           0
         ],
-        "mixamorigleftleg": 0.364793,
+        "mixamorigleftleg": 0.262872,
         "mixamorigleftfoot": [
           0,
           0,
@@ -2237,11 +2238,11 @@
         ],
         "mixamoriglefttoebase": 0,
         "mixamorigrightupleg": [
-          -0.122225,
+          0.291014,
           0,
           0
         ],
-        "mixamorigrightleg": 0.135207,
+        "mixamorigrightleg": 0.507128,
         "mixamorigrightfoot": [
           0,
           0,
@@ -2249,7 +2250,7 @@
         ],
         "mixamorigrighttoebase": 0,
         "mixamorigleftshoulder": [
-          -0.095506,
+          -0.095129,
           0,
           0
         ],
@@ -2280,7 +2281,7 @@
         "mixamoriglefthandpinky2": 0.45,
         "mixamoriglefthandpinky3": 0.25,
         "mixamorigrightshoulder": [
-          -0.428094,
+          -0.428471,
           0,
           0
         ],
@@ -2311,28 +2312,28 @@
         "mixamorigrighthandpinky2": 0.45,
         "mixamorigrighthandpinky3": 0.25,
         "mixamorigspine": [
-          0.06574,
-          -0.022223,
-          -0.011111
+          0.087654,
+          -0.033334,
+          -0.016667
         ],
         "mixamorigspine1": [
-          0.02,
-          -0.011111,
-          -0.005556
+          0.03,
+          -0.016667,
+          -0.008334
         ],
         "mixamorigspine2": [
-          0.02,
-          -0.011111,
-          -0.005556
+          0.03,
+          -0.016667,
+          -0.008334
         ],
         "mixamorigneck": [
           0,
-          0.016667,
+          0.022223,
           0
         ],
         "mixamorighead": [
-          -0.05,
-          0.016667,
+          -0.06,
+          0.022223,
           0
         ]
       }
@@ -2341,11 +2342,11 @@
       "timeOffsetMs": 667,
       "overrides": {
         "mixamorigleftupleg": [
-          0.155563,
+          -0.247487,
           0,
           0
         ],
-        "mixamorigleftleg": 0.374401,
+        "mixamorigleftleg": 0.304703,
         "mixamorigleftfoot": [
           0,
           0,
@@ -2353,11 +2354,11 @@
         ],
         "mixamoriglefttoebase": 0,
         "mixamorigrightupleg": [
-          -0.155563,
+          0.247487,
           0,
           0
         ],
-        "mixamorigrightleg": 0.125599,
+        "mixamorigrightleg": 0.465297,
         "mixamorigrightfoot": [
           0,
           0,
@@ -2365,7 +2366,7 @@
         ],
         "mixamorigrighttoebase": 0,
         "mixamorigleftshoulder": [
-          -0.120379,
+          -0.049668,
           0,
           0
         ],
@@ -2396,7 +2397,7 @@
         "mixamoriglefthandpinky2": 0.45,
         "mixamoriglefthandpinky3": 0.25,
         "mixamorigrightshoulder": [
-          -0.403221,
+          -0.473932,
           0,
           0
         ],
@@ -2427,28 +2428,28 @@
         "mixamorigrighthandpinky2": 0.45,
         "mixamorigrighthandpinky3": 0.25,
         "mixamorigspine": [
-          0.06,
-          -0.028284,
-          -0.014142
+          0.08,
+          -0.042426,
+          -0.021213
         ],
         "mixamorigspine1": [
-          0.02,
-          -0.014142,
-          -0.007071
+          0.03,
+          -0.021213,
+          -0.010607
         ],
         "mixamorigspine2": [
-          0.02,
-          -0.014142,
-          -0.007071
+          0.03,
+          -0.021213,
+          -0.010607
         ],
         "mixamorigneck": [
           0,
-          0.021213,
+          0.028284,
           0
         ],
         "mixamorighead": [
-          -0.05,
-          0.021213,
+          -0.06,
+          0.028284,
           0
         ]
       }
@@ -2457,11 +2458,11 @@
       "timeOffsetMs": 700,
       "overrides": {
         "mixamorigleftupleg": [
-          0.182923,
+          -0.19445,
           0,
           0
         ],
-        "mixamorigleftleg": 0.379229,
+        "mixamorigleftleg": 0.34962,
         "mixamorigleftfoot": [
           0,
           0,
@@ -2469,11 +2470,11 @@
         ],
         "mixamoriglefttoebase": 0,
         "mixamorigrightupleg": [
-          -0.182923,
+          0.19445,
           0,
           0
         ],
-        "mixamorigrightleg": 0.120771,
+        "mixamorigrightleg": 0.42038,
         "mixamorigrightfoot": [
           0,
           0,
@@ -2481,7 +2482,7 @@
         ],
         "mixamorigrighttoebase": 0,
         "mixamorigleftshoulder": [
-          -0.150686,
+          -0.012359,
           0,
           0
         ],
@@ -2512,7 +2513,7 @@
         "mixamoriglefthandpinky2": 0.45,
         "mixamoriglefthandpinky3": 0.25,
         "mixamorigrightshoulder": [
-          -0.372914,
+          -0.511241,
           0,
           0
         ],
@@ -2543,28 +2544,28 @@
         "mixamorigrighthandpinky2": 0.45,
         "mixamorigrighthandpinky3": 0.25,
         "mixamorigspine": [
-          0.05426,
-          -0.033259,
-          -0.016629
+          0.072346,
+          -0.049888,
+          -0.024944
         ],
         "mixamorigspine1": [
-          0.02,
-          -0.016629,
-          -0.008315
+          0.03,
+          -0.024944,
+          -0.012472
         ],
         "mixamorigspine2": [
-          0.02,
-          -0.016629,
-          -0.008315
+          0.03,
+          -0.024944,
+          -0.012472
         ],
         "mixamorigneck": [
           0,
-          0.024944,
+          0.033259,
           0
         ],
         "mixamorighead": [
-          -0.05,
-          0.024944,
+          -0.06,
+          0.033259,
           0
         ]
       }
@@ -2573,11 +2574,11 @@
       "timeOffsetMs": 733,
       "overrides": {
         "mixamorigleftupleg": [
-          0.203253,
+          -0.133939,
           0,
           0
         ],
-        "mixamorigleftleg": 0.379091,
+        "mixamorigleftleg": 0.395896,
         "mixamorigleftfoot": [
           0,
           0,
@@ -2585,11 +2586,11 @@
         ],
         "mixamoriglefttoebase": 0,
         "mixamorigrightupleg": [
-          -0.203253,
+          0.133939,
           0,
           0
         ],
-        "mixamorigrightleg": 0.120909,
+        "mixamorigrightleg": 0.374104,
         "mixamorigrightfoot": [
           0,
           0,
@@ -2597,7 +2598,7 @@
         ],
         "mixamorigrighttoebase": 0,
         "mixamorigleftshoulder": [
-          -0.185263,
+          0.015364,
           0,
           0
         ],
@@ -2628,7 +2629,7 @@
         "mixamoriglefthandpinky2": 0.45,
         "mixamoriglefthandpinky3": 0.25,
         "mixamorigrightshoulder": [
-          -0.338337,
+          -0.538964,
           0,
           0
         ],
@@ -2659,28 +2660,28 @@
         "mixamorigrighthandpinky2": 0.45,
         "mixamorigrighthandpinky3": 0.25,
         "mixamorigspine": [
-          0.049393,
-          -0.036955,
-          -0.018478
+          0.065858,
+          -0.055433,
+          -0.027716
         ],
         "mixamorigspine1": [
-          0.02,
-          -0.018478,
-          -0.009239
+          0.03,
+          -0.027716,
+          -0.013858
         ],
         "mixamorigspine2": [
-          0.02,
-          -0.018478,
-          -0.009239
+          0.03,
+          -0.027716,
+          -0.013858
         ],
         "mixamorigneck": [
           0,
-          0.027716,
+          0.036955,
           0
         ],
         "mixamorighead": [
-          -0.05,
-          0.027716,
+          -0.06,
+          0.036955,
           0
         ]
       }
@@ -2689,11 +2690,11 @@
       "timeOffsetMs": 767,
       "overrides": {
         "mixamorigleftupleg": [
-          0.215773,
+          -0.068282,
           0,
           0
         ],
-        "mixamorigleftleg": 0.373991,
+        "mixamorigleftleg": 0.441754,
         "mixamorigleftfoot": [
           0,
           0,
@@ -2701,11 +2702,11 @@
         ],
         "mixamoriglefttoebase": 0,
         "mixamorigrightupleg": [
-          -0.215773,
+          0.068282,
           0,
           0
         ],
-        "mixamorigrightleg": 0.126009,
+        "mixamorigrightleg": 0.328246,
         "mixamorigrightfoot": [
           0,
           0,
@@ -2713,7 +2714,7 @@
         ],
         "mixamorigrighttoebase": 0,
         "mixamorigleftshoulder": [
-          -0.222782,
+          0.032436,
           0,
           0
         ],
@@ -2744,7 +2745,7 @@
         "mixamoriglefthandpinky2": 0.45,
         "mixamoriglefthandpinky3": 0.25,
         "mixamorigrightshoulder": [
-          -0.300818,
+          -0.556036,
           0,
           0
         ],
@@ -2775,28 +2776,28 @@
         "mixamorigrighthandpinky2": 0.45,
         "mixamorigrighthandpinky3": 0.25,
         "mixamorigspine": [
-          0.046142,
-          -0.039231,
-          -0.019616
+          0.061522,
+          -0.058847,
+          -0.029424
         ],
         "mixamorigspine1": [
-          0.02,
-          -0.019616,
-          -0.009808
+          0.03,
+          -0.029424,
+          -0.014712
         ],
         "mixamorigspine2": [
-          0.02,
-          -0.019616,
-          -0.009808
+          0.03,
+          -0.029424,
+          -0.014712
         ],
         "mixamorigneck": [
           0,
-          0.029424,
+          0.039231,
           0
         ],
         "mixamorighead": [
-          -0.05,
-          0.029424,
+          -0.06,
+          0.039231,
           0
         ]
       }
@@ -2805,11 +2806,11 @@
       "timeOffsetMs": 800,
       "overrides": {
         "mixamorigleftupleg": [
-          0.22,
+          0,
           0,
           0
         ],
-        "mixamorigleftleg": 0.364127,
+        "mixamorigleftleg": 0.485431,
         "mixamorigleftfoot": [
           0,
           0,
@@ -2817,11 +2818,11 @@
         ],
         "mixamoriglefttoebase": 0,
         "mixamorigrightupleg": [
-          -0.22,
+          0,
           0,
           0
         ],
-        "mixamorigrightleg": 0.135873,
+        "mixamorigrightleg": 0.284569,
         "mixamorigrightfoot": [
           0,
           0,
@@ -2829,7 +2830,7 @@
         ],
         "mixamorigrighttoebase": 0,
         "mixamorigleftshoulder": [
-          -0.2618,
+          0.0382,
           0,
           0
         ],
@@ -2860,471 +2861,7 @@
         "mixamoriglefthandpinky2": 0.45,
         "mixamoriglefthandpinky3": 0.25,
         "mixamorigrightshoulder": [
-          -0.2618,
-          0,
-          0
-        ],
-        "mixamorigrightarm": [
-          1.25,
-          0,
-          0
-        ],
-        "mixamorigrightforearm": 0.12,
-        "mixamorigrighthand": [
-          0,
-          0,
-          0
-        ],
-        "mixamorigrighthandthumb1": 0.25,
-        "mixamorigrighthandthumb2": 0.5,
-        "mixamorigrighthandthumb3": 0.2,
-        "mixamorigrighthandindex1": 0.35,
-        "mixamorigrighthandindex2": 0.5,
-        "mixamorigrighthandindex3": 0.3,
-        "mixamorigrighthandmiddle1": 0.35,
-        "mixamorigrighthandmiddle2": 0.5,
-        "mixamorigrighthandmiddle3": 0.3,
-        "mixamorigrighthandring1": 0.35,
-        "mixamorigrighthandring2": 0.5,
-        "mixamorigrighthandring3": 0.3,
-        "mixamorigrighthandpinky1": 0.3,
-        "mixamorigrighthandpinky2": 0.45,
-        "mixamorigrighthandpinky3": 0.25,
-        "mixamorigspine": [
-          0.045,
-          -0.04,
-          -0.02
-        ],
-        "mixamorigspine1": [
-          0.02,
-          -0.02,
-          -0.01
-        ],
-        "mixamorigspine2": [
-          0.02,
-          -0.02,
-          -0.01
-        ],
-        "mixamorigneck": [
-          0,
-          0.03,
-          0
-        ],
-        "mixamorighead": [
-          -0.05,
-          0.03,
-          0
-        ]
-      }
-    },
-    {
-      "timeOffsetMs": 833,
-      "overrides": {
-        "mixamorigleftupleg": [
-          0.215773,
-          0,
-          0
-        ],
-        "mixamorigleftleg": 0.349877,
-        "mixamorigleftfoot": [
-          0,
-          0,
-          0
-        ],
-        "mixamoriglefttoebase": 0,
-        "mixamorigrightupleg": [
-          -0.215773,
-          0,
-          0
-        ],
-        "mixamorigrightleg": 0.150123,
-        "mixamorigrightfoot": [
-          0,
-          0,
-          0
-        ],
-        "mixamorigrighttoebase": 0,
-        "mixamorigleftshoulder": [
-          -0.300818,
-          0,
-          0
-        ],
-        "mixamorigleftarm": [
-          1.25,
-          0,
-          0
-        ],
-        "mixamorigleftforearm": 0.12,
-        "mixamoriglefthand": [
-          0,
-          0,
-          0
-        ],
-        "mixamoriglefthandthumb1": 0.25,
-        "mixamoriglefthandthumb2": 0.5,
-        "mixamoriglefthandthumb3": 0.2,
-        "mixamoriglefthandindex1": 0.35,
-        "mixamoriglefthandindex2": 0.5,
-        "mixamoriglefthandindex3": 0.3,
-        "mixamoriglefthandmiddle1": 0.35,
-        "mixamoriglefthandmiddle2": 0.5,
-        "mixamoriglefthandmiddle3": 0.3,
-        "mixamoriglefthandring1": 0.35,
-        "mixamoriglefthandring2": 0.5,
-        "mixamoriglefthandring3": 0.3,
-        "mixamoriglefthandpinky1": 0.3,
-        "mixamoriglefthandpinky2": 0.45,
-        "mixamoriglefthandpinky3": 0.25,
-        "mixamorigrightshoulder": [
-          -0.222782,
-          0,
-          0
-        ],
-        "mixamorigrightarm": [
-          1.25,
-          0,
-          0
-        ],
-        "mixamorigrightforearm": 0.12,
-        "mixamorigrighthand": [
-          0,
-          0,
-          0
-        ],
-        "mixamorigrighthandthumb1": 0.25,
-        "mixamorigrighthandthumb2": 0.5,
-        "mixamorigrighthandthumb3": 0.2,
-        "mixamorigrighthandindex1": 0.35,
-        "mixamorigrighthandindex2": 0.5,
-        "mixamorigrighthandindex3": 0.3,
-        "mixamorigrighthandmiddle1": 0.35,
-        "mixamorigrighthandmiddle2": 0.5,
-        "mixamorigrighthandmiddle3": 0.3,
-        "mixamorigrighthandring1": 0.35,
-        "mixamorigrighthandring2": 0.5,
-        "mixamorigrighthandring3": 0.3,
-        "mixamorigrighthandpinky1": 0.3,
-        "mixamorigrighthandpinky2": 0.45,
-        "mixamorigrighthandpinky3": 0.25,
-        "mixamorigspine": [
-          0.046142,
-          -0.039231,
-          -0.019616
-        ],
-        "mixamorigspine1": [
-          0.02,
-          -0.019616,
-          -0.009808
-        ],
-        "mixamorigspine2": [
-          0.02,
-          -0.019616,
-          -0.009808
-        ],
-        "mixamorigneck": [
-          0,
-          0.029424,
-          0
-        ],
-        "mixamorighead": [
-          -0.05,
-          0.029424,
-          0
-        ]
-      }
-    },
-    {
-      "timeOffsetMs": 867,
-      "overrides": {
-        "mixamorigleftupleg": [
-          0.203253,
-          0,
-          0
-        ],
-        "mixamorigleftleg": 0.331788,
-        "mixamorigleftfoot": [
-          0,
-          0,
-          0
-        ],
-        "mixamoriglefttoebase": 0,
-        "mixamorigrightupleg": [
-          -0.203253,
-          0,
-          0
-        ],
-        "mixamorigrightleg": 0.168212,
-        "mixamorigrightfoot": [
-          0,
-          0,
-          0
-        ],
-        "mixamorigrighttoebase": 0,
-        "mixamorigleftshoulder": [
-          -0.338337,
-          0,
-          0
-        ],
-        "mixamorigleftarm": [
-          1.25,
-          0,
-          0
-        ],
-        "mixamorigleftforearm": 0.12,
-        "mixamoriglefthand": [
-          0,
-          0,
-          0
-        ],
-        "mixamoriglefthandthumb1": 0.25,
-        "mixamoriglefthandthumb2": 0.5,
-        "mixamoriglefthandthumb3": 0.2,
-        "mixamoriglefthandindex1": 0.35,
-        "mixamoriglefthandindex2": 0.5,
-        "mixamoriglefthandindex3": 0.3,
-        "mixamoriglefthandmiddle1": 0.35,
-        "mixamoriglefthandmiddle2": 0.5,
-        "mixamoriglefthandmiddle3": 0.3,
-        "mixamoriglefthandring1": 0.35,
-        "mixamoriglefthandring2": 0.5,
-        "mixamoriglefthandring3": 0.3,
-        "mixamoriglefthandpinky1": 0.3,
-        "mixamoriglefthandpinky2": 0.45,
-        "mixamoriglefthandpinky3": 0.25,
-        "mixamorigrightshoulder": [
-          -0.185263,
-          0,
-          0
-        ],
-        "mixamorigrightarm": [
-          1.25,
-          0,
-          0
-        ],
-        "mixamorigrightforearm": 0.12,
-        "mixamorigrighthand": [
-          0,
-          0,
-          0
-        ],
-        "mixamorigrighthandthumb1": 0.25,
-        "mixamorigrighthandthumb2": 0.5,
-        "mixamorigrighthandthumb3": 0.2,
-        "mixamorigrighthandindex1": 0.35,
-        "mixamorigrighthandindex2": 0.5,
-        "mixamorigrighthandindex3": 0.3,
-        "mixamorigrighthandmiddle1": 0.35,
-        "mixamorigrighthandmiddle2": 0.5,
-        "mixamorigrighthandmiddle3": 0.3,
-        "mixamorigrighthandring1": 0.35,
-        "mixamorigrighthandring2": 0.5,
-        "mixamorigrighthandring3": 0.3,
-        "mixamorigrighthandpinky1": 0.3,
-        "mixamorigrighthandpinky2": 0.45,
-        "mixamorigrighthandpinky3": 0.25,
-        "mixamorigspine": [
-          0.049393,
-          -0.036955,
-          -0.018478
-        ],
-        "mixamorigspine1": [
-          0.02,
-          -0.018478,
-          -0.009239
-        ],
-        "mixamorigspine2": [
-          0.02,
-          -0.018478,
-          -0.009239
-        ],
-        "mixamorigneck": [
-          0,
-          0.027716,
-          0
-        ],
-        "mixamorighead": [
-          -0.05,
-          0.027716,
-          0
-        ]
-      }
-    },
-    {
-      "timeOffsetMs": 900,
-      "overrides": {
-        "mixamorigleftupleg": [
-          0.182923,
-          0,
-          0
-        ],
-        "mixamorigleftleg": 0.310557,
-        "mixamorigleftfoot": [
-          0,
-          0,
-          0
-        ],
-        "mixamoriglefttoebase": 0,
-        "mixamorigrightupleg": [
-          -0.182923,
-          0,
-          0
-        ],
-        "mixamorigrightleg": 0.189443,
-        "mixamorigrightfoot": [
-          0,
-          0,
-          0
-        ],
-        "mixamorigrighttoebase": 0,
-        "mixamorigleftshoulder": [
-          -0.372914,
-          0,
-          0
-        ],
-        "mixamorigleftarm": [
-          1.25,
-          0,
-          0
-        ],
-        "mixamorigleftforearm": 0.12,
-        "mixamoriglefthand": [
-          0,
-          0,
-          0
-        ],
-        "mixamoriglefthandthumb1": 0.25,
-        "mixamoriglefthandthumb2": 0.5,
-        "mixamoriglefthandthumb3": 0.2,
-        "mixamoriglefthandindex1": 0.35,
-        "mixamoriglefthandindex2": 0.5,
-        "mixamoriglefthandindex3": 0.3,
-        "mixamoriglefthandmiddle1": 0.35,
-        "mixamoriglefthandmiddle2": 0.5,
-        "mixamoriglefthandmiddle3": 0.3,
-        "mixamoriglefthandring1": 0.35,
-        "mixamoriglefthandring2": 0.5,
-        "mixamoriglefthandring3": 0.3,
-        "mixamoriglefthandpinky1": 0.3,
-        "mixamoriglefthandpinky2": 0.45,
-        "mixamoriglefthandpinky3": 0.25,
-        "mixamorigrightshoulder": [
-          -0.150686,
-          0,
-          0
-        ],
-        "mixamorigrightarm": [
-          1.25,
-          0,
-          0
-        ],
-        "mixamorigrightforearm": 0.12,
-        "mixamorigrighthand": [
-          0,
-          0,
-          0
-        ],
-        "mixamorigrighthandthumb1": 0.25,
-        "mixamorigrighthandthumb2": 0.5,
-        "mixamorigrighthandthumb3": 0.2,
-        "mixamorigrighthandindex1": 0.35,
-        "mixamorigrighthandindex2": 0.5,
-        "mixamorigrighthandindex3": 0.3,
-        "mixamorigrighthandmiddle1": 0.35,
-        "mixamorigrighthandmiddle2": 0.5,
-        "mixamorigrighthandmiddle3": 0.3,
-        "mixamorigrighthandring1": 0.35,
-        "mixamorigrighthandring2": 0.5,
-        "mixamorigrighthandring3": 0.3,
-        "mixamorigrighthandpinky1": 0.3,
-        "mixamorigrighthandpinky2": 0.45,
-        "mixamorigrighthandpinky3": 0.25,
-        "mixamorigspine": [
-          0.05426,
-          -0.033259,
-          -0.016629
-        ],
-        "mixamorigspine1": [
-          0.02,
-          -0.016629,
-          -0.008315
-        ],
-        "mixamorigspine2": [
-          0.02,
-          -0.016629,
-          -0.008315
-        ],
-        "mixamorigneck": [
-          0,
-          0.024944,
-          0
-        ],
-        "mixamorighead": [
-          -0.05,
-          0.024944,
-          0
-        ]
-      }
-    },
-    {
-      "timeOffsetMs": 933,
-      "overrides": {
-        "mixamorigleftupleg": [
-          0.155563,
-          0,
-          0
-        ],
-        "mixamorigleftleg": 0.286998,
-        "mixamorigleftfoot": [
-          0,
-          0,
-          0
-        ],
-        "mixamoriglefttoebase": 0,
-        "mixamorigrightupleg": [
-          -0.155563,
-          0,
-          0
-        ],
-        "mixamorigrightleg": 0.213002,
-        "mixamorigrightfoot": [
-          0,
-          0,
-          0
-        ],
-        "mixamorigrighttoebase": 0,
-        "mixamorigleftshoulder": [
-          -0.403221,
-          0,
-          0
-        ],
-        "mixamorigleftarm": [
-          1.25,
-          0,
-          0
-        ],
-        "mixamorigleftforearm": 0.12,
-        "mixamoriglefthand": [
-          0,
-          0,
-          0
-        ],
-        "mixamoriglefthandthumb1": 0.25,
-        "mixamoriglefthandthumb2": 0.5,
-        "mixamoriglefthandthumb3": 0.2,
-        "mixamoriglefthandindex1": 0.35,
-        "mixamoriglefthandindex2": 0.5,
-        "mixamoriglefthandindex3": 0.3,
-        "mixamoriglefthandmiddle1": 0.35,
-        "mixamoriglefthandmiddle2": 0.5,
-        "mixamoriglefthandmiddle3": 0.3,
-        "mixamoriglefthandring1": 0.35,
-        "mixamoriglefthandring2": 0.5,
-        "mixamoriglefthandring3": 0.3,
-        "mixamoriglefthandpinky1": 0.3,
-        "mixamoriglefthandpinky2": 0.45,
-        "mixamoriglefthandpinky3": 0.25,
-        "mixamorigrightshoulder": [
-          -0.120379,
+          -0.5618,
           0,
           0
         ],
@@ -3356,27 +2893,491 @@
         "mixamorigrighthandpinky3": 0.25,
         "mixamorigspine": [
           0.06,
-          -0.028284,
-          -0.014142
+          -0.06,
+          -0.03
         ],
         "mixamorigspine1": [
-          0.02,
-          -0.014142,
-          -0.007071
+          0.03,
+          -0.03,
+          -0.015
         ],
         "mixamorigspine2": [
-          0.02,
-          -0.014142,
-          -0.007071
+          0.03,
+          -0.03,
+          -0.015
         ],
         "mixamorigneck": [
           0,
-          0.021213,
+          0.04,
           0
         ],
         "mixamorighead": [
-          -0.05,
-          0.021213,
+          -0.06,
+          0.04,
+          0
+        ]
+      }
+    },
+    {
+      "timeOffsetMs": 833,
+      "overrides": {
+        "mixamorigleftupleg": [
+          0.068282,
+          0,
+          0
+        ],
+        "mixamorigleftleg": 0.525248,
+        "mixamorigleftfoot": [
+          0,
+          0,
+          0
+        ],
+        "mixamoriglefttoebase": 0,
+        "mixamorigrightupleg": [
+          -0.068282,
+          0,
+          0
+        ],
+        "mixamorigrightleg": 0.244752,
+        "mixamorigrightfoot": [
+          0,
+          0,
+          0
+        ],
+        "mixamorigrighttoebase": 0,
+        "mixamorigleftshoulder": [
+          0.032436,
+          0,
+          0
+        ],
+        "mixamorigleftarm": [
+          1.25,
+          0,
+          0
+        ],
+        "mixamorigleftforearm": 0.12,
+        "mixamoriglefthand": [
+          0,
+          0,
+          0
+        ],
+        "mixamoriglefthandthumb1": 0.25,
+        "mixamoriglefthandthumb2": 0.5,
+        "mixamoriglefthandthumb3": 0.2,
+        "mixamoriglefthandindex1": 0.35,
+        "mixamoriglefthandindex2": 0.5,
+        "mixamoriglefthandindex3": 0.3,
+        "mixamoriglefthandmiddle1": 0.35,
+        "mixamoriglefthandmiddle2": 0.5,
+        "mixamoriglefthandmiddle3": 0.3,
+        "mixamoriglefthandring1": 0.35,
+        "mixamoriglefthandring2": 0.5,
+        "mixamoriglefthandring3": 0.3,
+        "mixamoriglefthandpinky1": 0.3,
+        "mixamoriglefthandpinky2": 0.45,
+        "mixamoriglefthandpinky3": 0.25,
+        "mixamorigrightshoulder": [
+          -0.556036,
+          0,
+          0
+        ],
+        "mixamorigrightarm": [
+          1.25,
+          0,
+          0
+        ],
+        "mixamorigrightforearm": 0.12,
+        "mixamorigrighthand": [
+          0,
+          0,
+          0
+        ],
+        "mixamorigrighthandthumb1": 0.25,
+        "mixamorigrighthandthumb2": 0.5,
+        "mixamorigrighthandthumb3": 0.2,
+        "mixamorigrighthandindex1": 0.35,
+        "mixamorigrighthandindex2": 0.5,
+        "mixamorigrighthandindex3": 0.3,
+        "mixamorigrighthandmiddle1": 0.35,
+        "mixamorigrighthandmiddle2": 0.5,
+        "mixamorigrighthandmiddle3": 0.3,
+        "mixamorigrighthandring1": 0.35,
+        "mixamorigrighthandring2": 0.5,
+        "mixamorigrighthandring3": 0.3,
+        "mixamorigrighthandpinky1": 0.3,
+        "mixamorigrighthandpinky2": 0.45,
+        "mixamorigrighthandpinky3": 0.25,
+        "mixamorigspine": [
+          0.061522,
+          -0.058847,
+          -0.029424
+        ],
+        "mixamorigspine1": [
+          0.03,
+          -0.029424,
+          -0.014712
+        ],
+        "mixamorigspine2": [
+          0.03,
+          -0.029424,
+          -0.014712
+        ],
+        "mixamorigneck": [
+          0,
+          0.039231,
+          0
+        ],
+        "mixamorighead": [
+          -0.06,
+          0.039231,
+          0
+        ]
+      }
+    },
+    {
+      "timeOffsetMs": 867,
+      "overrides": {
+        "mixamorigleftupleg": [
+          0.133939,
+          0,
+          0
+        ],
+        "mixamorigleftleg": 0.559675,
+        "mixamorigleftfoot": [
+          0,
+          0,
+          0
+        ],
+        "mixamoriglefttoebase": 0,
+        "mixamorigrightupleg": [
+          -0.133939,
+          0,
+          0
+        ],
+        "mixamorigrightleg": 0.210325,
+        "mixamorigrightfoot": [
+          0,
+          0,
+          0
+        ],
+        "mixamorigrighttoebase": 0,
+        "mixamorigleftshoulder": [
+          0.015364,
+          0,
+          0
+        ],
+        "mixamorigleftarm": [
+          1.25,
+          0,
+          0
+        ],
+        "mixamorigleftforearm": 0.12,
+        "mixamoriglefthand": [
+          0,
+          0,
+          0
+        ],
+        "mixamoriglefthandthumb1": 0.25,
+        "mixamoriglefthandthumb2": 0.5,
+        "mixamoriglefthandthumb3": 0.2,
+        "mixamoriglefthandindex1": 0.35,
+        "mixamoriglefthandindex2": 0.5,
+        "mixamoriglefthandindex3": 0.3,
+        "mixamoriglefthandmiddle1": 0.35,
+        "mixamoriglefthandmiddle2": 0.5,
+        "mixamoriglefthandmiddle3": 0.3,
+        "mixamoriglefthandring1": 0.35,
+        "mixamoriglefthandring2": 0.5,
+        "mixamoriglefthandring3": 0.3,
+        "mixamoriglefthandpinky1": 0.3,
+        "mixamoriglefthandpinky2": 0.45,
+        "mixamoriglefthandpinky3": 0.25,
+        "mixamorigrightshoulder": [
+          -0.538964,
+          0,
+          0
+        ],
+        "mixamorigrightarm": [
+          1.25,
+          0,
+          0
+        ],
+        "mixamorigrightforearm": 0.12,
+        "mixamorigrighthand": [
+          0,
+          0,
+          0
+        ],
+        "mixamorigrighthandthumb1": 0.25,
+        "mixamorigrighthandthumb2": 0.5,
+        "mixamorigrighthandthumb3": 0.2,
+        "mixamorigrighthandindex1": 0.35,
+        "mixamorigrighthandindex2": 0.5,
+        "mixamorigrighthandindex3": 0.3,
+        "mixamorigrighthandmiddle1": 0.35,
+        "mixamorigrighthandmiddle2": 0.5,
+        "mixamorigrighthandmiddle3": 0.3,
+        "mixamorigrighthandring1": 0.35,
+        "mixamorigrighthandring2": 0.5,
+        "mixamorigrighthandring3": 0.3,
+        "mixamorigrighthandpinky1": 0.3,
+        "mixamorigrighthandpinky2": 0.45,
+        "mixamorigrighthandpinky3": 0.25,
+        "mixamorigspine": [
+          0.065858,
+          -0.055433,
+          -0.027716
+        ],
+        "mixamorigspine1": [
+          0.03,
+          -0.027716,
+          -0.013858
+        ],
+        "mixamorigspine2": [
+          0.03,
+          -0.027716,
+          -0.013858
+        ],
+        "mixamorigneck": [
+          0,
+          0.036955,
+          0
+        ],
+        "mixamorighead": [
+          -0.06,
+          0.036955,
+          0
+        ]
+      }
+    },
+    {
+      "timeOffsetMs": 900,
+      "overrides": {
+        "mixamorigleftupleg": [
+          0.19445,
+          0,
+          0
+        ],
+        "mixamorigleftleg": 0.58739,
+        "mixamorigleftfoot": [
+          0,
+          0,
+          0
+        ],
+        "mixamoriglefttoebase": 0,
+        "mixamorigrightupleg": [
+          -0.19445,
+          0,
+          0
+        ],
+        "mixamorigrightleg": 0.18261,
+        "mixamorigrightfoot": [
+          0,
+          0,
+          0
+        ],
+        "mixamorigrighttoebase": 0,
+        "mixamorigleftshoulder": [
+          -0.012359,
+          0,
+          0
+        ],
+        "mixamorigleftarm": [
+          1.25,
+          0,
+          0
+        ],
+        "mixamorigleftforearm": 0.12,
+        "mixamoriglefthand": [
+          0,
+          0,
+          0
+        ],
+        "mixamoriglefthandthumb1": 0.25,
+        "mixamoriglefthandthumb2": 0.5,
+        "mixamoriglefthandthumb3": 0.2,
+        "mixamoriglefthandindex1": 0.35,
+        "mixamoriglefthandindex2": 0.5,
+        "mixamoriglefthandindex3": 0.3,
+        "mixamoriglefthandmiddle1": 0.35,
+        "mixamoriglefthandmiddle2": 0.5,
+        "mixamoriglefthandmiddle3": 0.3,
+        "mixamoriglefthandring1": 0.35,
+        "mixamoriglefthandring2": 0.5,
+        "mixamoriglefthandring3": 0.3,
+        "mixamoriglefthandpinky1": 0.3,
+        "mixamoriglefthandpinky2": 0.45,
+        "mixamoriglefthandpinky3": 0.25,
+        "mixamorigrightshoulder": [
+          -0.511241,
+          0,
+          0
+        ],
+        "mixamorigrightarm": [
+          1.25,
+          0,
+          0
+        ],
+        "mixamorigrightforearm": 0.12,
+        "mixamorigrighthand": [
+          0,
+          0,
+          0
+        ],
+        "mixamorigrighthandthumb1": 0.25,
+        "mixamorigrighthandthumb2": 0.5,
+        "mixamorigrighthandthumb3": 0.2,
+        "mixamorigrighthandindex1": 0.35,
+        "mixamorigrighthandindex2": 0.5,
+        "mixamorigrighthandindex3": 0.3,
+        "mixamorigrighthandmiddle1": 0.35,
+        "mixamorigrighthandmiddle2": 0.5,
+        "mixamorigrighthandmiddle3": 0.3,
+        "mixamorigrighthandring1": 0.35,
+        "mixamorigrighthandring2": 0.5,
+        "mixamorigrighthandring3": 0.3,
+        "mixamorigrighthandpinky1": 0.3,
+        "mixamorigrighthandpinky2": 0.45,
+        "mixamorigrighthandpinky3": 0.25,
+        "mixamorigspine": [
+          0.072346,
+          -0.049888,
+          -0.024944
+        ],
+        "mixamorigspine1": [
+          0.03,
+          -0.024944,
+          -0.012472
+        ],
+        "mixamorigspine2": [
+          0.03,
+          -0.024944,
+          -0.012472
+        ],
+        "mixamorigneck": [
+          0,
+          0.033259,
+          0
+        ],
+        "mixamorighead": [
+          -0.06,
+          0.033259,
+          0
+        ]
+      }
+    },
+    {
+      "timeOffsetMs": 933,
+      "overrides": {
+        "mixamorigleftupleg": [
+          0.247487,
+          0,
+          0
+        ],
+        "mixamorigleftleg": 0.607327,
+        "mixamorigleftfoot": [
+          0,
+          0,
+          0
+        ],
+        "mixamoriglefttoebase": 0,
+        "mixamorigrightupleg": [
+          -0.247487,
+          0,
+          0
+        ],
+        "mixamorigrightleg": 0.162673,
+        "mixamorigrightfoot": [
+          0,
+          0,
+          0
+        ],
+        "mixamorigrighttoebase": 0,
+        "mixamorigleftshoulder": [
+          -0.049668,
+          0,
+          0
+        ],
+        "mixamorigleftarm": [
+          1.25,
+          0,
+          0
+        ],
+        "mixamorigleftforearm": 0.12,
+        "mixamoriglefthand": [
+          0,
+          0,
+          0
+        ],
+        "mixamoriglefthandthumb1": 0.25,
+        "mixamoriglefthandthumb2": 0.5,
+        "mixamoriglefthandthumb3": 0.2,
+        "mixamoriglefthandindex1": 0.35,
+        "mixamoriglefthandindex2": 0.5,
+        "mixamoriglefthandindex3": 0.3,
+        "mixamoriglefthandmiddle1": 0.35,
+        "mixamoriglefthandmiddle2": 0.5,
+        "mixamoriglefthandmiddle3": 0.3,
+        "mixamoriglefthandring1": 0.35,
+        "mixamoriglefthandring2": 0.5,
+        "mixamoriglefthandring3": 0.3,
+        "mixamoriglefthandpinky1": 0.3,
+        "mixamoriglefthandpinky2": 0.45,
+        "mixamoriglefthandpinky3": 0.25,
+        "mixamorigrightshoulder": [
+          -0.473932,
+          0,
+          0
+        ],
+        "mixamorigrightarm": [
+          1.25,
+          0,
+          0
+        ],
+        "mixamorigrightforearm": 0.12,
+        "mixamorigrighthand": [
+          0,
+          0,
+          0
+        ],
+        "mixamorigrighthandthumb1": 0.25,
+        "mixamorigrighthandthumb2": 0.5,
+        "mixamorigrighthandthumb3": 0.2,
+        "mixamorigrighthandindex1": 0.35,
+        "mixamorigrighthandindex2": 0.5,
+        "mixamorigrighthandindex3": 0.3,
+        "mixamorigrighthandmiddle1": 0.35,
+        "mixamorigrighthandmiddle2": 0.5,
+        "mixamorigrighthandmiddle3": 0.3,
+        "mixamorigrighthandring1": 0.35,
+        "mixamorigrighthandring2": 0.5,
+        "mixamorigrighthandring3": 0.3,
+        "mixamorigrighthandpinky1": 0.3,
+        "mixamorigrighthandpinky2": 0.45,
+        "mixamorigrighthandpinky3": 0.25,
+        "mixamorigspine": [
+          0.08,
+          -0.042426,
+          -0.021213
+        ],
+        "mixamorigspine1": [
+          0.03,
+          -0.021213,
+          -0.010607
+        ],
+        "mixamorigspine2": [
+          0.03,
+          -0.021213,
+          -0.010607
+        ],
+        "mixamorigneck": [
+          0,
+          0.028284,
+          0
+        ],
+        "mixamorighead": [
+          -0.06,
+          0.028284,
           0
         ]
       }
@@ -3385,11 +3386,11 @@
       "timeOffsetMs": 967,
       "overrides": {
         "mixamorigleftupleg": [
-          0.122225,
+          0.291014,
           0,
           0
         ],
-        "mixamorigleftleg": 0.262018,
+        "mixamorigleftleg": 0.61872,
         "mixamorigleftfoot": [
           0,
           0,
@@ -3397,11 +3398,11 @@
         ],
         "mixamoriglefttoebase": 0,
         "mixamorigrightupleg": [
-          -0.122225,
+          -0.291014,
           0,
           0
         ],
-        "mixamorigrightleg": 0.237982,
+        "mixamorigrightleg": 0.15128,
         "mixamorigrightfoot": [
           0,
           0,
@@ -3409,7 +3410,7 @@
         ],
         "mixamorigrighttoebase": 0,
         "mixamorigleftshoulder": [
-          -0.428094,
+          -0.095129,
           0,
           0
         ],
@@ -3440,7 +3441,7 @@
         "mixamoriglefthandpinky2": 0.45,
         "mixamoriglefthandpinky3": 0.25,
         "mixamorigrightshoulder": [
-          -0.095506,
+          -0.428471,
           0,
           0
         ],
@@ -3471,28 +3472,28 @@
         "mixamorigrighthandpinky2": 0.45,
         "mixamorigrighthandpinky3": 0.25,
         "mixamorigspine": [
-          0.06574,
-          -0.022223,
-          -0.011111
+          0.087654,
+          -0.033334,
+          -0.016667
         ],
         "mixamorigspine1": [
-          0.02,
-          -0.011111,
-          -0.005556
+          0.03,
+          -0.016667,
+          -0.008334
         ],
         "mixamorigspine2": [
-          0.02,
-          -0.011111,
-          -0.005556
+          0.03,
+          -0.016667,
+          -0.008334
         ],
         "mixamorigneck": [
           0,
-          0.016667,
+          0.022223,
           0
         ],
         "mixamorighead": [
-          -0.05,
-          0.016667,
+          -0.06,
+          0.022223,
           0
         ]
       }
@@ -3501,11 +3502,11 @@
       "timeOffsetMs": 1000,
       "overrides": {
         "mixamorigleftupleg": [
-          0.08419,
+          0.323358,
           0,
           0
         ],
-        "mixamorigleftleg": 0.236576,
+        "mixamorigleftleg": 0.621132,
         "mixamorigleftfoot": [
           0,
           0,
@@ -3513,11 +3514,11 @@
         ],
         "mixamoriglefttoebase": 0,
         "mixamorigrightupleg": [
-          -0.08419,
+          -0.323358,
           0,
           0
         ],
-        "mixamorigrightleg": 0.263424,
+        "mixamorigrightleg": 0.148868,
         "mixamorigrightfoot": [
           0,
           0,
@@ -3525,7 +3526,7 @@
         ],
         "mixamorigrighttoebase": 0,
         "mixamorigleftshoulder": [
-          -0.446576,
+          -0.146995,
           0,
           0
         ],
@@ -3556,7 +3557,7 @@
         "mixamoriglefthandpinky2": 0.45,
         "mixamoriglefthandpinky3": 0.25,
         "mixamorigrightshoulder": [
-          -0.077024,
+          -0.376605,
           0,
           0
         ],
@@ -3587,28 +3588,28 @@
         "mixamorigrighthandpinky2": 0.45,
         "mixamorigrighthandpinky3": 0.25,
         "mixamorigspine": [
-          0.070607,
-          -0.015307,
-          -0.007654
+          0.094142,
+          -0.022961,
+          -0.011481
         ],
         "mixamorigspine1": [
-          0.02,
-          -0.007654,
-          -0.003827
+          0.03,
+          -0.011481,
+          -0.00574
         ],
         "mixamorigspine2": [
-          0.02,
-          -0.007654,
-          -0.003827
+          0.03,
+          -0.011481,
+          -0.00574
         ],
         "mixamorigneck": [
           0,
-          0.011481,
+          0.015307,
           0
         ],
         "mixamorighead": [
-          -0.05,
-          0.011481,
+          -0.06,
+          0.015307,
           0
         ]
       }
@@ -3617,11 +3618,11 @@
       "timeOffsetMs": 1033,
       "overrides": {
         "mixamorigleftupleg": [
-          0.04292,
+          0.343275,
           0,
           0
         ],
-        "mixamorigleftleg": 0.211649,
+        "mixamorigleftleg": 0.614469,
         "mixamorigleftfoot": [
           0,
           0,
@@ -3629,11 +3630,11 @@
         ],
         "mixamoriglefttoebase": 0,
         "mixamorigrightupleg": [
-          -0.04292,
+          -0.343275,
           0,
           0
         ],
-        "mixamorigrightleg": 0.288351,
+        "mixamorigrightleg": 0.155531,
         "mixamorigrightfoot": [
           0,
           0,
@@ -3641,7 +3642,7 @@
         ],
         "mixamorigrighttoebase": 0,
         "mixamorigleftshoulder": [
-          -0.457957,
+          -0.203273,
           0,
           0
         ],
@@ -3672,7 +3673,7 @@
         "mixamoriglefthandpinky2": 0.45,
         "mixamoriglefthandpinky3": 0.25,
         "mixamorigrightshoulder": [
-          -0.065643,
+          -0.320327,
           0,
           0
         ],
@@ -3703,28 +3704,28 @@
         "mixamorigrighthandpinky2": 0.45,
         "mixamorigrighthandpinky3": 0.25,
         "mixamorigspine": [
-          0.073858,
-          -0.007804,
-          -0.003902
+          0.098478,
+          -0.011705,
+          -0.005853
         ],
         "mixamorigspine1": [
-          0.02,
-          -0.003902,
-          -0.001951
+          0.03,
+          -0.005853,
+          -0.002926
         ],
         "mixamorigspine2": [
-          0.02,
-          -0.003902,
-          -0.001951
+          0.03,
+          -0.005853,
+          -0.002926
         ],
         "mixamorigneck": [
           0,
-          0.005853,
+          0.007804,
           0
         ],
         "mixamorighead": [
-          -0.05,
-          0.005853,
+          -0.06,
+          0.007804,
           0
         ]
       }
@@ -3733,11 +3734,11 @@
       "timeOffsetMs": 1067,
       "overrides": {
         "mixamorigleftupleg": [
-          0,
+          0.35,
           0,
           0
         ],
-        "mixamorigleftleg": 0.188197,
+        "mixamorigleftleg": 0.598988,
         "mixamorigleftfoot": [
           0,
           0,
@@ -3745,11 +3746,11 @@
         ],
         "mixamoriglefttoebase": 0,
         "mixamorigrightupleg": [
-          0,
+          -0.35,
           0,
           0
         ],
-        "mixamorigrightleg": 0.311803,
+        "mixamorigrightleg": 0.171012,
         "mixamorigrightfoot": [
           0,
           0,
@@ -3757,7 +3758,7 @@
         ],
         "mixamorigrighttoebase": 0,
         "mixamorigleftshoulder": [
-          -0.4618,
+          -0.2618,
           0,
           0
         ],
@@ -3788,7 +3789,7 @@
         "mixamoriglefthandpinky2": 0.45,
         "mixamoriglefthandpinky3": 0.25,
         "mixamorigrightshoulder": [
-          -0.0618,
+          -0.2618,
           0,
           0
         ],
@@ -3819,17 +3820,17 @@
         "mixamorigrighthandpinky2": 0.45,
         "mixamorigrighthandpinky3": 0.25,
         "mixamorigspine": [
-          0.075,
+          0.1,
           0,
           0
         ],
         "mixamorigspine1": [
-          0.02,
+          0.03,
           0,
           0
         ],
         "mixamorigspine2": [
-          0.02,
+          0.03,
           0,
           0
         ],
@@ -3839,7 +3840,7 @@
           0
         ],
         "mixamorighead": [
-          -0.05,
+          -0.06,
           0,
           0
         ]
@@ -3855,162 +3856,162 @@
     {
       "dx": 0,
       "dy": 0,
-      "dz": -0.010937
+      "dz": -0.015625
     },
     {
       "dx": 0,
       "dy": 0,
-      "dz": -0.010937
+      "dz": -0.015625
     },
     {
       "dx": 0,
       "dy": 0,
-      "dz": -0.010937
+      "dz": -0.015625
     },
     {
       "dx": 0,
       "dy": 0,
-      "dz": -0.010937
+      "dz": -0.015625
     },
     {
       "dx": 0,
       "dy": 0,
-      "dz": -0.010937
+      "dz": -0.015625
     },
     {
       "dx": 0,
       "dy": 0,
-      "dz": -0.010937
+      "dz": -0.015625
     },
     {
       "dx": 0,
       "dy": 0,
-      "dz": -0.010937
+      "dz": -0.015625
     },
     {
       "dx": 0,
       "dy": 0,
-      "dz": -0.010937
+      "dz": -0.015625
     },
     {
       "dx": 0,
       "dy": 0,
-      "dz": -0.010937
+      "dz": -0.015625
     },
     {
       "dx": 0,
       "dy": 0,
-      "dz": -0.010937
+      "dz": -0.015625
     },
     {
       "dx": 0,
       "dy": 0,
-      "dz": -0.010937
+      "dz": -0.015625
     },
     {
       "dx": 0,
       "dy": 0,
-      "dz": -0.010937
+      "dz": -0.015625
     },
     {
       "dx": 0,
       "dy": 0,
-      "dz": -0.010937
+      "dz": -0.015625
     },
     {
       "dx": 0,
       "dy": 0,
-      "dz": -0.010937
+      "dz": -0.015625
     },
     {
       "dx": 0,
       "dy": 0,
-      "dz": -0.010937
+      "dz": -0.015625
     },
     {
       "dx": 0,
       "dy": 0,
-      "dz": -0.010937
+      "dz": -0.015625
     },
     {
       "dx": 0,
       "dy": 0,
-      "dz": -0.010937
+      "dz": -0.015625
     },
     {
       "dx": 0,
       "dy": 0,
-      "dz": -0.010937
+      "dz": -0.015625
     },
     {
       "dx": 0,
       "dy": 0,
-      "dz": -0.010937
+      "dz": -0.015625
     },
     {
       "dx": 0,
       "dy": 0,
-      "dz": -0.010937
+      "dz": -0.015625
     },
     {
       "dx": 0,
       "dy": 0,
-      "dz": -0.010937
+      "dz": -0.015625
     },
     {
       "dx": 0,
       "dy": 0,
-      "dz": -0.010937
+      "dz": -0.015625
     },
     {
       "dx": 0,
       "dy": 0,
-      "dz": -0.010937
+      "dz": -0.015625
     },
     {
       "dx": 0,
       "dy": 0,
-      "dz": -0.010937
+      "dz": -0.015625
     },
     {
       "dx": 0,
       "dy": 0,
-      "dz": -0.010937
+      "dz": -0.015625
     },
     {
       "dx": 0,
       "dy": 0,
-      "dz": -0.010937
+      "dz": -0.015625
     },
     {
       "dx": 0,
       "dy": 0,
-      "dz": -0.010937
+      "dz": -0.015625
     },
     {
       "dx": 0,
       "dy": 0,
-      "dz": -0.010937
+      "dz": -0.015625
     },
     {
       "dx": 0,
       "dy": 0,
-      "dz": -0.010937
+      "dz": -0.015625
     },
     {
       "dx": 0,
       "dy": 0,
-      "dz": -0.010937
+      "dz": -0.015625
     },
     {
       "dx": 0,
       "dy": 0,
-      "dz": -0.010937
+      "dz": -0.015625
     },
     {
       "dx": 0,
       "dy": 0,
-      "dz": -0.010937
+      "dz": -0.015625
     }
   ]
 }

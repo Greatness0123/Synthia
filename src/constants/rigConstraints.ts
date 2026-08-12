@@ -15,8 +15,10 @@ export const SYNTHIA_RIG_CONSTRAINTS: Record<string, JointLimit> = (() => {
   map['mixamorighead'] = { dof: 3, x: [-1.047, 1.047], y: [-1.047, 1.047], z: [-1.047, 1.047] };
 
   // ZONE 2: ARMS AND SHOULDERS
-  map['mixamorigleftshoulder'] = { dof: 3, x: [-0.261, 0.261], y: [-0.261, 0.261], z: [-0.261, 0.261] };
-  map['mixamorigrightshoulder'] = { dof: 3, x: [-0.261, 0.261], y: [-0.261, 0.261], z: [-0.261, 0.261] };
+  // WIDENED (walk retarget fix): shoulder ±0.7 replaces the original ±0.261
+  // railing after the reset reverted the widening — authored gait would pin.
+  map['mixamorigleftshoulder'] = { dof: 3, x: [-0.7, 0.7], y: [-0.7, 0.7], z: [-0.7, 0.7] };
+  map['mixamorigrightshoulder'] = { dof: 3, x: [-0.7, 0.7], y: [-0.7, 0.7], z: [-0.7, 0.7] };
   // FIX 7: Tighten arm X-axis adduction limits to prevent chest clipping.
   // Left arm: bring hand to right shoulder (60° adduction) but not beyond midline.
   // Right arm: mirror.
@@ -66,8 +68,12 @@ export const SYNTHIA_RIG_CONSTRAINTS: Record<string, JointLimit> = (() => {
   // ZONE 4: LEGS AND LOWER EXTREMITIES
   map['mixamorigleftupleg'] = { dof: 3, x: [-2.094, 2.094], y: [-2.094, 2.094], z: [-2.094, 2.094], allowance: { locomotionCap: 1.0 } };
   map['mixamorigrightupleg'] = { dof: 3, x: [-2.094, 2.094], y: [-2.094, 2.094], z: [-2.094, 2.094], allowance: { locomotionCap: 1.0 } };
-  map['mixamorigleftleg'] = { dof: 1, x: [-2.618, 0.0], y: [0.0, 0.0], z: [0.0, 0.0], allowance: { locomotionCap: 1.0 } };
-  map['mixamorigrightleg'] = { dof: 1, x: [-2.618, 0.0], y: [0.0, 0.0], z: [0.0, 0.0], allowance: { locomotionCap: 1.0 } };
+  // KNEE POSITIVE-FLEXION RESTORE: anatomical flexion is positive; the reset
+  // had reverted this to [-2.618, 0] + positive_x_clamped_to_0, making a
+  // correctly-flexed knee impossible (also clamped at L3 anatomical). Restored
+  // to [0, 2.618] to match the pre-reset widened rig and the 96/97 dossiers.
+  map['mixamorigleftleg'] = { dof: 1, x: [0.0, 2.618], y: [0.0, 0.0], z: [0.0, 0.0], allowance: { locomotionCap: 1.0 } };
+  map['mixamorigrightleg'] = { dof: 1, x: [0.0, 2.618], y: [0.0, 0.0], z: [0.0, 0.0], allowance: { locomotionCap: 1.0 } };
   map['mixamorigleftfoot'] = { dof: 2, x: [-0.785, 0.785], y: [0.0, 0.0], z: [-0.785, 0.785] };
   map['mixamorigrightfoot'] = { dof: 2, x: [-0.785, 0.785], y: [0.0, 0.0], z: [-0.785, 0.785] };
   map['mixamoriglefttoebase'] = { dof: 1, x: [-1.745, 0.0], y: [0.0, 0.0], z: [0.0, 0.0] };

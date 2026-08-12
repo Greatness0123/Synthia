@@ -14,9 +14,11 @@ const DEG = Math.PI / 180;
 export function getAnatomicalLimitForBone(boneName: string): AnatomicalLimit | null {
   const n = boneName.toLowerCase().replace(/:/g, '');
 
-  // KNEE: 0° to -150° flexion only
+  // KNEE: anatomical flexion is positive, +150° flexion only.
+  // (Previously {-150°, 0} — flipped in the same pass as the rig range so a
+  // positively-authored knee passes L1/L2 and survives L3's anatomical clamp.)
   if (n.includes('knee') || (n.includes('leg') && !n.includes('upleg') && !n.includes('foreleg'))) {
-    return { min: -150 * DEG, max: 0 };
+    return { min: 0, max: 150 * DEG };
   }
 
   // ELBOW / forearm: flexion only 0° to +145°

@@ -232,7 +232,7 @@ export class MotorController {
     const angVelWorld = PhysicsEngine.mujocoToWorld(angVelMj);
 
     // Scale balancing gains dynamically
-    const GAIT_BALANCE_SCALE = 0.15;
+    const GAIT_BALANCE_SCALE = 0.5;
     const balanceScale = this.gaitActive ? GAIT_BALANCE_SCALE : 1.0;
     const BALANCE_KP = 100.0 * this.globalStiffnessScale * balanceScale;
     const BALANCE_KD = 40.0 * this.globalDampingScale * balanceScale;

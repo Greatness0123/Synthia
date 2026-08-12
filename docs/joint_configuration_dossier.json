@@ -1,0 +1,415 @@
+{
+  "meta": {
+    "fps": 30,
+    "timestep": 0.002,
+    "capsuleSpawnHeight": 0.9,
+    "footSoleOffset": 0.015,
+    "forwardIsMinusZ": true,
+    "setTranslationZeroesVelocity": true,
+    "gaitBalanceScale": 0.15,
+    "rampFactorRule": "min(1.0, stepCount/20); stepCount += 1 per setTargets call",
+    "toebaseConvention": "toebase is INERT passthrough: bones exist in the GLB but are absent from BONE_JOINT_TYPE in MJCFHumanoidTemplate.ts, so no MJCF body/joint/actuator is emitted, BodyManager finds no act_..._toebase_pitch actuator, and MotorController silently skips toebase overrides. All toe phasing is carried by leftfoot/rightfoot ankle pitch (x) and roll (z). Authored gait must use toebase <= 0 if authored at all; authored positive toebase values are flattened by positive_x_clamped_to_0 (rig x=[-1.745, 0], dof 1).",
+    "probeStatus": "VERIFIED by runtime MuJoCo probe (jest + @mujoco WASM, 5/5 tests pass). Production scale confirmed: capsuleCenterY=0.875, BodyManager log '51 body IDs, 51 geom IDs, 49 actuator bones'. Probe magnitude ±0.2 rad, 30 steps @ 0.002 s. Full-precision delta table captured in probe output; key legs/shoulders/sole reproduced in joint entries below.",
+    "footSoleDirection": "VERIFIED: sole sits 6 cm toward world +Z (BACKWARD) of the ankle — MuJoCo offset (0.000000, -0.060000, -0.122295) → world (0.000000, -0.122295, +0.060000). MJCF emitter comment 'MuJoCo -Y = 6cm forward' is REVERSED on the live rig."
+  },
+  "joints": {
+    "mixamorighips": {
+      "dof": 6,
+      "parent": null,
+      "payload": "root",
+      "rig": { "x": ["-Inf", "Inf"], "y": ["-Inf", "Inf"], "z": ["-Inf", "Inf"] },
+      "anatomical": null,
+      "mjcf": null,
+      "ctrlMap": null,
+      "bindWorldQuat": [-0.7025, 0, 0, 0.7117],
+      "bindParentRelQuat": [-0.7025, 0, 0, 0.7117],
+      "empirical": {},
+      "notOverrideDriven": "fixed in MJCF as child of root_capsule freejoint; root pose driven by rootMotion/setTranslation only"
+    },
+    "mixamorigspine": {
+      "dof": 3,
+      "parent": "mixamorighips",
+      "payload": "triple",
+      "rig": { "x": [-0.524, 0.785], "y": [-0.524, 0.524], "z": [-0.524, 0.524], "allowance": { "locomotionCap": 1.0 } },
+      "anatomical": { "min": -0.785398, "max": 0.785398 },
+      "mjcf": {
+        "yaw": { "axis": "0 0 1", "range": [-0.524, 0.524], "kp": 700, "kv": 130 },
+        "pitch": { "axis": "1 0 0", "range": [-0.524, 0.785], "kp": 700, "kv": 130 },
+        "roll": { "axis": "0 1 0", "range": [-0.524, 0.524], "kp": 700, "kv": 130 }
+      },
+      "ctrlMap": { "ctrl0": "yaw", "ctrl1": "pitch", "ctrl2": "roll" },
+      "bindWorldQuat": [-0.0802, 0, 0, 0.9968],
+      "bindParentRelQuat": null,
+      "empirical": { "pitch+": "PREDICTED: forward lean (tip toward world -Z)", "pitch-": "PREDICTED: backward lean (+Z)", "roll+": "PREDICTED: lateral lean", "yaw+": "PREDICTED: twist" }
+    },
+    "mixamorigspine1": {
+      "dof": 3,
+      "parent": "mixamorigspine",
+      "payload": "triple",
+      "rig": { "x": [-0.524, 0.524], "y": [-0.524, 0.524], "z": [-0.524, 0.524] },
+      "anatomical": { "min": -0.785398, "max": 0.785398 },
+      "mjcf": {
+        "yaw": { "axis": "0 0 1", "range": [-0.524, 0.524], "kp": 700, "kv": 130 },
+        "pitch": { "axis": "1 0 0", "range": [-0.524, 0.524], "kp": 700, "kv": 130 },
+        "roll": { "axis": "0 1 0", "range": [-0.524, 0.524], "kp": 700, "kv": 130 }
+      },
+      "ctrlMap": { "ctrl0": "yaw", "ctrl1": "pitch", "ctrl2": "roll" },
+      "bindWorldQuat": [0, 0, 0, 1],
+      "bindParentRelQuat": null,
+      "empirical": { "pitch+": "PREDICTED: forward lean", "pitch-": "PREDICTED: backward lean", "roll+": "PREDICTED: lateral lean", "yaw+": "PREDICTED: twist" }
+    },
+    "mixamorigspine2": {
+      "dof": 3,
+      "parent": "mixamorigspine1",
+      "payload": "triple",
+      "rig": { "x": [-0.524, 0.524], "y": [-0.524, 0.524], "z": [-0.524, 0.524] },
+      "anatomical": { "min": -0.785398, "max": 0.785398 },
+      "mjcf": {
+        "yaw": { "axis": "0 0 1", "range": [-0.524, 0.524], "kp": 700, "kv": 130 },
+        "pitch": { "axis": "1 0 0", "range": [-0.524, 0.524], "kp": 700, "kv": 130 },
+        "roll": { "axis": "0 1 0", "range": [-0.524, 0.524], "kp": 700, "kv": 130 }
+      },
+      "ctrlMap": { "ctrl0": "yaw", "ctrl1": "pitch", "ctrl2": "roll" },
+      "bindWorldQuat": [0.0129, 0, 0, 0.9999],
+      "bindParentRelQuat": null,
+      "empirical": { "pitch+": "PREDICTED: forward lean", "pitch-": "PREDICTED: backward lean", "roll+": "PREDICTED: lateral lean", "yaw+": "PREDICTED: twist" }
+    },
+    "mixamorigneck": {
+      "dof": 3,
+      "parent": "mixamorigspine2",
+      "payload": "triple",
+      "rig": { "x": [-1.047, 1.047], "y": [-1.222, 1.222], "z": [-1.047, 1.047], "allowance": { "requiresCervicalCoupling": true } },
+      "anatomical": { "min": -1.0472, "max": 1.0472 },
+      "mjcf": {
+        "yaw": { "axis": "0 1 0", "range": [-1.222, 1.222], "kp": 80, "kv": 25 },
+        "pitch": { "axis": "1 0 0", "range": [-1.047, 1.047], "kp": 80, "kv": 25 },
+        "roll": { "axis": "0 0 1", "range": [-1.047, 1.047], "kp": 80, "kv": 25 }
+      },
+      "ctrlMap": { "ctrl0": "yaw", "ctrl1": "pitch", "ctrl2": "roll" },
+      "bindWorldQuat": [0, 0, 0, 1],
+      "bindParentRelQuat": null,
+      "empirical": { "pitch+": "PREDICTED: head forward", "pitch-": "PREDICTED: head backward", "roll+": "PREDICTED: side tilt", "yaw+": "PREDICTED: turn" }
+    },
+    "mixamorighead": {
+      "dof": 3,
+      "parent": "mixamorigneck",
+      "payload": "triple",
+      "rig": { "x": [-1.047, 1.047], "y": [-1.047, 1.047], "z": [-1.047, 1.047] },
+      "anatomical": { "min": -1.0472, "max": 1.0472 },
+      "mjcf": {
+        "yaw": { "axis": "0 1 0", "range": [-1.047, 1.047], "kp": 80, "kv": 25 },
+        "pitch": { "axis": "1 0 0", "range": [-1.047, 1.047], "kp": 80, "kv": 25 },
+        "roll": { "axis": "0 0 1", "range": [-1.047, 1.047], "kp": 80, "kv": 25 }
+      },
+      "ctrlMap": { "ctrl0": "yaw", "ctrl1": "pitch", "ctrl2": "roll" },
+      "bindWorldQuat": [0, 0, 0, 1],
+      "bindParentRelQuat": null,
+      "empirical": { "pitch+": "PREDICTED: head forward", "pitch-": "PREDICTED: head backward", "roll+": "PREDICTED: side tilt", "yaw+": "PREDICTED: turn" }
+    },
+    "mixamorigleftshoulder": {
+      "dof": 3,
+      "parent": "mixamorigspine2",
+      "payload": "triple",
+      "rig": { "x": [-0.7, 0.7], "y": [-0.7, 0.7], "z": [-0.7, 0.7] },
+      "anatomical": { "min": -3.1416, "max": 3.1416 },
+      "mjcf": {
+        "yaw": { "axis": "0 0 1", "range": [-0.7, 0.7], "kp": 150, "kv": 30 },
+        "pitch": { "axis": "1 0 0", "range": [-0.7, 0.7], "kp": 150, "kv": 30 },
+        "roll": { "axis": "0 1 0", "range": [-0.7, 0.7], "kp": 150, "kv": 30 }
+      },
+      "ctrlMap": { "ctrl0": "yaw", "ctrl1": "pitch", "ctrl2": "roll" },
+      "bindWorldQuat": [0.4844, 0.571, -0.5262, 0.4031],
+      "bindParentRelQuat": null,
+      "empirical": { "pitch+": "VERIFIED: dWorld (0.000071, -0.002493, -0.025150) arm toward -Z", "pitch-": "VERIFIED: (0.002811, 0.002159, -0.022588)", "roll+": "VERIFIED: (-0.000653, -0.000361, -0.012164)", "roll-": "VERIFIED: (0.000759, 0.000114, -0.001096)", "yaw+": "VERIFIED: (-0.000893, -0.001045, -0.015952)", "yaw-": "VERIFIED: (-0.000093, -0.000586, -0.013377)" }
+    },
+    "mixamorigrightshoulder": {
+      "dof": 3,
+      "parent": "mixamorigspine2",
+      "payload": "triple",
+      "rig": { "x": [-0.7, 0.7], "y": [-0.7, 0.7], "z": [-0.7, 0.7] },
+      "anatomical": { "min": -3.1416, "max": 3.1416 },
+      "mjcf": {
+        "yaw": { "axis": "0 0 1", "range": [-0.7, 0.7], "kp": 150, "kv": 30 },
+        "pitch": { "axis": "1 0 0", "range": [-0.7, 0.7], "kp": 150, "kv": 30 },
+        "roll": { "axis": "0 1 0", "range": [-0.7, 0.7], "kp": 150, "kv": 30 }
+      },
+      "ctrlMap": { "ctrl0": "yaw", "ctrl1": "pitch", "ctrl2": "roll" },
+      "bindWorldQuat": [0.4844, -0.571, 0.5262, 0.4031],
+      "bindParentRelQuat": null,
+      "empirical": { "pitch+": "VERIFIED: dWorld (0.000351, -0.002007, -0.004738)", "pitch-": "VERIFIED: (-0.002760, 0.002746, -0.002967)", "roll+": "VERIFIED: (-0.001563, 0.000715, 0.020988)", "roll-": "VERIFIED: (0.008011, -0.002882, -0.037025)", "yaw+": "VERIFIED: (0.001229, -0.001950, -0.000963)", "yaw-": "VERIFIED: (0.000048, 0.000380, 0.002602)" }
+    },
+    "mixamorigleftarm": {
+      "dof": 3,
+      "parent": "mixamorigleftshoulder",
+      "payload": "triple",
+      "rig": { "x": [-2.356, 2.356], "y": [-1.57, 1.57], "z": [-1.57, 1.57], "allowance": { "scapulohumeralRatio": 2.0 } },
+      "anatomical": { "min": -3.1416, "max": 3.1416 },
+      "mjcf": {
+        "yaw": { "axis": "0 0 1", "range": [-1.57, 1.57], "kp": 200, "kv": 40 },
+        "pitch": { "axis": "1 0 0", "range": [-2.356, 2.356], "kp": 200, "kv": 40 },
+        "roll": { "axis": "0 1 0", "range": [-1.57, 1.57], "kp": 200, "kv": 40 }
+      },
+      "ctrlMap": { "ctrl0": "yaw", "ctrl1": "pitch", "ctrl2": "roll" },
+      "bindWorldQuat": [-0.0246, -0.0026, 0.1035, 0.9943],
+      "bindParentRelQuat": null,
+      "empirical": { "pitch+": "PREDICTED: ??", "pitch-": "PREDICTED: ??", "roll+": "PREDICTED: ??", "yaw+": "PREDICTED: ??" }
+    },
+    "mixamorigrightarm": {
+      "dof": 3,
+      "parent": "mixamorigrightshoulder",
+      "payload": "triple",
+      "rig": { "x": [-2.356, 2.356], "y": [-1.57, 1.57], "z": [-1.57, 1.57], "allowance": { "scapulohumeralRatio": 2.0 } },
+      "anatomical": { "min": -3.1416, "max": 3.1416 },
+      "mjcf": {
+        "yaw": { "axis": "0 0 1", "range": [-1.57, 1.57], "kp": 200, "kv": 40 },
+        "pitch": { "axis": "1 0 0", "range": [-2.356, 2.356], "kp": 200, "kv": 40 },
+        "roll": { "axis": "0 1 0", "range": [-1.57, 1.57], "kp": 200, "kv": 40 }
+      },
+      "ctrlMap": { "ctrl0": "yaw", "ctrl1": "pitch", "ctrl2": "roll" },
+      "bindWorldQuat": [-0.0246, 0.0026, -0.1035, 0.9943],
+      "bindParentRelQuat": null,
+      "empirical": { "pitch+": "PREDICTED: ??", "pitch-": "PREDICTED: ??", "roll+": "PREDICTED: ??", "yaw+": "PREDICTED: ??" }
+    },
+    "mixamorigleftforearm": {
+      "dof": 1,
+      "parent": "mixamorigleftarm",
+      "payload": "scalar",
+      "rig": { "x": [0.0, 2.531], "y": [0, 0], "z": [0, 0] },
+      "anatomical": { "min": 0, "max": 2.5307 },
+      "mjcf": {
+        "pitch": { "axis": "1 0 0", "range": [0, 2.531], "kp": 200, "kv": 40 }
+      },
+      "ctrlMap": { "ctrl0": "pitch" },
+      "bindWorldQuat": [0, 0, 0, 1],
+      "bindParentRelQuat": null,
+      "empirical": { "pitch+": "PREDICTED: ??", "pitch-": "PREDICTED: ??" }
+    },
+    "mixamorigrightforearm": {
+      "dof": 1,
+      "parent": "mixamorigrightarm",
+      "payload": "scalar",
+      "rig": { "x": [0.0, 2.531], "y": [0, 0], "z": [0, 0] },
+      "anatomical": { "min": 0, "max": 2.5307 },
+      "mjcf": {
+        "pitch": { "axis": "1 0 0", "range": [0, 2.531], "kp": 200, "kv": 40 }
+      },
+      "ctrlMap": { "ctrl0": "pitch" },
+      "bindWorldQuat": [0, 0, 0, 1],
+      "bindParentRelQuat": null,
+      "empirical": { "pitch+": "PREDICTED: ??", "pitch-": "PREDICTED: ??" }
+    },
+    "mixamoriglefthand": {
+      "dof": 2,
+      "parent": "mixamorigleftforearm",
+      "payload": "pair",
+      "rig": { "x": [-1.396, 1.396], "y": [0, 0], "z": [-0.349, 0.349], "allowance": { "dartThrowingOblique": true } },
+      "anatomical": { "min": -1.3963, "max": 1.3963 },
+      "mjcf": {
+        "pitch": { "axis": "1 0 0", "range": [-1.396, 1.396], "kp": 150, "kv": 30 },
+        "roll": { "axis": "0 1 0", "range": [-0.349, 0.349], "kp": 150, "kv": 30 }
+      },
+      "ctrlMap": { "ctrl0": "pitch", "ctrl1": "roll" },
+      "bindWorldQuat": [0, 0, 0, 1],
+      "bindParentRelQuat": null,
+      "empirical": { "pitch+": "PREDICTED: ??", "pitch-": "PREDICTED: ??", "roll+": "PREDICTED: ??" }
+    },
+    "mixamorigrighthand": {
+      "dof": 2,
+      "parent": "mixamorigrightforearm",
+      "payload": "pair",
+      "rig": { "x": [-1.396, 1.396], "y": [0, 0], "z": [-0.349, 0.349], "allowance": { "dartThrowingOblique": true } },
+      "anatomical": { "min": -1.3963, "max": 1.3963 },
+      "mjcf": {
+        "pitch": { "axis": "1 0 0", "range": [-1.396, 1.396], "kp": 150, "kv": 30 },
+        "roll": { "axis": "0 1 0", "range": [-0.349, 0.349], "kp": 150, "kv": 30 }
+      },
+      "ctrlMap": { "ctrl0": "pitch", "ctrl1": "roll" },
+      "bindWorldQuat": [0, 0, 0, 1],
+      "bindParentRelQuat": null,
+      "empirical": { "pitch+": "PREDICTED: ??", "pitch-": "PREDICTED: ??", "roll+": "PREDICTED: ??" }
+    },
+    "mixamorigleftupleg": {
+      "dof": 3,
+      "parent": "mixamorighips",
+      "payload": "triple",
+      "rig": { "x": [-2.094, 2.094], "y": [-2.094, 2.094], "z": [-2.094, 2.094], "allowance": { "locomotionCap": 1.0 } },
+      "anatomical": { "min": -2.0944, "max": 2.0944 },
+      "mjcf": {
+        "yaw": { "axis": "0 0 1", "range": [-2.094, 2.094], "kp": 900, "kv": 150 },
+        "pitch": { "axis": "1 0 0", "range": [-2.094, 2.094], "kp": 900, "kv": 150 },
+        "roll": { "axis": "0 1 0", "range": [-2.094, 2.094], "kp": 900, "kv": 150 }
+      },
+      "ctrlMap": { "ctrl0": "yaw", "ctrl1": "pitch", "ctrl2": "roll" },
+      "bindWorldQuat": [0, 0.0104, 0.9999, 0],
+      "bindParentRelQuat": null,
+      "empirical": { "pitch+": "VERIFIED: knee dZ=-0.001989 (-Z FORWARD) — task brief '+Z-backward' anchor FALSIFIED; full dWorld (-0.000211, 0.016884, -0.001989)", "pitch-": "VERIFIED: dZ=-0.003301 (-Z)", "roll+": "VERIFIED: dX=-0.015574", "roll-": "VERIFIED: dX=+0.023929", "yaw+": "VERIFIED: dX=-0.002077 dZ=-0.003018", "yaw-": "VERIFIED: dX=+0.000369 dZ=-0.004550" }
+    },
+    "mixamorigrightupleg": {
+      "dof": 3,
+      "parent": "mixamorighips",
+      "payload": "triple",
+      "rig": { "x": [-2.094, 2.094], "y": [-2.094, 2.094], "z": [-2.094, 2.094], "allowance": { "locomotionCap": 1.0 } },
+      "anatomical": { "min": -2.0944, "max": 2.0944 },
+      "mjcf": {
+        "yaw": { "axis": "0 0 1", "range": [-2.094, 2.094], "kp": 900, "kv": 150 },
+        "pitch": { "axis": "1 0 0", "range": [-2.094, 2.094], "kp": 900, "kv": 150 },
+        "roll": { "axis": "0 1 0", "range": [-2.094, 2.094], "kp": 900, "kv": 150 }
+      },
+      "ctrlMap": { "ctrl0": "yaw", "ctrl1": "pitch", "ctrl2": "roll" },
+      "bindWorldQuat": [0, 0.0104, 0.9999, 0],
+      "bindParentRelQuat": null,
+      "empirical": { "pitch+": "VERIFIED: knee dZ=-0.003262 (-Z forward)", "pitch-": "VERIFIED: dZ=-0.003479 (-Z)", "roll+": "VERIFIED: dX=-0.015608", "roll-": "VERIFIED: dX=+0.024000", "yaw+": "VERIFIED: dZ=-0.005754", "yaw-": "VERIFIED: dZ=-0.003500" }
+    },
+    "mixamorigleftleg": {
+      "dof": 1,
+      "parent": "mixamorigleftupleg",
+      "payload": "scalar",
+      "rig": { "x": [0.0, 2.618], "y": [0, 0], "z": [0, 0], "allowance": { "locomotionCap": 1.0 } },
+      "anatomical": { "min": 0, "max": 2.618 },
+      "mjcf": {
+        "pitch": { "axis": "1 0 0", "range": [0.0, 2.618], "kp": 1000, "kv": 180 }
+      },
+      "ctrlMap": { "ctrl0": "pitch" },
+      "bindWorldQuat": [-0.0381, 0, 0, 0.9993],
+      "bindParentRelQuat": null,
+      "empirical": { "pitch+": "VERIFIED: qpos +0.0366 @ target +0.2; ankle dWorld (-0.005352, 0.017328, -0.001437) — positive flexion LIVE (was double-clamped to 0)", "pitch-": "VERIFIED: qpos -0.0006 @ target -0.2 — clamped by hinge [0,2.618]; pre-fix forward-buckle direction no longer reachable" }
+    },
+    "mixamorigrightleg": {
+      "dof": 1,
+      "parent": "mixamorigrightupleg",
+      "payload": "scalar",
+      "rig": { "x": [0.0, 2.618], "y": [0, 0], "z": [0, 0], "allowance": { "locomotionCap": 1.0 } },
+      "anatomical": { "min": 0, "max": 2.618 },
+      "mjcf": {
+        "pitch": { "axis": "1 0 0", "range": [0.0, 2.618], "kp": 1000, "kv": 180 }
+      },
+      "ctrlMap": { "ctrl0": "pitch" },
+      "bindWorldQuat": [-0.0381, 0, 0, 0.9993],
+      "bindParentRelQuat": null,
+      "empirical": { "pitch+": "VERIFIED: qpos +0.0364 @ target +0.2; ankle dWorld (-0.001022, 0.013550, -0.001056)", "pitch-": "VERIFIED: qpos -0.0006 @ target -0.2 — clamped by hinge [0,2.618]" }
+    },
+    "mixamorigleftfoot": {
+      "dof": 2,
+      "parent": "mixamorigleftleg",
+      "payload": "pair",
+      "rig": { "x": [-0.785, 0.785], "y": [0, 0], "z": [-0.785, 0.785] },
+      "anatomical": { "min": -0.7854, "max": 0.7854 },
+      "mjcf": {
+        "pitch": { "axis": "1 0 0", "range": [-0.785, 0.785], "kp": 600, "kv": 100 },
+        "roll": { "axis": "0 1 0", "range": [-0.785, 0.785], "kp": 600, "kv": 100 }
+      },
+      "ctrlMap": { "ctrl0": "pitch", "ctrl1": "roll" },
+      "bindWorldQuat": [0.4597, 0, 0, 0.8881],
+      "bindParentRelQuat": null,
+      "empirical": { "pitch+": "PREDICTED: ??", "pitch-": "PREDICTED: ??", "roll+": "PREDICTED: ??" }
+    },
+    "mixamorigrightfoot": {
+      "dof": 2,
+      "parent": "mixamorigrightleg",
+      "payload": "pair",
+      "rig": { "x": [-0.785, 0.785], "y": [0, 0], "z": [-0.785, 0.785] },
+      "anatomical": { "min": -0.7854, "max": 0.7854 },
+      "mjcf": {
+        "pitch": { "axis": "1 0 0", "range": [-0.785, 0.785], "kp": 600, "kv": 100 },
+        "roll": { "axis": "0 1 0", "range": [-0.785, 0.785], "kp": 600, "kv": 100 }
+      },
+      "ctrlMap": { "ctrl0": "pitch", "ctrl1": "roll" },
+      "bindWorldQuat": [0.4597, 0, 0, 0.888],
+      "bindParentRelQuat": null,
+      "empirical": { "pitch+": "PREDICTED: ??", "pitch-": "PREDICTED: ??", "roll+": "PREDICTED: ??" }
+    },
+    "mixamoriglefttoebase": {
+      "dof": 1,
+      "parent": "mixamorigleftfoot",
+      "payload": "scalar",
+      "rig": { "x": [-1.745, 0.0], "y": [0, 0], "z": [0, 0] },
+      "anatomical": { "min": 0, "max": 1.7453 },
+      "mjcf": null,
+      "ctrlMap": null,
+      "bindWorldQuat": [0.3352, 0, 0, 0.9421],
+      "bindParentRelQuat": null,
+      "empirical": {},
+      "inertPassthrough": "No BONE_JOINT_TYPE entry -> no MJCF body/joint/actuator; MotorController silently skips toebase overrides. All toe phasing lives on leftfoot/rightfoot."
+    },
+    "mixamorigrighttoebase": {
+      "dof": 1,
+      "parent": "mixamorigrightfoot",
+      "payload": "scalar",
+      "rig": { "x": [-1.745, 0.0], "y": [0, 0], "z": [0, 0] },
+      "anatomical": { "min": 0, "max": 1.7453 },
+      "mjcf": null,
+      "ctrlMap": null,
+      "bindWorldQuat": [0.3352, 0, 0, 0.9421],
+      "bindParentRelQuat": null,
+      "empirical": {},
+      "inertPassthrough": "see mixamoriglefttoebase"
+    },
+    "mixamoriglefthandindex1": { "dof": 1, "parent": "mixamoriglefthand", "payload": "scalar", "rig": { "x": [0.0, 1.745], "y": [0, 0], "z": [0, 0] }, "anatomical": { "min": 0, "max": 1.7453 }, "mjcf": { "pitch": { "axis": "1 0 0", "range": [0, 1.745], "kp": 5, "kv": 1 } }, "ctrlMap": { "ctrl0": "pitch" }, "bindWorldQuat": [0, 0, 0, 1], "bindParentRelQuat": null, "empirical": {} },
+    "mixamoriglefthandindex2": { "dof": 1, "parent": "mixamoriglefthandindex1", "payload": "scalar", "rig": { "x": [0.0, 1.745], "y": [0, 0], "z": [0, 0], "allowance": { "tendonSynergyLink": true } }, "anatomical": { "min": 0, "max": 1.7453 }, "mjcf": { "pitch": { "axis": "1 0 0", "range": [0, 1.745], "kp": 5, "kv": 1 } }, "ctrlMap": { "ctrl0": "pitch" }, "bindWorldQuat": [0, 0, 0, 1], "bindParentRelQuat": null, "empirical": {} },
+    "mixamoriglefthandindex3": { "dof": 1, "parent": "mixamoriglefthandindex2", "payload": "scalar", "rig": { "x": [0.0, 1.745], "y": [0, 0], "z": [0, 0], "allowance": { "tendonSynergyLink": true } }, "anatomical": { "min": 0, "max": 1.7453 }, "mjcf": { "pitch": { "axis": "1 0 0", "range": [0, 1.745], "kp": 5, "kv": 1 } }, "ctrlMap": { "ctrl0": "pitch" }, "bindWorldQuat": [0, 0, 0, 1], "bindParentRelQuat": null, "empirical": {} },
+    "mixamoriglefthandmiddle1": { "dof": 1, "parent": "mixamoriglefthand", "payload": "scalar", "rig": { "x": [0.0, 1.745], "y": [0, 0], "z": [0, 0] }, "anatomical": { "min": 0, "max": 1.7453 }, "mjcf": { "pitch": { "axis": "1 0 0", "range": [0, 1.745], "kp": 5, "kv": 1 } }, "ctrlMap": { "ctrl0": "pitch" }, "bindWorldQuat": [0, 0, 0, 1], "bindParentRelQuat": null, "empirical": {} },
+    "mixamoriglefthandmiddle2": { "dof": 1, "parent": "mixamoriglefthandmiddle1", "payload": "scalar", "rig": { "x": [0.0, 1.745], "y": [0, 0], "z": [0, 0], "allowance": { "tendonSynergyLink": true } }, "anatomical": { "min": 0, "max": 1.7453 }, "mjcf": { "pitch": { "axis": "1 0 0", "range": [0, 1.745], "kp": 5, "kv": 1 } }, "ctrlMap": { "ctrl0": "pitch" }, "bindWorldQuat": [0, 0, 0, 1], "bindParentRelQuat": null, "empirical": {} },
+    "mixamoriglefthandmiddle3": { "dof": 1, "parent": "mixamoriglefthandmiddle2", "payload": "scalar", "rig": { "x": [0.0, 1.745], "y": [0, 0], "z": [0, 0], "allowance": { "tendonSynergyLink": true } }, "anatomical": { "min": 0, "max": 1.7453 }, "mjcf": { "pitch": { "axis": "1 0 0", "range": [0, 1.745], "kp": 5, "kv": 1 } }, "ctrlMap": { "ctrl0": "pitch" }, "bindWorldQuat": [0, 0, 0, 1], "bindParentRelQuat": null, "empirical": {} },
+    "mixamoriglefthandring1": { "dof": 1, "parent": "mixamoriglefthand", "payload": "scalar", "rig": { "x": [0.0, 1.745], "y": [0, 0], "z": [0, 0] }, "anatomical": { "min": 0, "max": 1.7453 }, "mjcf": { "pitch": { "axis": "1 0 0", "range": [0, 1.745], "kp": 5, "kv": 1 } }, "ctrlMap": { "ctrl0": "pitch" }, "bindWorldQuat": [0, 0, 0, 1], "bindParentRelQuat": null, "empirical": {} },
+    "mixamoriglefthandring2": { "dof": 1, "parent": "mixamoriglefthandring1", "payload": "scalar", "rig": { "x": [0.0, 1.745], "y": [0, 0], "z": [0, 0], "allowance": { "tendonSynergyLink": true } }, "anatomical": { "min": 0, "max": 1.7453 }, "mjcf": { "pitch": { "axis": "1 0 0", "range": [0, 1.745], "kp": 5, "kv": 1 } }, "ctrlMap": { "ctrl0": "pitch" }, "bindWorldQuat": [0, 0, 0, 1], "bindParentRelQuat": null, "empirical": {} },
+    "mixamoriglefthandring3": { "dof": 1, "parent": "mixamoriglefthandring2", "payload": "scalar", "rig": { "x": [0.0, 1.745], "y": [0, 0], "z": [0, 0], "allowance": { "tendonSynergyLink": true } }, "anatomical": { "min": 0, "max": 1.7453 }, "mjcf": { "pitch": { "axis": "1 0 0", "range": [0, 1.745], "kp": 5, "kv": 1 } }, "ctrlMap": { "ctrl0": "pitch" }, "bindWorldQuat": [0, 0, 0, 1], "bindParentRelQuat": null, "empirical": {} },
+    "mixamoriglefthandpinky1": { "dof": 1, "parent": "mixamoriglefthand", "payload": "scalar", "rig": { "x": [0.0, 1.745], "y": [0, 0], "z": [0, 0] }, "anatomical": { "min": 0, "max": 1.7453 }, "mjcf": { "pitch": { "axis": "1 0 0", "range": [0, 1.745], "kp": 5, "kv": 1 } }, "ctrlMap": { "ctrl0": "pitch" }, "bindWorldQuat": [0, 0, 0, 1], "bindParentRelQuat": null, "empirical": {} },
+    "mixamoriglefthandpinky2": { "dof": 1, "parent": "mixamoriglefthandpinky1", "payload": "scalar", "rig": { "x": [0.0, 1.745], "y": [0, 0], "z": [0, 0], "allowance": { "tendonSynergyLink": true } }, "anatomical": { "min": 0, "max": 1.7453 }, "mjcf": { "pitch": { "axis": "1 0 0", "range": [0, 1.745], "kp": 5, "kv": 1 } }, "ctrlMap": { "ctrl0": "pitch" }, "bindWorldQuat": [0, 0, 0, 1], "bindParentRelQuat": null, "empirical": {} },
+    "mixamoriglefthandpinky3": { "dof": 1, "parent": "mixamoriglefthandpinky2", "payload": "scalar", "rig": { "x": [0.0, 1.745], "y": [0, 0], "z": [0, 0], "allowance": { "tendonSynergyLink": true } }, "anatomical": { "min": 0, "max": 1.7453 }, "mjcf": { "pitch": { "axis": "1 0 0", "range": [0, 1.745], "kp": 5, "kv": 1 } }, "ctrlMap": { "ctrl0": "pitch" }, "bindWorldQuat": [0, 0, 0, 1], "bindParentRelQuat": null, "empirical": {} },
+    "mixamoriglefthandthumb1": { "dof": 1, "parent": "mixamoriglefthand", "payload": "scalar", "rig": { "x": [0.0, 1.745], "y": [0, 0], "z": [0, 0] }, "anatomical": { "min": 0, "max": 1.7453 }, "mjcf": { "pitch": { "axis": "1 0 0", "range": [0, 1.745], "kp": 5, "kv": 1 } }, "ctrlMap": { "ctrl0": "pitch" }, "bindWorldQuat": [0.2531, -0.0613, 0.2274, 0.9383], "bindParentRelQuat": null, "empirical": {} },
+    "mixamoriglefthandthumb2": { "dof": 1, "parent": "mixamoriglefthandthumb1", "payload": "scalar", "rig": { "x": [0.0, 1.745], "y": [0, 0], "z": [0, 0], "allowance": { "tendonSynergyLink": true } }, "anatomical": { "min": 0, "max": 1.7453 }, "mjcf": { "pitch": { "axis": "1 0 0", "range": [0, 1.745], "kp": 5, "kv": 1 } }, "ctrlMap": { "ctrl0": "pitch" }, "bindWorldQuat": [-0.0021, 0.001, -0.0082, 1], "bindParentRelQuat": null, "empirical": {} },
+    "mixamoriglefthandthumb3": { "dof": 1, "parent": "mixamoriglefthandthumb2", "payload": "scalar", "rig": { "x": [0.0, 1.745], "y": [0, 0], "z": [0, 0], "allowance": { "tendonSynergyLink": true } }, "anatomical": { "min": 0, "max": 1.7453 }, "mjcf": { "pitch": { "axis": "1 0 0", "range": [0, 1.745], "kp": 5, "kv": 1 } }, "ctrlMap": { "ctrl0": "pitch" }, "bindWorldQuat": [-0.0015, 0.0007, -0.0061, 1], "bindParentRelQuat": null, "empirical": {} },
+    "mixamorigrighthandindex1": { "dof": 1, "parent": "mixamorigrighthand", "payload": "scalar", "rig": { "x": [0.0, 1.745], "y": [0, 0], "z": [0, 0] }, "anatomical": { "min": 0, "max": 1.7453 }, "mjcf": { "pitch": { "axis": "1 0 0", "range": [0, 1.745], "kp": 5, "kv": 1 } }, "ctrlMap": { "ctrl0": "pitch" }, "bindWorldQuat": [0, 0, -0.0002, 1], "bindParentRelQuat": null, "empirical": {} },
+    "mixamorigrighthandindex2": { "dof": 1, "parent": "mixamorigrighthandindex1", "payload": "scalar", "rig": { "x": [0.0, 1.745], "y": [0, 0], "z": [0, 0], "allowance": { "tendonSynergyLink": true } }, "anatomical": { "min": 0, "max": 1.7453 }, "mjcf": { "pitch": { "axis": "1 0 0", "range": [0, 1.745], "kp": 5, "kv": 1 } }, "ctrlMap": { "ctrl0": "pitch" }, "bindWorldQuat": [0, 0, 0.0003, 1], "bindParentRelQuat": null, "empirical": {} },
+    "mixamorigrighthandindex3": { "dof": 1, "parent": "mixamorigrighthandindex2", "payload": "scalar", "rig": { "x": [0.0, 1.745], "y": [0, 0], "z": [0, 0], "allowance": { "tendonSynergyLink": true } }, "anatomical": { "min": 0, "max": 1.7453 }, "mjcf": { "pitch": { "axis": "1 0 0", "range": [0, 1.745], "kp": 5, "kv": 1 } }, "ctrlMap": { "ctrl0": "pitch" }, "bindWorldQuat": [0, 0, -0.0001, 1], "bindParentRelQuat": null, "empirical": {} },
+    "mixamorigrighthandmiddle1": { "dof": 1, "parent": "mixamorigrighthand", "payload": "scalar", "rig": { "x": [0.0, 1.745], "y": [0, 0], "z": [0, 0] }, "anatomical": { "min": 0, "max": 1.7453 }, "mjcf": { "pitch": { "axis": "1 0 0", "range": [0, 1.745], "kp": 5, "kv": 1 } }, "ctrlMap": { "ctrl0": "pitch" }, "bindWorldQuat": [0, 0, -0.0005, 1], "bindParentRelQuat": null, "empirical": {} },
+    "mixamorigrighthandmiddle2": { "dof": 1, "parent": "mixamorigrighthandmiddle1", "payload": "scalar", "rig": { "x": [0.0, 1.745], "y": [0, 0], "z": [0, 0], "allowance": { "tendonSynergyLink": true } }, "anatomical": { "min": 0, "max": 1.7453 }, "mjcf": { "pitch": { "axis": "1 0 0", "range": [0, 1.745], "kp": 5, "kv": 1 } }, "ctrlMap": { "ctrl0": "pitch" }, "bindWorldQuat": [0, 0, 0.0008, 1], "bindParentRelQuat": null, "empirical": {} },
+    "mixamorigrighthandmiddle3": { "dof": 1, "parent": "mixamorigrighthandmiddle2", "payload": "scalar", "rig": { "x": [0.0, 1.745], "y": [0, 0], "z": [0, 0], "allowance": { "tendonSynergyLink": true } }, "anatomical": { "min": 0, "max": 1.7453 }, "mjcf": { "pitch": { "axis": "1 0 0", "range": [0, 1.745], "kp": 5, "kv": 1 } }, "ctrlMap": { "ctrl0": "pitch" }, "bindWorldQuat": [0, 0, -0.0003, 1], "bindParentRelQuat": null, "empirical": {} },
+    "mixamorigrighthandring1": { "dof": 1, "parent": "mixamorigrighthand", "payload": "scalar", "rig": { "x": [0.0, 1.745], "y": [0, 0], "z": [0, 0] }, "anatomical": { "min": 0, "max": 1.7453 }, "mjcf": { "pitch": { "axis": "1 0 0", "range": [0, 1.745], "kp": 5, "kv": 1 } }, "ctrlMap": { "ctrl0": "pitch" }, "bindWorldQuat": [0, 0, 0.0002, 1], "bindParentRelQuat": null, "empirical": {} },
+    "mixamorigrighthandring2": { "dof": 1, "parent": "mixamorigrighthandring1", "payload": "scalar", "rig": { "x": [0.0, 1.745], "y": [0, 0], "z": [0, 0], "allowance": { "tendonSynergyLink": true } }, "anatomical": { "min": 0, "max": 1.7453 }, "mjcf": { "pitch": { "axis": "1 0 0", "range": [0, 1.745], "kp": 5, "kv": 1 } }, "ctrlMap": { "ctrl0": "pitch" }, "bindWorldQuat": [0, 0, -0.0002, 1], "bindParentRelQuat": null, "empirical": {} },
+    "mixamorigrighthandring3": { "dof": 1, "parent": "mixamorigrighthandring2", "payload": "scalar", "rig": { "x": [0.0, 1.745], "y": [0, 0], "z": [0, 0], "allowance": { "tendonSynergyLink": true } }, "anatomical": { "min": 0, "max": 1.7453 }, "mjcf": { "pitch": { "axis": "1 0 0", "range": [0, 1.745], "kp": 5, "kv": 1 } }, "ctrlMap": { "ctrl0": "pitch" }, "bindWorldQuat": [0, 0, -0.0001, 1], "bindParentRelQuat": null, "empirical": {} },
+    "mixamorigrighthandpinky1": { "dof": 1, "parent": "mixamorigrighthand", "payload": "scalar", "rig": { "x": [0.0, 1.745], "y": [0, 0], "z": [0, 0] }, "anatomical": { "min": 0, "max": 1.7453 }, "mjcf": { "pitch": { "axis": "1 0 0", "range": [0, 1.745], "kp": 5, "kv": 1 } }, "ctrlMap": { "ctrl0": "pitch" }, "bindWorldQuat": [0, 0, 0.0005, 1], "bindParentRelQuat": null, "empirical": {} },
+    "mixamorigrighthandpinky2": { "dof": 1, "parent": "mixamorigrighthandpinky1", "payload": "scalar", "rig": { "x": [0.0, 1.745], "y": [0, 0], "z": [0, 0], "allowance": { "tendonSynergyLink": true } }, "anatomical": { "min": 0, "max": 1.7453 }, "mjcf": { "pitch": { "axis": "1 0 0", "range": [0, 1.745], "kp": 5, "kv": 1 } }, "ctrlMap": { "ctrl0": "pitch" }, "bindWorldQuat": [0, 0, 0.0008, 1], "bindParentRelQuat": null, "empirical": {} },
+    "mixamorigrighthandpinky3": { "dof": 1, "parent": "mixamorigrighthandpinky2", "payload": "scalar", "rig": { "x": [0.0, 1.745], "y": [0, 0], "z": [0, 0], "allowance": { "tendonSynergyLink": true } }, "anatomical": { "min": 0, "max": 1.7453 }, "mjcf": { "pitch": { "axis": "1 0 0", "range": [0, 1.745], "kp": 5, "kv": 1 } }, "ctrlMap": { "ctrl0": "pitch" }, "bindWorldQuat": [0, 0, -0.0005, 1], "bindParentRelQuat": null, "empirical": {} },
+    "mixamorigrighthandthumb1": { "dof": 1, "parent": "mixamorigrighthand", "payload": "scalar", "rig": { "x": [0.0, 1.745], "y": [0, 0], "z": [0, 0] }, "anatomical": { "min": 0, "max": 1.7453 }, "mjcf": { "pitch": { "axis": "1 0 0", "range": [0, 1.745], "kp": 5, "kv": 1 } }, "ctrlMap": { "ctrl0": "pitch" }, "bindWorldQuat": [0.2533, 0.0616, -0.2282, 0.9381], "bindParentRelQuat": null, "empirical": {} },
+    "mixamorigrighthandthumb2": { "dof": 1, "parent": "mixamorigrighthandthumb1", "payload": "scalar", "rig": { "x": [0.0, 1.745], "y": [0, 0], "z": [0, 0], "allowance": { "tendonSynergyLink": true } }, "anatomical": { "min": 0, "max": 1.7453 }, "mjcf": { "pitch": { "axis": "1 0 0", "range": [0, 1.745], "kp": 5, "kv": 1 } }, "ctrlMap": { "ctrl0": "pitch" }, "bindWorldQuat": [-0.0023, -0.0012, 0.0093, 1], "bindParentRelQuat": null, "empirical": {} },
+    "mixamorigrighthandthumb3": { "dof": 1, "parent": "mixamorigrighthandthumb2", "payload": "scalar", "rig": { "x": [0.0, 1.745], "y": [0, 0], "z": [0, 0], "allowance": { "tendonSynergyLink": true } }, "anatomical": { "min": 0, "max": 1.7453 }, "mjcf": { "pitch": { "axis": "1 0 0", "range": [0, 1.745], "kp": 5, "kv": 1 } }, "ctrlMap": { "ctrl0": "pitch" }, "bindWorldQuat": [-0.0017, -0.0008, 0.0069, 1], "bindParentRelQuat": null, "empirical": {} }
+  },
+  "clampRules": {
+    "positive_x_clamped_to_0": "constraint.dof===1 && constraint.x[1]===0.0 && v>0 → return 0.0",
+    "locomotionCapScaling": "activeGaitPhase && allowance.locomotionCap → min*cap, max*cap",
+    "scapulohumeralInjection": "arm |x|>0.523 → shoulder.x += clamp((|x|-0.523)/2, ±0.2618), ratio 2.0",
+    "cervicalCoupling": "neck z += -0.15 * neckY",
+    "anatomicalClampL3": "setMotorTargets clamps every scalar target into anatomical limits AFTER the rig gate: limits = jointLimits.get(canonical) ?? getAnatomicalLimitForBone(canonical); if (targetValue < min || > max) { finalValue = clamp(targetValue); rejected.push(exceeds_anatomical_limit) }; parsedTarget.scalar = finalValue. Knee anatom = {min:-2.618, max:0} so a +1.12 knee target passes the rig post-fix but is clamped to 0 at L3 unless anatomicalLimits is flipped in the same pass.",
+    "tendonSynergy": "seg2/3 rejected if base |angle|<=0.01"
+  },
+  "injections": {
+    "scapulohumeral_inject": "shoulderKey:delta",
+    "cervical_counter_tilt": "mixamorigneck:zInject",
+    "tendon_synergy_violation": "seg2/3 rejected if base |angle|<=0.01"
+  },
+  "playback": {
+    "eulerPermutation": "Euler(x=pitch, y=roll, z=yaw, 'ZXY')",
+    "scalarLerp": true,
+    "rootMotionIndexRule": "pose frame k uses rootMotion[k+1]"
+  },
+  "counts": {
+    "drivenActuated": 49,
+    "drivenExcluded": { "mixamorighips": "fixed in MJCF; root driven via rootMotion/setTranslation", "mixamoriglefttoebase": "inert — no BONE_JOINT_TYPE entry, no actuator", "mixamorigrighttoebase": "inert — no BONE_JOINT_TYPE entry, no actuator" },
+    "totalInJointsMap": 52,
+    "enumeration": "49 = 5 (spine/spine1/spine2/neck/head) + 8 (shoulders x2, arms x2, forearms x2, hands x2) + 30 digits (15/side: 4 fingers x3 + thumb x3) + 8 (uplegs x2, legs x2, feet x2, toebase x2) - wait: toebase excluded -> 6 (uplegs/legs/feet) + 2 forearms + 6 spine/neck/head + 8 shoulders/arms/hands + 30 digits = 52 - 3 excluded (hips + 2 toebase) = 49"
+  },
+  "contradictions": [
+    { "key": "shoulderRanges", "detail": "RESOLVED (this pass): on-disk rigConstraints.ts had reverted to ±0.261; the pre-reset WIDENED ±0.7 walk-retarget variant has been re-applied to both shoulders and re-verified by probe (qpos reaches ±0.2 freely)." },
+    { "key": "gaitBalanceScale", "detail": "UNCHANGED by this pass (per scope): on-disk MotorController.ts GAIT_BALANCE_SCALE = 0.15 (96/97 said 0.4; code wins — no balance change made)." },
+    { "key": "kneePositiveFlexion", "detail": "RESOLVED (this pass): rig restored to [0, 2.618] + anatomical {min:0, max:150deg}; L2 probe: +1.12 stored, clampingNotes=[] , rejections=[]; L3 probe: +1.12 stored scalar, no rejected. Positive flexion now LIVE." },
+    { "key": "kneeEmissionPath", "detail": "UNCHANGED: dossier 96/97 described -swingAboutX/routeZToX/totalFlexion; on-disk mixamoStreamConverter.ts has none of those — pure toZxyEuler, artifact frame-0 knee = 0 confirms." },
+    { "key": "footSoleGeometry", "detail": "VERIFIED (this pass): box 0.05x0.13x0.015, quat = inverse of foot body quat (world-identity flat). Probe: sole offset MuJoCo (0, -0.060, -0.122) → world +Z +0.060 = 6 cm BACKWARD of ankle, so the MJCF comment 'MuJoCo -Y = 6cm forward' is REVERSED." },
+    { "key": "diagnoseFallQuickCaption", "detail": "prints 'Spherical joint qpos = [qw,qx,qy,qz]' but all joints are hinges (scalar qpos) — cosmetic lie in useWorld diagnostics." }
+  ],
+  "signCorrections": [
+    { "source": "#98 §1.6", "stated": "positive dz = forward", "correct": "INVERTED: positive dz adds to world z via setTranslation; world +Z = backward (forward is -Z). Negative dz = forward; artifact dz ≈ -0.055/frame is forward. Operational conclusion unchanged." },
+    { "source": "#98 §2", "stated": "MuJoCo -Z = world +Z", "correct": "MuJoCo -Z = world DOWN (mujocoToWorld([0,0,-1]) = (0,-1,0)). Intermediate line was garbled." },
+    { "source": "#98/task anchor", "stated": "positive left-upleg pitch => knee tip world +Z (backward)", "correct": "FALSIFIED BY PROBE: leftupleg pitch+ moves knee tip to dZ=-0.001989 = world -Z (FORWARD). The probe table (C:/tmp/probe_fixed.txt) is the ground truth for leg channels, not the task anchor. Both uplegs verified: pitch± -> -Z; roll± -> ±X; yaw± -> small dX/dZ twist." }
+  ]
+}

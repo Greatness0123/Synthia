@@ -105,13 +105,17 @@ describe('convertMixamoStreamToTimeline', () => {
     }
   });
 
-  test('knee overrides are never positive (Synthia negative-flexion convention)', () => {
+  test('knee overrides are non-negative flexion (Synthia positive-flexion convention)', () => {
+    // The negative-convention assertion was removed with the knee fix:
+    // rigConstraints now emits knees [0, 2.618] and anatomicalLimits {min:0, max:150deg}
+    // (positive = anatomical flexion). Converter output is proven to carry the
+    // real Mixamo flexion (+1.1232 max) which the old [-2.618, 0] rig destroyed.
     for (const frame of artifact.sequence) {
       for (const bone of ['mixamorigleftleg', 'mixamorigrightleg']) {
         const v = frame.overrides[bone];
         expect(typeof v).toBe('number');
-        expect(v as number).toBeLessThanOrEqual(0);
-        expect(v as number).toBeGreaterThanOrEqual(-2.618);
+        expect(v as number).toBeGreaterThanOrEqual(0);
+        expect(v as number).toBeLessThanOrEqual(2.618);
       }
     }
   });
