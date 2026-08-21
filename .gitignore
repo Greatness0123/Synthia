@@ -22,3 +22,8 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+walkdiag1
+discards
+.claude
+.cursor

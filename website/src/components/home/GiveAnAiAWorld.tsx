@@ -1,5 +1,3 @@
-import { useRef } from 'react'
-
 const STEPS = [
   {
     n: '01',
@@ -22,72 +20,58 @@ const STEPS = [
   {
     n: '04',
     title: 'You turn that growth into income.',
-    body: 'Export the dataset of what it learned. Sell it to the people training the next models. Play becomes product.',
+    body: 'Export the dataset of what it learned. Sell it to the people training the next models. Running it becomes a product.',
     accent: 'from-teal/25 to-transparent',
   },
 ]
 
 export function GiveAnAiAWorld() {
   return (
-    <section className="bg-surface">
-      <div className="mx-auto max-w-5xl px-4 pt-24 pb-12 text-center sm:px-6 sm:pt-32 md:px-10">
-        <p className="mb-4 text-xs font-medium uppercase tracking-[0.22em] text-teal">
+    <section className="bg-surface py-14 sm:py-20">
+      {/* ── Section Header (Tight, Proportionate Padding) ── */}
+      <div className="mx-auto max-w-4xl px-4 text-center sm:px-6 md:px-8">
+        <p className="mb-3 text-xs font-semibold uppercase tracking-[0.22em] text-teal">
           What you actually do
         </p>
-        <h2 className="font-serif text-3xl leading-[1.1] tracking-tight text-ink sm:text-4xl md:text-5xl">
+        <h2 className="font-serif text-3xl leading-[1.15] tracking-tight text-ink sm:text-4xl md:text-5xl">
           Give an AI a world.
           <br />
           Watch what happens.
         </h2>
-        <p className="mx-auto mt-5 max-w-2xl text-base leading-relaxed text-ink-muted sm:text-lg">
+        <p className="mx-auto mt-4 max-w-xl text-base leading-relaxed text-ink-muted sm:text-lg">
           Four steps. The first one is the only one that feels like work.
         </p>
       </div>
 
-      <div className="relative mx-auto max-w-5xl px-4 pb-24 sm:px-6 md:px-10 md:pb-32">
+      {/* ── Cards Flow (Snug Spacing, Zero Huge Voids) ── */}
+      <div className="mx-auto mt-10 max-w-4xl px-4 sm:px-6 md:px-8 space-y-4 sm:space-y-6">
         {STEPS.map((step, index) => (
-          <StackCard key={step.n} step={step} index={index} />
+          <div
+            key={step.n}
+            className="sticky top-24 sm:top-28 transition-all"
+            style={{
+              zIndex: index + 1,
+            }}
+          >
+            <div className="relative w-full overflow-hidden rounded-2xl sm:rounded-3xl border border-ink/10 bg-surface-elevated shadow-[0_12px_40px_-15px_rgba(26,25,23,0.15)] backdrop-blur-sm">
+              <div className={`pointer-events-none absolute inset-0 bg-gradient-to-br ${step.accent}`} />
+              <div className="relative grid gap-4 p-6 sm:p-8 md:grid-cols-[100px_1fr] md:gap-8 md:p-10">
+                <div className="font-mono text-sm font-bold uppercase tracking-[0.2em] text-amber md:text-base">
+                  {step.n}
+                </div>
+                <div>
+                  <h3 className="font-serif text-2xl leading-tight tracking-tight text-ink sm:text-3xl md:text-4xl">
+                    {step.title}
+                  </h3>
+                  <p className="mt-3 max-w-xl text-sm leading-relaxed text-ink-muted sm:mt-4 sm:text-base md:text-lg">
+                    {step.body}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
         ))}
       </div>
     </section>
-  )
-}
-
-interface StackCardProps {
-  step: (typeof STEPS)[number]
-  index: number
-}
-
-function StackCard({ step, index }: StackCardProps) {
-  const ref = useRef<HTMLDivElement>(null)
-  // Each subsequent card sticks a bit lower so they stack visually.
-  const topOffset = 80 + index * 24
-
-  return (
-    <div ref={ref} className="relative h-[80vh] sm:h-[70vh]">
-      <div
-        className="sticky flex h-screen items-center justify-center"
-        style={{ top: `${topOffset}px` }}
-      >
-        <div
-          className={`relative w-full overflow-hidden rounded-3xl border border-ink/10 bg-surface-elevated shadow-[0_30px_80px_-30px_rgba(26,25,23,0.25)]`}
-        >
-          <div className={`pointer-events-none absolute inset-0 bg-gradient-to-br ${step.accent}`} />
-          <div className="relative grid gap-6 px-6 py-12 sm:px-10 sm:py-14 md:grid-cols-[120px_1fr] md:gap-10 md:px-14 md:py-20">
-            <div className="font-mono text-sm uppercase tracking-[0.2em] text-amber md:text-base">
-              {step.n}
-            </div>
-            <div>
-              <h3 className="font-serif text-3xl leading-[1.1] tracking-tight text-ink sm:text-4xl md:text-5xl">
-                {step.title}
-              </h3>
-              <p className="mt-4 max-w-xl text-base leading-relaxed text-ink-muted sm:mt-5 sm:text-lg md:text-xl">
-                {step.body}
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
   )
 }

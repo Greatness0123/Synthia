@@ -17,7 +17,7 @@ export function TryIt() {
             <h2 className="font-serif text-3xl leading-[1.05] tracking-tight text-ink sm:text-4xl md:text-5xl">
               Two clicks.
               <br />
-              Then it is alive.
+              Then it's in its world.
             </h2>
             <p className="mx-auto mt-5 max-w-xl text-base leading-relaxed text-ink-muted sm:text-lg">
               Click open. Plug in an AI provider (free Kaggle option, or your own key). Your AI

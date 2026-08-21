@@ -9,7 +9,6 @@
     "lint": "eslint src --ext .ts,.tsx",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
-    "coordinator": "cd coordinator && npm run dev",
     "sync-types": "node scripts/sync-types.mjs",
     "verify-proxy": "npx ts-node --esm tests/verify-proxy.ts"
   },
@@ -27,6 +26,7 @@
     "lucide-react": "^1.28.0",
     "react": "18.3.1",
     "react-dom": "18.3.1",
+    "react-router-dom": "^7.18.2",
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.6.0",
     "three": "^0.184.0",

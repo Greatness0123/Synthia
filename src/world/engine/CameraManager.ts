@@ -247,6 +247,10 @@ export class CameraManager {
     this.renderer.setRenderTarget(currentRenderTarget);
   }
 
+  private captureCanvas: HTMLCanvasElement | null = null;
+  private capturePixelBuffer: Uint8Array | null = null;
+  private captureFlippedBuffer: Uint8ClampedArray | null = null;
+
   /**
    * Render the scene from an arbitrary camera into the configurable AI render
    * target and encode as a base64 webp string. Used for per-agent first-person
@@ -264,22 +268,36 @@ export class CameraManager {
       this.renderer.setRenderTarget(this.aiRenderTarget);
       this.renderer.render(scene, camera);
 
-      const pixelBuffer = new Uint8Array(size * size * 4);
+      const bufferSize = size * size * 4;
+      if (!this.capturePixelBuffer || this.capturePixelBuffer.length !== bufferSize) {
+        this.capturePixelBuffer = new Uint8Array(bufferSize);
+      }
+      if (!this.captureFlippedBuffer || this.captureFlippedBuffer.length !== bufferSize) {
+        this.captureFlippedBuffer = new Uint8ClampedArray(bufferSize);
+      }
+      if (!this.captureCanvas) {
+        this.captureCanvas = document.createElement('canvas');
+      }
+      if (this.captureCanvas.width !== size || this.captureCanvas.height !== size) {
+        this.captureCanvas.width = size;
+        this.captureCanvas.height = size;
+      }
+
+      const pixelBuffer = this.capturePixelBuffer;
+      const flippedBuffer = this.captureFlippedBuffer;
+      const canvas = this.captureCanvas;
+
       this.renderer.readRenderTargetPixels(this.aiRenderTarget, 0, 0, size, size, pixelBuffer);
 
       const bytesPerRow = size * 4;
-      const flippedBuffer = new Uint8ClampedArray(size * size * 4);
       for (let y = 0; y < size; y++) {
         const srcOffset = y * bytesPerRow;
         const destOffset = (size - 1 - y) * bytesPerRow;
         flippedBuffer.set(pixelBuffer.subarray(srcOffset, srcOffset + bytesPerRow), destOffset);
       }
 
-      const canvas = document.createElement('canvas');
-      canvas.width = size;
-      canvas.height = size;
       const ctx = canvas.getContext('2d')!;
-      const imageData = new ImageData(flippedBuffer, size, size);
+      const imageData = new ImageData(flippedBuffer as any, size, size);
       ctx.putImageData(imageData, 0, 0);
 
       const dataURL = canvas.toDataURL('image/webp', 0.7);

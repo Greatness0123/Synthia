@@ -76,8 +76,13 @@ export const SYNTHIA_RIG_CONSTRAINTS: Record<string, JointLimit> = (() => {
   map['mixamorigrightleg'] = { dof: 1, x: [0.0, 2.618], y: [0.0, 0.0], z: [0.0, 0.0], allowance: { locomotionCap: 1.0 } };
   map['mixamorigleftfoot'] = { dof: 2, x: [-0.785, 0.785], y: [0.0, 0.0], z: [-0.785, 0.785] };
   map['mixamorigrightfoot'] = { dof: 2, x: [-0.785, 0.785], y: [0.0, 0.0], z: [-0.785, 0.785] };
-  map['mixamoriglefttoebase'] = { dof: 1, x: [-1.745, 0.0], y: [0.0, 0.0], z: [0.0, 0.0] };
-  map['mixamorigrighttoebase'] = { dof: 1, x: [-1.745, 0.0], y: [0.0, 0.0], z: [0.0, 0.0] };
+  // TOEBASE (WALK FIX): symmetric ±45° so a physics toe joint can ROLL ONTO the
+  // forefoot at push-off AND flex toes up for swing clearance. The old
+  // negative-only [-1.745, 0] range made a physical toebase hinge dead on every
+  // positive (toes-up) command the gait emits — the foot stayed a rigid board
+  // and could never push off (the 3-run backward-pitch cause).
+  map['mixamoriglefttoebase'] = { dof: 1, x: [-0.785, 0.785], y: [0.0, 0.0], z: [0.0, 0.0] };
+  map['mixamorigrighttoebase'] = { dof: 1, x: [-0.785, 0.785], y: [0.0, 0.0], z: [0.0, 0.0] };
 
   return map;
 })();

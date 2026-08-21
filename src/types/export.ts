@@ -1,4 +1,4 @@
-// Kept in sync with coordinator/src/types — update both if schema changes
+// Export schema types. The coordinator-era mirror in coordinator/src/types was removed in Phase 12.
 
 export type ExportType = 'dataset' | 'frames_zip' | 'thoughts_report' | 'session_full';
 export type ExportFormat = 'LeRobot' | 'JSONL' | 'CSV' | 'Parquet';

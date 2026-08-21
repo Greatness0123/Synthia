@@ -253,24 +253,22 @@ export class WorldEngine {
         }
       }
 
-      try {
-        const frameBase64 = this.cameraManager.captureAIFrame(this.scene);
-        if (frameBase64) {
-          this.lastAIFrame = frameBase64;
-          const now = performance.now();
-          const currentAgentId = useAgentStore.getState().activeAgentId || 'agent_0';
+      const now = performance.now();
+      const currentAgentId = useAgentStore.getState().activeAgentId || 'agent_0';
+      const shouldUpdatePiP = currentAgentId !== (this as any).lastActiveAgentIdForPiP || (now - this.lastPipUpdateTime > 200);
 
-          if (currentAgentId !== (this as any).lastActiveAgentIdForPiP) {
+      if (shouldUpdatePiP) {
+        try {
+          const frameBase64 = this.cameraManager.captureAIFrame(this.scene);
+          if (frameBase64) {
+            this.lastAIFrame = frameBase64;
             (this as any).lastActiveAgentIdForPiP = currentAgentId;
             useWorldStore.getState().setLastAIFrameForDisplay(frameBase64);
             this.lastPipUpdateTime = now;
-          } else if (now - this.lastPipUpdateTime > 200) {
-            useWorldStore.getState().setLastAIFrameForDisplay(frameBase64);
-            this.lastPipUpdateTime = now;
           }
+        } catch (err) {
+          Logger.warn('WorldEngine: AI frame capture failed', err);
         }
-      } catch (err) {
-        Logger.warn('WorldEngine: AI frame capture failed', err);
       }
 
       this.cameraManager.updateTransformControls();

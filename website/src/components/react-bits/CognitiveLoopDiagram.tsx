@@ -1,93 +1,171 @@
-import { motion } from 'framer-motion'
+import { useEffect, useState } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { Eye, Brain, Activity, Database, ArrowRight, Play, Pause } from 'lucide-react'
 
-const nodes = [
-  { id: 'perceive', label: 'Perceive', x: 12, y: 50 },
-  { id: 'decide', label: 'Decide', x: 38, y: 22 },
-  { id: 'act', label: 'Act', x: 62, y: 50 },
-  { id: 'remember', label: 'Remember', x: 88, y: 22 },
+const STAGES = [
+  {
+    id: 'perceive',
+    index: '01',
+    name: 'Perceive',
+    icon: Eye,
+    tag: 'Sensory Input',
+    metric: 'RGB + 80-DOF Joints',
+    log: 'Capturing 3D point-of-view camera render, audio PCM, and joint proprioception array',
+    accent: 'border-teal/40 bg-teal/5 text-teal',
+  },
+  {
+    id: 'decide',
+    index: '02',
+    name: 'Decide',
+    icon: Brain,
+    tag: 'LLM Reasoning',
+    metric: 'Token Stream',
+    log: '"Obstacle detected at 1.4m. Adjusting hip pitch +18° to clear elevation smoothly"',
+    accent: 'border-amber/40 bg-amber/5 text-amber',
+  },
+  {
+    id: 'act',
+    index: '03',
+    name: 'Act',
+    icon: Activity,
+    tag: 'Physics Engine',
+    metric: '60 Hz MuJoCo WASM',
+    log: 'Actuating 80 joint motor torques in browser WASM. Computing ground collision & balance',
+    accent: 'border-emerald-500/40 bg-emerald-500/5 text-emerald-600',
+  },
+  {
+    id: 'remember',
+    index: '04',
+    name: 'Remember',
+    icon: Database,
+    tag: 'Memory Store',
+    metric: '3-Tier Parquet',
+    log: 'Writing episodic memory frame #1042. Balance rating 0.96 recorded to working memory',
+    accent: 'border-indigo-500/40 bg-indigo-500/5 text-indigo-600',
+  },
 ]
 
-const edges = [
-  { from: 'perceive', to: 'decide' },
-  { from: 'decide', to: 'act' },
-  { from: 'act', to: 'remember' },
-  { from: 'remember', to: 'perceive' },
-]
-
-function getNode(id: string) {
-  return nodes.find((node) => node.id === id)!
-}
-
-/** Animated cognitive loop diagram for architecture page */
 export function CognitiveLoopDiagram() {
+  const [activeIdx, setActiveIdx] = useState(0)
+  const [isPlaying, setIsPlaying] = useState(true)
+
+  // Cycle automatically every 1.5 seconds through the 4 steps
+  useEffect(() => {
+    if (!isPlaying) return
+    const interval = setInterval(() => {
+      setActiveIdx((prev) => (prev + 1) % STAGES.length)
+    }, 1500)
+    return () => clearInterval(interval)
+  }, [isPlaying])
+
+  const activeStage = STAGES[activeIdx]
+
   return (
-    <div className="my-12 overflow-hidden rounded-2xl border border-white/10 bg-black/20 p-6 md:p-10">
-      <svg viewBox="0 0 400 120" className="w-full" aria-label="Cognitive loop: Perceive, Decide, Act, Remember">
-        <title>Cognitive loop diagram</title>
-        {edges.map((edge, index) => {
-          const from = getNode(edge.from)
-          const to = getNode(edge.to)
+    <div className="my-10 overflow-hidden rounded-3xl border border-ink/10 bg-surface-elevated p-5 shadow-[0_12px_40px_-10px_rgba(26,25,23,0.08)] sm:p-8">
+      {/* ── Top Bar with Status & Controls ── */}
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-ink/8 pb-4">
+        <div className="flex items-center gap-2.5">
+          <span className="relative flex h-2.5 w-2.5">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-teal opacity-75" />
+            <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-teal" />
+          </span>
+          <span className="font-mono text-xs font-semibold uppercase tracking-wider text-ink">
+            Live Cognitive Loop Telemetry
+          </span>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setIsPlaying(!isPlaying)}
+            className="flex items-center gap-1.5 rounded-full border border-ink/10 bg-surface px-3 py-1 text-xs font-medium text-ink-muted transition-colors hover:border-ink/20 hover:text-ink cursor-pointer"
+          >
+            {isPlaying ? <Pause size={12} /> : <Play size={12} />}
+            <span>{isPlaying ? 'Pause Loop' : 'Play Loop'}</span>
+          </button>
+          <span className="rounded-full bg-ink/5 px-2.5 py-0.5 font-mono text-[11px] text-ink-muted">
+            1 Hz Cycle
+          </span>
+        </div>
+      </div>
+
+      {/* ── Interactive 4-Stage Horizontal Grid ── */}
+      <div className="my-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        {STAGES.map((stage, idx) => {
+          const isActive = idx === activeIdx
+          const Icon = stage.icon
+
           return (
-            <motion.line
-              key={`${edge.from}-${edge.to}`}
-              x1={from.x * 4}
-              y1={from.y * 1.2}
-              x2={to.x * 4}
-              y2={to.y * 1.2}
-              stroke="rgba(91, 163, 163, 0.35)"
-              strokeWidth="1.5"
-              strokeDasharray="4 4"
-              initial={{ pathLength: 0, opacity: 0 }}
-              whileInView={{ pathLength: 1, opacity: 1 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.8, delay: index * 0.15 }}
-            />
+            <div
+              key={stage.id}
+              onClick={() => {
+                setActiveIdx(idx)
+                setIsPlaying(false)
+              }}
+              className={`relative flex flex-col justify-between rounded-2xl border p-4 transition-all duration-300 cursor-pointer ${
+                isActive
+                  ? `${stage.accent} shadow-md scale-[1.02]`
+                  : 'border-ink/8 bg-surface/60 hover:border-ink/15 hover:bg-surface text-ink-muted'
+              }`}
+            >
+              {/* Card Header: Step & Icon */}
+              <div className="flex items-center justify-between mb-3">
+                <span className="font-mono text-xs font-bold text-ink-muted">
+                  {stage.index}
+                </span>
+                <div
+                  className={`flex h-8 w-8 items-center justify-center rounded-xl transition-colors ${
+                    isActive ? 'bg-white shadow-sm' : 'bg-ink/5'
+                  }`}
+                >
+                  <Icon size={16} />
+                </div>
+              </div>
+
+              {/* Title & Tag */}
+              <div>
+                <h4 className="font-serif text-lg font-medium text-ink">{stage.name}</h4>
+                <p className="text-xs text-ink-muted mt-0.5">{stage.tag}</p>
+              </div>
+
+              {/* Metric Badge */}
+              <div className="mt-4 pt-3 border-t border-ink/5 flex items-center justify-between text-[11px]">
+                <span className="font-mono font-medium">{stage.metric}</span>
+                {isActive && (
+                  <span className="flex h-1.5 w-1.5 rounded-full bg-teal animate-pulse" />
+                )}
+              </div>
+            </div>
           )
         })}
+      </div>
 
-        {nodes.map((node, index) => (
-          <motion.g
-            key={node.id}
-            initial={{ opacity: 0, scale: 0.8 }}
-            whileInView={{ opacity: 1, scale: 1 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.5, delay: 0.2 + index * 0.1 }}
+      {/* ── Live Step Execution Log Console ── */}
+      <div className="relative overflow-hidden rounded-2xl border border-ink/8 bg-surface p-4 sm:p-5">
+        <div className="flex items-center gap-2 mb-2 font-mono text-[11px] text-ink-muted uppercase tracking-wider">
+          <span>Active Step</span>
+          <ArrowRight size={12} className="text-teal" />
+          <span className="font-bold text-ink">{activeStage.name}</span>
+        </div>
+
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={activeStage.id}
+            initial={{ opacity: 0, y: 4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
+            transition={{ duration: 0.2 }}
+            className="font-mono text-xs sm:text-sm text-ink leading-relaxed"
           >
-            <circle
-              cx={node.x * 4}
-              cy={node.y * 1.2}
-              r="22"
-              fill="rgba(61, 139, 139, 0.15)"
-              stroke="rgba(91, 163, 163, 0.5)"
-              strokeWidth="1"
-            />
-            <text
-              x={node.x * 4}
-              y={node.y * 1.2 + 4}
-              textAnchor="middle"
-              fill="rgba(255,255,255,0.85)"
-              fontSize="11"
-              fontFamily="DM Sans, system-ui, sans-serif"
-            >
-              {node.label}
-            </text>
-          </motion.g>
-        ))}
+            <span className="text-teal font-semibold">▶ </span>
+            {activeStage.log}
+          </motion.div>
+        </AnimatePresence>
+      </div>
 
-        <motion.circle
-          r="4"
-          fill="#B8860B"
-          initial={{ offsetDistance: '0%' }}
-          animate={{ offsetDistance: '100%' }}
-          transition={{ duration: 8, repeat: Infinity, ease: 'linear' }}
-          style={{
-            offsetPath:
-              'path("M 48 60 L 152 26 L 248 60 L 352 26 L 48 60")',
-          }}
-        />
-      </svg>
-      <p className="mt-4 text-center text-sm text-white/50">
-        One loop, every second, entirely in your browser
+      {/* ── Footer Summary ── */}
+      <p className="mt-4 text-center text-xs text-ink-muted">
+        One loop, every second, entirely in your browser. No server GPU bills.
       </p>
     </div>
   )

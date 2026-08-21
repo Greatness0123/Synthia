@@ -22,7 +22,7 @@ export function ExportAnimation() {
             <div className="space-y-1">
               <div className="flex items-center gap-2">
                 <span className="h-2 w-2 rounded-full bg-teal-soft" />
-                <h3 className="font-serif text-lg font-medium text-white">Sword Practice & Balance Telemetry</h3>
+                <h3 className="font-serif text-lg font-medium text-white">Balance & Reach Telemetry</h3>
               </div>
               <p className="text-xs text-white/50">Recorded Session #SYN-8049 · 45 min duration</p>
             </div>
@@ -35,7 +35,7 @@ export function ExportAnimation() {
           <div className="my-6 grid gap-4 sm:grid-cols-2">
             <div className="rounded-xl border border-white/5 bg-white/[0.03] p-4 font-mono text-xs">
               <p className="text-white/40 mb-1">Session Type</p>
-              <p className="text-white font-medium">Sword Strike & Dynamic Balance</p>
+              <p className="text-white font-medium">Upright Locomotion & Reach</p>
               <p className="mt-2 text-white/50 text-[11px]">80 Joint Telemetry · 60 Hz Physics</p>
             </div>
 
@@ -54,7 +54,7 @@ export function ExportAnimation() {
             </div>
             <div className="flex items-start gap-2">
               <span className="text-teal-soft shrink-0">vision:</span>
-              <span className="text-white/80">&quot;Target dummy detected at 1.4m, angle 12°&quot;</span>
+              <span className="text-white/80">&quot;Object detected at 1.4m, angle 12°&quot;</span>
             </div>
             <div className="flex items-start gap-2">
               <span className="text-teal-soft shrink-0">motor_torque:</span>
@@ -62,7 +62,7 @@ export function ExportAnimation() {
             </div>
             <div className="flex items-start gap-2">
               <span className="text-teal-soft shrink-0">outcome:</span>
-              <span className="text-white/80">&quot;Target strike successful. Balance index 0.96&quot;</span>
+              <span className="text-white/80">&quot;Grasp successful. Balance index 0.96&quot;</span>
             </div>
           </div>
 

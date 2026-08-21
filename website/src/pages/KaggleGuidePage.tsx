@@ -4,9 +4,9 @@ import kaggleScript from '../scripts/kaggle_new.py?raw'
 import { PageMeta } from '@/components/seo/PageMeta'
 import { FadeContent } from '@/components/react-bits/FadeContent'
 import { Breadcrumbs } from '@/components/ui/Breadcrumbs'
-import { CodeArtifact } from '@/components/ui/CodeArtifact'
 import { Section, SectionHeader } from '@/components/ui/Section'
 import { PageLayout } from '@/components/layout/PageLayout'
+import { KaggleScriptViewer } from '@/components/kaggle/KaggleScriptViewer'
 
 const kaggleLimits = [
   { label: 'GPU quota', value: '~30 hours/week', note: 'Resets weekly. Phone verification required.' },
@@ -156,11 +156,12 @@ export function KaggleGuidePage() {
 
         <FadeContent className="mt-14">
           <h2 className="mb-4 font-serif text-2xl text-ink">kaggle_new.py</h2>
-          <p className="mb-6 max-w-2xl text-sm leading-relaxed text-ink-muted">
+          <p className="mb-5 max-w-2xl text-sm leading-relaxed text-ink-muted">
             CLAP audio classification has been removed from this version. Audio is reported as
             silent or non-silent only, which keeps GPU memory free for the vision model.
+            Use the model selector in the toolbar below to swap the <code className="rounded bg-surface-card px-1.5 py-0.5 text-xs">MODEL_PATH</code> line live — then copy and paste the full script into your Kaggle notebook.
           </p>
-          <CodeArtifact code={kaggleScript} filename="kaggle_new.py" maxHeight="24rem" />
+          <KaggleScriptViewer baseScript={kaggleScript} filename="kaggle_new.py" maxHeight="28rem" />
         </FadeContent>
 
         <FadeContent className="mt-10 rounded-xl border border-amber/20 bg-amber/5 p-6">

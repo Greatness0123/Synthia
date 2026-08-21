@@ -71,9 +71,17 @@ function getMuJoCoBoneGains(boneName: string): { kp: number; kv: number } {
   if (name.includes('hand') && (name.includes('index') || name.includes('middle') || name.includes('ring') || name.includes('pinky') || name.includes('thumb'))) {
     return { kp: 5, kv: 1 };
   }
-  // Ankles (foot): critical for balance — must push toes down to prevent backward fall
+  // Toe segment (walk fix): light servo — the toe must be free to lift during
+  // swing and push off late in stance, not pinned flat.
+  if (name.includes('toebase')) {
+    return { kp: 200, kv: 40 };
+  }
+  // Ankles (foot): softened 600→350 after the 4-run diagnostics showed kp=600
+  // pinned the sole flat (commanded −0.18 plantarflexion, measured +0.20
+  // dorsiflexed) — the foot could not roll off, so the body rotated backward
+  // like a rigid pole about the planted foot.
   if (name.includes('foot')) {
-    return { kp: 600, kv: 100 };
+    return { kp: 350, kv: 80 };
   }
   // Knees (lower leg): prevent continuous squatting under body weight
   if (name === 'mixamorigleftleg' || name === 'mixamorigrightleg' || name.includes('mixamorigleftleg') || name.includes('mixamorigrightleg')) {
@@ -263,10 +271,12 @@ export function generateAgentSubtreeMJCF(
     if (jointType === 'fixed') {
       jointsXML = '';
     } else if (jointType === 'revolute' || (constraint && constraint.dof === 1)) {
-      // Single Hinge Joint (Pitch: axis 1 0 0)
-      const min = constraint?.x?.[0] ?? limits?.min ?? -2.618;
-      const max = constraint?.x?.[1] ?? limits?.max ?? 0;
-      jointsXML = `<joint name="${prefix}${boneName}_pitch" type="hinge" axis="1 0 0" range="${getSafeRangeStr(min, max)}" limited="true"/>`;
+      // Single Hinge Joint: axis 1 0 0 for elbows/fingers; axis -1 0 0 for knees so positive flexion bends backward
+      const isKnee = boneName.includes('leg') && !boneName.includes('upleg');
+      const pitchAxis = isKnee ? '-1 0 0' : '1 0 0';
+      const min = constraint?.x?.[0] ?? limits?.min ?? 0;
+      const max = constraint?.x?.[1] ?? limits?.max ?? 2.618;
+      jointsXML = `<joint name="${prefix}${boneName}_pitch" type="hinge" axis="${pitchAxis}" range="${getSafeRangeStr(min, max)}" limited="true"/>`;
       actuators.push(`<position name="act_${prefix}${boneName}_pitch" joint="${prefix}${boneName}_pitch" kp="${kp}" kv="${kv}" ctrlrange="${getSafeRangeStr(min, max)}"/>`);
     } else if (constraint && constraint.dof === 2) {
       // 2-DOF Joint Decomposed into Pitch (1 0 0) and Roll (0 1 0)
@@ -324,13 +334,37 @@ export function generateAgentSubtreeMJCF(
   // Build the humanoid skeleton tree anchored at mixamorighips under the root capsule
   const hipsBranch = buildBodyTreeXML('mixamorighips', capsulePosMj as [number, number, number], capsuleQuatMj as [number, number, number, number]);
 
+  // RMBS v1: reaction-mass position actuators (drive the two slide rails).
+  // These are written DIRECTLY to data.ctrl at 500 Hz by ReactionMassController.
+  // They are intentionally kept OUT of BodyManager.actuatorMap so the 60 Hz pose
+  // flush (MotorController.setTargets) never zeroes them (CRITICAL RULE 1).
+  // kv 260 at kp 1500 gives ζ≈0.8 for the 18 kg reaction mass (stability pass) —
+  // the mass itself no longer rings. kp/forcerange/ctrlrange unchanged.
+  actuators.push(`<position name="act_${prefix}rm_slide_lr" joint="${prefix}rm_slide_lr" kp="1500" kv="260" ctrlrange="-0.6 0.6" forcerange="-800 800"/>`);
+  actuators.push(`<position name="act_${prefix}rm_slide_fa" joint="${prefix}rm_slide_fa" kp="1500" kv="260" ctrlrange="-0.6 0.6" forcerange="-800 800"/>`);
+
   const bodyXml = `
     <body name="${prefix}root_capsule" pos="${rootCapsulePosStr}" quat="${rootCapsuleQuatStr}">
       <freejoint name="${prefix}root_freejoint"/>
       <geom name="${prefix}root_capsule_geom" type="capsule" size="${capsuleRadius} ${capsuleHalfHeight}" pos="0 0 0" contype="0" conaffinity="0"/>
-      <inertial pos="0 0 0" mass="0.001" diaginertia="5.0 3.0 5.0"/>
+      <inertial pos="0 0 0" mass="15.0" diaginertia="2.5 1.2 2.5"/>
 
       ${hipsBranch}
+
+      <!-- RMBS v1: physical sliding reaction-mass actuator. Non-colliding (contype=0
+           conaffinity=0), 12 kg, two horizontal slide joints (left/right + fore/aft,
+           ±0.4 m). Rails sit in the root_capsule (pelvis) local frame, so they tilt
+           with the pelvis — the controller must rotate world targets into this frame
+           via xquat every step. Deliberately NOT registered in BodyManager.bodyMap /
+           actuatorMap: the RM controller writes data.ctrl directly at 500 Hz, and the
+           60 Hz pose flush (MotorController.setTargets) must never zero it. -->
+      <body name="${prefix}reaction_mass" pos="0 0 0">
+        <joint name="${prefix}rm_slide_lr" type="slide" axis="1 0 0" range="-0.6 0.6" limited="true" damping="2" armature="0.2"/>
+        <joint name="${prefix}rm_slide_fa" type="slide" axis="0 1 0" range="-0.6 0.6" limited="true" damping="2" armature="0.2"/>
+        <inertial pos="0 0 0" mass="18.0" diaginertia="0.25 0.25 0.25"/>
+        <geom name="${prefix}reaction_mass_geom" type="sphere" size="0.18" pos="0 0 0" contype="0" conaffinity="0"/>
+      </body>
+
       <geom name="${prefix}torso_collider" type="sphere" size="0.12" pos="0 0 0" contype="2" conaffinity="1" solref="0.004 1" solimp="0.95 0.99 0.9 0.5 2"/>
     </body>
   `.trim();

@@ -1,13 +1,16 @@
 /**
  * Main cycle loop per agent running fully client-side.
- * Ported from coordinator/src/agentLoop.ts.
+ * Originally ported from coordinator/src/agentLoop.ts; the coordinator codebase was
+ * removed in Phase 12. This is now the single authoritative per-agent loop.
  */
 
 import { PayloadBuilder } from './payloadBuilder';
 import { InferenceClient } from './InferenceClient';
 import { MemoryManager, MemoryEntry } from './memoryManager';
+import { IdentityManager, AgentIdentity } from './identityManager';
 import { useAgentStore } from '../../store/agentStore';
 import { useAgentRuntimeStore } from '../../store/agentRuntimeStore';
+import { useIdentityStore } from '../../store/identityStore';
 import { stripSpeechTags } from '../../utils/speech';
 import { synthiaToast } from '../../utils/synthiaToast';
 
@@ -27,16 +30,21 @@ export class AgentLoop {
   private payloadBuilder: PayloadBuilder;
   private inferenceClient: InferenceClient;
   private memoryManager: MemoryManager;
+  private identityManager: IdentityManager;
+  private identity: AgentIdentity | null = null;
+  private lastIdentityFeedback: any = null;
 
   private directives = { mode: 'free_will', goal: '' };
   private heartbeat = 0;
   private lastActionFeedback: any[] = [];
   private currentSessionId: string | null = null;
   private pendingCycles: Map<string, any> = new Map();
+  private hasWarnedConnectionError: boolean = false;
 
   constructor(config: AgentLoopConfig) {
     this.config = config;
     this.memoryManager = new MemoryManager(config.supabaseUrl, config.supabaseKey);
+    this.identityManager = new IdentityManager(config.supabaseUrl, config.supabaseKey);
     this.payloadBuilder = new PayloadBuilder(this.memoryManager);
     this.inferenceClient = new InferenceClient();
   }
@@ -69,6 +77,22 @@ export class AgentLoop {
     this.payloadBuilder = new PayloadBuilder(this.memoryManager);
   }
 
+  public async manualIdentityUpdate(update: {
+    name?: string;
+    beliefs?: { op: string; value?: any; index?: number; entry?: any }[];
+    traits?: Record<string, any>;
+  }, reason: string): Promise<{ ok: boolean; error?: string }> {
+    const result = await this.identityManager.applyIdentityUpdate(this.config.agentId, {
+      ...update,
+      reason,
+    });
+    if (result.ok && this.identity) {
+      this.identity = result.identity!;
+      useIdentityStore.getState().setIdentity(this.config.agentId, this.identity);
+    }
+    return { ok: result.ok, error: result.error };
+  }
+
   public async start() {
     if (this.interval) return;
 
@@ -79,6 +103,11 @@ export class AgentLoop {
     const rehydrationSummary = "Reconnecting to neural lattice... archives accessed... current status: operational.";
     const store = useAgentStore.getState() as any;
     const agentId = this.config.agentId;
+
+    // Fetch or seed identity record
+    this.identity = await this.identityManager.ensureIdentity(agentId);
+    useIdentityStore.getState().setIdentity(agentId, this.identity);
+    console.log(`[AgentLoop (${agentId})] identity loaded: name=${this.identity.name}`);
     const isActiveAgent = store.activeAgentId === agentId;
 
     // Send rehydration tokens to the agent's own record. Only the active agent
@@ -123,6 +152,7 @@ export class AgentLoop {
 
   public resume() {
     if (this.interval) return; // already running
+    this.hasWarnedConnectionError = false;
     useAgentRuntimeStore.getState().setLoopState(this.config.agentId, 'running');
     this.interval = setInterval(() => this.cycle(), this.config.cycleMs || 2000);
     console.log(`[AgentLoop (${this.config.agentId})] resumed`);
@@ -190,9 +220,12 @@ export class AgentLoop {
         motorPrograms: [],
         masteredSkills,
         physicalFeedback: this.lastActionFeedback,
+        identity: this.identity,
+        identityFeedback: this.lastIdentityFeedback,
         ...this.directives
       });
       this.lastActionFeedback = [];
+      this.lastIdentityFeedback = null;
 
       // Clear pending thoughts for this agent in store before writing new stream
       if (store.setCurrentThoughtForAgent) {
@@ -254,13 +287,28 @@ export class AgentLoop {
       }
 
     } catch (err: any) {
-      console.error(`[AgentLoop (${this.config.agentId})] Cycle error:`, err);
-      const shortError = err?.message ? String(err.message).slice(0, 120) : 'Inference failed';
+      const isConnectionError = err?.message?.includes('Failed to fetch') ||
+                                err?.message?.includes('NetworkError') ||
+                                err?.message?.includes('ERR_CONNECTION_REFUSED') ||
+                                err?.name === 'TypeError';
+
+      if (isConnectionError) {
+        if (!this.hasWarnedConnectionError) {
+          this.hasWarnedConnectionError = true;
+          console.warn(`[AgentLoop (${this.config.agentId})] Local inference server offline (${err.message}). Cognitive loop auto-paused.`);
+          synthiaToast.warning(`Inference server offline. Agent loop paused.`);
+        }
+        this.pause();
+      } else {
+        console.error(`[AgentLoop (${this.config.agentId})] Cycle error:`, err);
+        const shortError = err?.message ? String(err.message).slice(0, 120) : 'Inference failed';
+        synthiaToast.error(`Inference failed for ${this.config.agentId}: ${shortError}`);
+      }
+
       useAgentRuntimeStore.getState().setLoopState(this.config.agentId, 'error');
       if (store.setStatusForAgent) {
         store.setStatusForAgent(this.config.agentId, 'error');
       }
-      synthiaToast.error(`Inference failed for ${this.config.agentId}: ${shortError}`);
     } finally {
       this.isProcessing = false;
       const loopState = useAgentRuntimeStore.getState().getLoopState(this.config.agentId);
@@ -330,6 +378,18 @@ export class AgentLoop {
         });
       }
       console.log(`[AgentLoop (${this.config.agentId})] Client-side memory saved successfully: ${memoryEntry.memory_id}`);
+    }
+
+    if (actionData._identityUpdate) {
+      const result = await this.identityManager.applyIdentityUpdate(this.config.agentId, actionData._identityUpdate);
+      if (result.ok && result.identity) {
+        this.identity = result.identity;
+        useIdentityStore.getState().setIdentity(this.config.agentId, result.identity);
+        console.log(`[AgentLoop (${this.config.agentId})] identity updated: ${actionData._identityUpdate.field}`);
+      } else {
+        this.lastIdentityFeedback = { rejection: result.rejection, field: actionData._identityUpdate.field };
+        console.warn(`[AgentLoop (${this.config.agentId})] identity update rejected: ${result.rejection}`);
+      }
     }
   }
 
@@ -423,6 +483,10 @@ export class AgentLoop {
         if (!data.actions.joint_overrides['mixamorighead']) {
           data.actions.joint_overrides['mixamorighead'] = [gtPitch, gtYaw, 0];
         }
+      }
+
+      if (data.identity_update && typeof data.identity_update === 'object') {
+        data._identityUpdate = data.identity_update;
       }
 
       return data;

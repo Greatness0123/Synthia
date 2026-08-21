@@ -32,6 +32,12 @@ export const useWorld = (containerRef: React.RefObject<HTMLDivElement>) => {
   const humanoidPhysicsBindersRef = useRef<Map<string, HumanoidPhysicsBinder>>(new Map());
   const activeAgentLoopsRef = useRef<Map<string, AgentLoop>>(new Map());
   const isSpawningRef = useRef(false);
+  // Spawn index counter: monotonic, persists across page reloads via sessionStorage.
+  // Used to generate stable agent_N IDs so that identity records and physics
+  // binder indices never collide after a hypothetical admin remove/despawn flow.
+  const spawnIndexRef = useRef<number>(
+    Number(sessionStorage.getItem('synthia_spawn_index') ?? '0')
+  );
 
   const worldStore = useWorldStore();
   const agentStore = useAgentStore();
@@ -561,14 +567,37 @@ export const useWorld = (containerRef: React.RefObject<HTMLDivElement>) => {
         Logger.info("useWorld: Starting animation loop...");
         worldEngineRef.current.start(
           () => {
-            // ── Per-step (500Hz): Diagnostics ring-buffer capture (throttled to 1/frame) ──
+            // ── Per-step (500Hz): Root balance correction + diagnostics capture ──
             const physics = physicsEngineRef.current;
 
             if (!physics || physics.isStepping || physics.isMutating) {
               return;
             }
 
+            // Per-physics-step (500 Hz) locomotion control:
+            //   1. Root balance corrector (from Road-2, now on the heavy root).
+            //   2. Critically-damped root velocity drive (Road-3) — replaces the old
+            //      30 Hz root TELEPORT with a real velocity servo. Suspends airborne.
+            //   3. COM lean-reflex + capture-step (Road-4) — applied ON TOP of the
+            //      flushed pose ctrl every step so the reflex leads the walk while
+            //      the root drive (now 0.15 m/s) stays a gentle assist.
+            for (const binder of humanoidPhysicsBindersRef.current.values()) {
+              try {
+                binder.applyBalanceStep();
+                binder.applyRootVelocityDrive(performance.now());
+                binder.applyComReflexStep(0.002);
+                // RMBS v1 (opt-in): reaction-mass balance. Self-gated on
+                // reactionMassEnabled — a silent no-op when disabled, on a
+                // legacy world without the reaction_mass body, or before
+                // build step D.
+                binder.applyReactionMassStep(0.002);
+              } catch (error) {
+                Logger.warn(`per-step control (${binder.agentId}) failed:`, error);
+              }
+            }
+
             // Throttle: capture snapshot once per ~8 steps (= once per frame at 500Hz/60fps)
+            if (diagCaptureDone.current) return;
             const stepCount = physics.getStepCount();
             if (stepCount % 8 !== 0) return;
 
@@ -1365,14 +1394,41 @@ export const useWorld = (containerRef: React.RefObject<HTMLDivElement>) => {
     }
   }, []);
 
+  const sleepAllAgents = useCallback(() => {
+    let count = 0;
+    for (const [id, loop] of activeAgentLoopsRef.current.entries()) {
+      loop.pause();
+      count++;
+      console.log(`[useWorld] sleepAllAgents: paused ${id}`);
+    }
+    return count;
+  }, []);
+
+  const resumeAllAgents = useCallback(() => {
+    let count = 0;
+    for (const [id, loop] of activeAgentLoopsRef.current.entries()) {
+      loop.resume();
+      count++;
+      console.log(`[useWorld] resumeAllAgents: resumed ${id}`);
+    }
+    return count;
+  }, []);
+
   // Expose pause/resume on window for settings modal access
   useEffect(() => {
     window.__synthia = {
       ...(window.__synthia || {}),
       pauseAgent: pauseAgentClientLoop,
       resumeAgent: resumeAgentClientLoop,
+      sleepAllAgents,
+      resumeAllAgents,
+      manualIdentityUpdate: async (agentId: string, update: any, reason: string) => {
+        const loop = activeAgentLoopsRef.current.get(agentId);
+        if (!loop) return { ok: false, error: 'Agent loop not found' };
+        return loop.manualIdentityUpdate(update, reason);
+      },
     };
-  }, [pauseAgentClientLoop, resumeAgentClientLoop]);
+  }, [pauseAgentClientLoop, resumeAgentClientLoop, sleepAllAgents, resumeAllAgents]);
 
   const spawnAgent = useCallback(async () => {
     if (isSpawningRef.current) {
@@ -1386,7 +1442,16 @@ export const useWorld = (containerRef: React.RefObject<HTMLDivElement>) => {
       const physicsEngine = physicsEngineRef.current;
       const scene = worldEngineRef.current.getScene();
 
-      const offsetIndex = humanoidPhysicsBindersRef.current.size;
+      // Reset counter to 0 when no agents are active so the first spawn
+      // of any fresh session always lands at origin as agent_0.
+      if (activeAgentLoopsRef.current.size === 0) {
+        spawnIndexRef.current = 0;
+        sessionStorage.removeItem('synthia_spawn_index');
+      }
+
+      const offsetIndex = spawnIndexRef.current;
+      spawnIndexRef.current = offsetIndex + 1;
+      sessionStorage.setItem('synthia_spawn_index', String(spawnIndexRef.current));
       const agentId = `agent_${offsetIndex}`;
 
       // Linear offset spaced 1.75 meters apart
@@ -1477,6 +1542,31 @@ export const useWorld = (containerRef: React.RefObject<HTMLDivElement>) => {
         if (newBinder) {
           (newBinder as any).targetSpawnGrounded = true;
           (newBinder as any).previousFootPositions?.clear();
+          // RMBS stability-pass gate: `?rmbs=1` pre-enables the reaction-mass
+          // balance system on this agent (dev diagnostic; no behavior change
+          // without the flag). `?t2=1` additionally schedules the 0.4 rad
+          // forward-leg perturbation once the agent has settled.
+          const qp = new URLSearchParams(window.location.search);
+          if (qp.has('rmbs')) {
+            newBinder.setReactionMassEnabled(true);
+            console.info('[DIAG] RMBS pre-enabled via ?rmbs=1 (Road-5.1 diagnostic)');
+          }
+          if (qp.has('t2')) {
+            setTimeout(() => {
+              try {
+                window.dispatchEvent(new CustomEvent('synthia:action', {
+                  detail: {
+                    jointOverrides: { mixamorigleftupleg: 0.4 },
+                    agentId,
+                    activeGaitPhase: false,
+                  },
+                } as any));
+                console.info('[T2] 0.4 rad forward-leg perturbation dispatched');
+              } catch (err) {
+                console.warn('[T2] dispatch failed', err);
+              }
+            }, 6000);
+          }
         }
 
         const newAgentCapsule = binder.getCapsuleBody();
@@ -1778,20 +1868,31 @@ export const useWorld = (containerRef: React.RefObject<HTMLDivElement>) => {
       outcomes.push({
         type: "outcome",
         data: { success: false, reward: -1.0, description: "Agent fell" },
+        agentId: useAgentStore.getState().activeAgentId || 'agent_0',
       });
     }
 
-    // Route outcomes into the active agent's client-side cognitive loop so it can
+    // Route outcomes into the correct agent's client-side cognitive loop so it can
     // finalize its pending memory cycle with the correct reward/outcome. Previously
-    // this went to the coordinator's server loop via WorldViewport.
+    // this went to the coordinator's server loop via WorldViewport. Now each outcome
+    // carries an agentId stamped at collection time (via ObjectManager.extractAgentIdFromPair).
     if (outcomes.length > 0) {
-      const activeId = useAgentStore.getState().activeAgentId || 'agent_0';
-      const loop = activeAgentLoopsRef.current.get(activeId);
-      if (loop) {
-        for (const outcome of outcomes) {
+      for (const outcome of outcomes) {
+        const targetId = outcome.agentId || useAgentStore.getState().activeAgentId || 'agent_0';
+        const loop = activeAgentLoopsRef.current.get(targetId);
+        if (loop) {
           loop.handleOutcome(outcome).catch((err) =>
-            Logger.warn(`[useWorld] outcome routing to ${activeId} failed`, err)
+            Logger.warn(`[useWorld] outcome routing to ${targetId} failed`, err)
           );
+        } else {
+          Logger.warn(`[useWorld] no loop found for agent ${targetId}, defaulting to active`);
+          const activeId = useAgentStore.getState().activeAgentId || 'agent_0';
+          const activeLoop = activeAgentLoopsRef.current.get(activeId);
+          if (activeLoop) {
+            activeLoop.handleOutcome(outcome).catch((e) =>
+              Logger.warn(`[useWorld] outcome routing to active ${activeId} failed`, e)
+            );
+          }
         }
       }
     }
@@ -1821,6 +1922,8 @@ export const useWorld = (containerRef: React.RefObject<HTMLDivElement>) => {
     detectOutcomes,
     pauseAgentClientLoop,
     resumeAgentClientLoop,
+    sleepAllAgents,
+    resumeAllAgents,
   };
 };
 
@@ -1830,6 +1933,9 @@ declare global {
     __synthia?: {
       pauseAgent?: (agentId: string) => void;
       resumeAgent?: (agentId: string) => void;
+      sleepAllAgents?: () => number;
+      resumeAllAgents?: () => number;
+      manualIdentityUpdate?: (agentId: string, update: any, reason: string) => Promise<{ ok: boolean; error?: string }>;
     };
   }
 }

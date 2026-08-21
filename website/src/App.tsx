@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { CustomCursor } from '@/components/react-bits/CustomCursor'
+import { ScrollToTop } from '@/components/layout/ScrollToTop'
 import { HomePage } from '@/pages/HomePage'
 import { HowItWorksPage } from '@/pages/HowItWorksPage'
 import { MemoryPage } from '@/pages/MemoryPage'
@@ -13,6 +14,7 @@ import { CloudflareTunnelPage } from '@/pages/CloudflareTunnelPage'
 export default function App() {
   return (
     <BrowserRouter>
+      <ScrollToTop />
       <CustomCursor />
       <Routes>
         <Route path="/" element={<HomePage />} />

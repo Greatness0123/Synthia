@@ -78,8 +78,8 @@ describe('MJCFHumanoidTemplate', () => {
     expect(xml.includes('name="mixamorigspine_pitch" type="hinge" axis="1 0 0"')).toBe(true);
     expect(xml.includes('name="mixamorigspine_roll" type="hinge" axis="0 1 0"')).toBe(true);
 
-    // Left leg should be 1-DOF revolute/hinge (pitch)
-    expect(xml.includes('name="mixamorigleftleg_pitch" type="hinge" axis="1 0 0"')).toBe(true);
+    // Left leg should be 1-DOF revolute/hinge (pitch with axis -1 0 0 for backward flexion)
+    expect(xml.includes('name="mixamorigleftleg_pitch" type="hinge" axis="-1 0 0"')).toBe(true);
 
     // Left foot should be 3-DOF decomposed (by default, if no 2-DOF restriction, or according to BONE_JOINT_TYPE)
     expect(xml.includes('name="mixamorigleftfoot_pitch" type="hinge" axis="1 0 0"')).toBe(true);

@@ -41,6 +41,14 @@ export class PhysicsEngine {
   private cachedQPos: Float64Array | null = null;
   private cachedQVel: Float64Array | null = null;
   private cachedCtrl: Float64Array | null = null;
+  private contactForceBuffer: any = null;
+
+  // Static Quaternions for conversions
+  private static readonly _qAlign = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI / 2);
+  private static readonly _qAlignInv = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI / 2).invert();
+  private static readonly _threeQ = new THREE.Quaternion();
+  private static readonly _qMj = new THREE.Quaternion();
+  private static readonly _qTransformed = new THREE.Quaternion();
 
   // Conversion Helpers: WorldToMuJoCo and MuJoCoToWorld (p = (x, -z, y))
   public static worldToMuJoCo(v: { x: number; y: number; z: number }): [number, number, number] {
@@ -60,23 +68,19 @@ export class PhysicsEngine {
   // q_transformed = Q_align * q_three * Q_align⁻¹
   // q_mujoco = (w, x, y, z) [scalar-first]
   public static threeQuatToMuJoCo(q: { x: number; y: number; z: number; w: number }): [number, number, number, number] {
-    const threeQ = new THREE.Quaternion(q.x, q.y, q.z, q.w);
-    const qAlign = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI / 2);
-    const qAlignInv = qAlign.clone().invert();
-    const qTransformed = qAlign.clone().multiply(threeQ).multiply(qAlignInv);
-    return [qTransformed.w, qTransformed.x, qTransformed.y, qTransformed.z];
+    PhysicsEngine._threeQ.set(q.x, q.y, q.z, q.w);
+    PhysicsEngine._qTransformed.copy(PhysicsEngine._qAlign).multiply(PhysicsEngine._threeQ).multiply(PhysicsEngine._qAlignInv);
+    return [PhysicsEngine._qTransformed.w, PhysicsEngine._qTransformed.x, PhysicsEngine._qTransformed.y, PhysicsEngine._qTransformed.z];
   }
 
   public static mujocoQuatToThree(qWxyz: [number, number, number, number]): { x: number; y: number; z: number; w: number } {
-    const qMj = new THREE.Quaternion(qWxyz[1], qWxyz[2], qWxyz[3], qWxyz[0]);
-    const qAlign = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI / 2);
-    const qAlignInv = qAlign.clone().invert();
-    const qThree = qAlignInv.clone().multiply(qMj).multiply(qAlign);
+    PhysicsEngine._qMj.set(qWxyz[1], qWxyz[2], qWxyz[3], qWxyz[0]);
+    PhysicsEngine._qTransformed.copy(PhysicsEngine._qAlignInv).multiply(PhysicsEngine._qMj).multiply(PhysicsEngine._qAlign);
     return {
-      x: qThree.x,
-      y: qThree.y,
-      z: qThree.z,
-      w: qThree.w
+      x: PhysicsEngine._qTransformed.x,
+      y: PhysicsEngine._qTransformed.y,
+      z: PhysicsEngine._qTransformed.z,
+      w: PhysicsEngine._qTransformed.w
     };
   }
 
@@ -376,88 +380,85 @@ export class PhysicsEngine {
       }
 
       // Read contacts directly from sim.data.contact using DoubleBuffer for mj_contactForce C-API call
-      // Allocate a DoubleBuffer of size 6 to store the 6D contact force/torque
-      const forceBuffer = new module.DoubleBuffer(6);
+      if (!this.contactForceBuffer) {
+        this.contactForceBuffer = new module.DoubleBuffer(6);
+      }
+      const forceBuffer = this.contactForceBuffer;
 
-      try {
-        for (let i = 0; i < ncon; i++) {
-          let contact: MjContact | null = null;
-          try {
-            contact = this.data.contact.get(i) as MjContact;
-          } catch {
-            break;
-          }
-          if (!contact) continue;
+      for (let i = 0; i < ncon; i++) {
+        let contact: MjContact | null = null;
+        try {
+          contact = this.data.contact.get(i) as MjContact;
+        } catch {
+          break;
+        }
+        if (!contact) continue;
 
-          const geom1 = contact.geom1;
-          const geom2 = contact.geom2;
+        const geom1 = contact.geom1;
+        const geom2 = contact.geom2;
 
-          // Retrieve contact force using the official C-API function mj_contactForce
-          module.mj_contactForce(this.model, this.data, i, forceBuffer);
+        // Retrieve contact force using the official C-API function mj_contactForce
+        module.mj_contactForce(this.model, this.data, i, forceBuffer);
 
-          // Get force vector view from the DoubleBuffer
-          const forceView = forceBuffer.GetView();
-          // The first 3 elements correspond to normal force, and 2 friction forces in tangent directions
-          const normalForce = forceView[0];
-          const frictionForce1 = forceView[1];
-          const frictionForce2 = forceView[2];
-          const totalImpulse = Math.sqrt(
-            normalForce * normalForce +
-            frictionForce1 * frictionForce1 +
-            frictionForce2 * frictionForce2
-          );
+        // Get force vector view from the DoubleBuffer
+        const forceView = forceBuffer.GetView();
+        // The first 3 elements correspond to normal force, and 2 friction forces in tangent directions
+        const normalForce = forceView[0];
+        const frictionForce1 = forceView[1];
+        const frictionForce2 = forceView[2];
+        const totalImpulse = Math.sqrt(
+          normalForce * normalForce +
+          frictionForce1 * frictionForce1 +
+          frictionForce2 * frictionForce2
+        );
 
-          // contact.frame contains the 3x3 rotation matrix for the contact frame. The contact normal is the first column.
-          const frame = contact.frame;
-          const normal: [number, number, number] = [frame[0], frame[1], frame[2]];
+        // contact.frame contains the 3x3 rotation matrix for the contact frame. The contact normal is the first column.
+        const frame = contact.frame;
+        const normal: [number, number, number] = [frame[0], frame[1], frame[2]];
 
-          // Rebuild the world-frame (MuJoCo) contact force vector:
-          const forceWorldMj: [number, number, number] = [
-            frame[0] * normalForce + frame[3] * frictionForce1 + frame[6] * frictionForce2,
-            frame[1] * normalForce + frame[4] * frictionForce1 + frame[7] * frictionForce2,
-            frame[2] * normalForce + frame[5] * frictionForce1 + frame[8] * frictionForce2,
+        // Rebuild the world-frame (MuJoCo) contact force vector:
+        const forceWorldMj: [number, number, number] = [
+          frame[0] * normalForce + frame[3] * frictionForce1 + frame[6] * frictionForce2,
+          frame[1] * normalForce + frame[4] * frictionForce1 + frame[7] * frictionForce2,
+          frame[2] * normalForce + frame[5] * frictionForce1 + frame[8] * frictionForce2,
+        ];
+
+        const updateState = (geomId: number, normalDirectionMultiplier: number, forceMultiplier: number) => {
+          const mappedNormal: [number, number, number] = [
+            normal[0] * normalDirectionMultiplier,
+            normal[1] * normalDirectionMultiplier,
+            normal[2] * normalDirectionMultiplier
+          ];
+          const mappedForce: [number, number, number] = [
+            forceWorldMj[0] * forceMultiplier,
+            forceWorldMj[1] * forceMultiplier,
+            forceWorldMj[2] * forceMultiplier,
           ];
 
-          const updateState = (geomId: number, normalDirectionMultiplier: number, forceMultiplier: number) => {
-            const mappedNormal: [number, number, number] = [
-              normal[0] * normalDirectionMultiplier,
-              normal[1] * normalDirectionMultiplier,
-              normal[2] * normalDirectionMultiplier
-            ];
-            const mappedForce: [number, number, number] = [
-              forceWorldMj[0] * forceMultiplier,
-              forceWorldMj[1] * forceMultiplier,
-              forceWorldMj[2] * forceMultiplier,
-            ];
+          const existing = this.contactForceRegistry.get(geomId);
+          if (existing) {
+            existing.inContact = true;
+            existing.impulse_magnitude = totalImpulse;
+            existing.contact_normal = mappedNormal;
+            existing.contact_force = mappedForce;
+            existing.max_force_magnitude = totalImpulse;
+            existing.lastUpdate = now;
+          } else {
+            this.contactForceRegistry.set(geomId, {
+              inContact: true,
+              impulse_magnitude: totalImpulse,
+              contact_normal: mappedNormal,
+              contact_force: mappedForce,
+              max_force_magnitude: totalImpulse,
+              lastUpdate: now
+            });
+          }
+        };
 
-            const existing = this.contactForceRegistry.get(geomId);
-            if (existing) {
-              existing.inContact = true;
-              existing.impulse_magnitude = totalImpulse;
-              existing.contact_normal = mappedNormal;
-              existing.contact_force = mappedForce;
-              existing.max_force_magnitude = totalImpulse;
-              existing.lastUpdate = now;
-            } else {
-              this.contactForceRegistry.set(geomId, {
-                inContact: true,
-                impulse_magnitude: totalImpulse,
-                contact_normal: mappedNormal,
-                contact_force: mappedForce,
-                max_force_magnitude: totalImpulse,
-                lastUpdate: now
-              });
-            }
-          };
-
-          // Update states for both geoms involved in the contact.
-          // mj_contactForce returns the force applied to geom1; geom2 receives -force.
-          updateState(geom1, 1, 1);
-          updateState(geom2, -1, -1);
-        }
-      } finally {
-        // Free DoubleBuffer memory to avoid WASM leaks
-        forceBuffer.delete();
+        // Update states for both geoms involved in the contact.
+        // mj_contactForce returns the force applied to geom1; geom2 receives -force.
+        updateState(geom1, 1, 1);
+        updateState(geom2, -1, -1);
       }
     } catch (e) {
       Logger.warn('MuJoCoPhysicsEngine: Failed to drain contact force events', e);
@@ -496,6 +497,10 @@ export class PhysicsEngine {
     if (this.data) {
       this.data.delete();
       this.data = null;
+    }
+    if (this.contactForceBuffer) {
+      this.contactForceBuffer.delete();
+      this.contactForceBuffer = null;
     }
     this.initialized = false;
     this.isReady = false;

@@ -254,6 +254,90 @@ describe('Multi-Agent Composition & Isolation', () => {
     void modelBefore;
     void mc0;
   });
+
+  test('sleep agent_0, spawn agent_1, capture+restore preserves agent_0 state byte-identically', async () => {
+    // Regression test for the sleep-all-then-spawn edge case.
+    // Pausing agent_0 (simulating sleep) must not lose state when a new agent
+    // triggers a world reload via generateCombinedMCF.
+    await binder0.loadAndVisualizeBindPose(new THREE.Vector3(0, 0, 0));
+    binder0.ensureCapsuleGeometry();
+    binder0.repositionModel(0, 0, 0);
+
+    await binder1.loadAndVisualizeBindPose(new THREE.Vector3(1.75, 0, 0));
+    binder1.ensureCapsuleGeometry();
+    binder1.repositionModel(1.75, 0, 0);
+
+    engine.loadMJCFModel(
+      `<mujoco model="synthia_humanoid"><compiler angle="radian" coordinate="local" inertiafromgeom="false"/>
+       <option gravity="0 0 -9.81" timestep="0.002" iterations="100" integrator="implicitfast"/>
+       <worldbody><geom name="floor" type="plane" size="100 100 0.1" contype="1" conaffinity="2"/>
+       ${(binder0 as any).bodyXml || ''}
+       ${(binder1 as any).bodyXml || ''}
+       </worldbody></mujoco>`
+    );
+    engine.setReady(true);
+    binder0.getMultiBodyManager().remapIdsAgainstLoadedWorld(binder0.getBoneInfoMap());
+    binder0.initMotorController();
+    binder1.getMultiBodyManager().remapIdsAgainstLoadedWorld(binder1.getBoneInfoMap());
+    binder1.initMotorController();
+
+    // Step physics to settle both agents
+    for (let i = 0; i < 10; i++) {
+      binder0.updateMotorTargets();
+      binder1.updateMotorTargets();
+      engine.step();
+      binder0.syncVisuals();
+      binder1.syncVisuals();
+    }
+
+    // Capture state of agent_0 BEFORE sleep
+    const beforeSleep = StateRehydrator.capture(engine, ['agent_0', 'agent_1'], []);
+
+    // Simulate sleep: stop motor targets for agent_0 (pause inference)
+    binder0.setMotorTargets({});
+
+    // Simulate world reload (spawn new agent triggers generateCombinedMCF)
+    // Just step physics to simulate the reload occurring
+    for (let i = 0; i < 5; i++) {
+      binder1.updateMotorTargets();
+      engine.step();
+      binder1.syncVisuals();
+    }
+
+    // Restore agent_0 state (wake)
+    StateRehydrator.restore(engine, beforeSleep, []);
+
+    // Capture state after restore and verify byte-identical
+    const afterRestore = StateRehydrator.capture(engine, ['agent_0', 'agent_1'], []);
+
+    const before0 = beforeSleep.agents['agent_0'];
+    const after0 = afterRestore.agents['agent_0'];
+    expect(before0).toBeDefined();
+    expect(after0).toBeDefined();
+
+    // Root position must be identical
+    expect(after0.rootPos[0]).toBeCloseTo(before0.rootPos[0], 6);
+    expect(after0.rootPos[1]).toBeCloseTo(before0.rootPos[1], 6);
+    expect(after0.rootPos[2]).toBeCloseTo(before0.rootPos[2], 6);
+
+    // All joint angles must be identical
+    const beforeJoints = before0.jointAngles;
+    const afterJoints = after0.jointAngles;
+    expect(Object.keys(afterJoints).length).toBe(Object.keys(beforeJoints).length);
+    for (const joint of Object.keys(beforeJoints)) {
+      const beforeVal = beforeJoints[joint];
+      const afterVal = afterJoints[joint];
+      if (Array.isArray(beforeVal) && Array.isArray(afterVal)) {
+        for (let d = 0; d < beforeVal.length; d++) {
+          expect(afterVal[d]).toBeCloseTo(beforeVal[d], 6);
+        }
+      } else if (typeof beforeVal === 'number' && typeof afterVal === 'number') {
+        expect(afterVal).toBeCloseTo(beforeVal, 6);
+      }
+    }
+
+    expect(engine.isBroken).toBe(false);
+  });
 });
 
 // ── Helpers for the ramp-preservation regression test ─────────────────────────

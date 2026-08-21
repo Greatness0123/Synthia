@@ -329,6 +329,10 @@ describe('Joint Configuration Probe (runtime MuJoCo)', () => {
     if (row.length) {
       console.log(`[ANCHOR1] leftupleg pitch+ => knee dZ=${row[0].dWorld.z.toFixed(6)} (${row[0].dWorld.z > 0 ? '+Z BACKWARD' : '-Z FORWARD'})`);
     }
+    const rowR = rows.filter((r) => r.bone === 'mixamorigrightupleg' && r.ch === 'pitch' && r.sign === '+');
+    if (rowR.length) {
+      console.log(`[ANCHOR1-R] rightupleg pitch+ => knee dZ=${rowR[0].dWorld.z.toFixed(6)} (${rowR[0].dWorld.z > 0 ? '+Z BACKWARD' : '-Z FORWARD'})`);
+    }
     const rowK = rows.filter((r) => r.bone === 'mixamorigleftleg' && r.ch === 'pitch' && r.sign === '-');
     if (rowK.length) {
       console.log(`[ANCHOR2] leftleg pitch- => ankle dZ=${rowK[0].dWorld.z.toFixed(6)} (${rowK[0].dWorld.z < 0 ? '-Z FORWARD BUCKLE' : '+Z BACKWARD'})`);

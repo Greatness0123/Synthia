@@ -4,7 +4,7 @@ CREATE EXTENSION IF NOT EXISTS vector;
 
 CREATE TABLE sessions (
   id TEXT PRIMARY KEY,
-  agent_id TEXT NOT NULL DEFAULT 'agent_a',
+  agent_id TEXT NOT NULL DEFAULT 'agent_0',
   started_at TIMESTAMPTZ DEFAULT now(),
   ended_at TIMESTAMPTZ,
   body_type TEXT,
@@ -17,7 +17,7 @@ CREATE TABLE sessions (
 CREATE TABLE memories (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   memory_id TEXT UNIQUE,
-  agent_id TEXT NOT NULL DEFAULT 'agent_a',
+  agent_id TEXT NOT NULL DEFAULT 'agent_0',
   session_id TEXT REFERENCES sessions(id) ON DELETE SET NULL,
   heartbeat INT NOT NULL,
   day_cycle INT DEFAULT 1,
@@ -40,7 +40,7 @@ CREATE TABLE memories (
 
 CREATE TABLE skills (
   name TEXT PRIMARY KEY,
-  agent_id TEXT NOT NULL DEFAULT 'agent_a',
+  agent_id TEXT NOT NULL DEFAULT 'agent_0',
   body_type TEXT NOT NULL,
   learned_at_heartbeat INT,
   learned_in_session TEXT,
@@ -52,7 +52,7 @@ CREATE TABLE skills (
 CREATE TABLE motor_programs (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
-  agent_id TEXT NOT NULL DEFAULT 'agent_a',
+  agent_id TEXT NOT NULL DEFAULT 'agent_0',
   body_type TEXT NOT NULL,
   tier TEXT NOT NULL CHECK (tier IN ('primitive','learned')),
   created_at TIMESTAMPTZ DEFAULT now(),
@@ -112,3 +112,35 @@ CREATE POLICY "Public full access on sessions" ON sessions FOR ALL USING (true) 
 CREATE POLICY "Public full access on memories" ON memories FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Public full access on skills" ON skills FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Public full access on motor_programs" ON motor_programs FOR ALL USING (true) WITH CHECK (true);
+
+-- Per-agent identity (Phase 12)
+CREATE TABLE agent_identity (
+  agent_id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  beliefs JSONB NOT NULL DEFAULT '[]'::jsonb,
+  traits JSONB NOT NULL DEFAULT '{}'::jsonb,
+  window_started_at TIMESTAMPTZ,
+  edit_count_window INT NOT NULL DEFAULT 0,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE agent_identity_log (
+  id BIGSERIAL PRIMARY KEY,
+  agent_id TEXT NOT NULL,
+  field TEXT NOT NULL,
+  old_value JSONB,
+  new_value JSONB,
+  reason TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_agent_identity_log_agent_created ON agent_identity_log (agent_id, created_at DESC);
+
+ALTER TABLE agent_identity ENABLE ROW LEVEL SECURITY;
+ALTER TABLE agent_identity_log ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Service role full access on agent_identity" ON agent_identity FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Service role full access on agent_identity_log" ON agent_identity_log FOR ALL USING (true) WITH CHECK (true);
+
+CREATE POLICY "Public full access on agent_identity" ON agent_identity FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Public full access on agent_identity_log" ON agent_identity_log FOR ALL USING (true) WITH CHECK (true);

@@ -257,7 +257,21 @@ IMPORTANT: contacts=1 means ONE surface (the floor) is touching me. This is NORM
       agent_id: agentId,
       contact_forces: contactForces,
       overheard_speech: worldState.overheard_speech || [],
+      identity: options.identity || null,
+      identity_feedback: null as string | null,
     };
+
+    const identityFeedback = options.identityFeedback as any;
+    if (identityFeedback && identityFeedback.rejection) {
+      const rejection = identityFeedback.rejection;
+      let reason: string;
+      if (rejection === 'missing_reason') reason = 'You must provide a reason for identity changes.';
+      else if (rejection === 'rate_limited') reason = 'You can only edit identity once per 5 minutes. Try again later.';
+      else if (rejection === 'malformed_beliefs_op') reason = 'Beliefs must be modified incrementally using { op: "append", entry: "..." } or { op: "modify", index: N, entry: "..." }. Raw array replacement is not allowed.';
+      else if (rejection === 'unknown_field') reason = 'Only name, beliefs, and traits fields are modifiable.';
+      else reason = `Identity update failed: ${rejection}`;
+      payload.identity_feedback = reason;
+    }
 
     payload.tactile_context = this.buildTactileContext(contactForces, worldState.joints || {});
 

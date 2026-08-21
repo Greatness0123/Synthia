@@ -91,9 +91,16 @@ export class ObservationBuilder {
     return this.layout;
   }
 
+  private cachedObsArray: Float32Array | null = null;
+
   public buildObservation(rootBody: any, dt: number): Float32Array {
     const layout = this.getLayout();
-    const obs = new Float32Array(layout.totalSize);
+    if (!this.cachedObsArray || this.cachedObsArray.length !== layout.totalSize) {
+      this.cachedObsArray = new Float32Array(layout.totalSize);
+    } else {
+      this.cachedObsArray.fill(0);
+    }
+    const obs = this.cachedObsArray;
 
     const translation = rootBody.translation();
     const rotation = rootBody.rotation();

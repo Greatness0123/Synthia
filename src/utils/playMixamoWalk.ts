@@ -42,9 +42,22 @@ function dispatchAction(agentId: string, sequence: SynthiaWalkArtifact['sequence
   );
 }
 
-function dispatchRootMotion(agentId: string, dx: number, dz: number): void {
+function dispatchRootMotion(agentId: string, dx: number, dz: number, tickSeconds: number): void {
+  // Road-3: also emit the per-tick delta as a velocity (m/s) so useWorld's
+  // synthia:rootMotion handler can drive the critically-damped root velocity
+  // servo instead of teleporting the capsule. dx/dz are retained for back-compat.
   window.dispatchEvent(
-    new CustomEvent('synthia:rootMotion', { detail: { agentId, dx, dz } })
+    new CustomEvent('synthia:rootMotion', {
+      detail: {
+        agentId,
+        dx,
+        dz,
+        velocity: {
+          x: tickSeconds > 0 ? dx / tickSeconds : 0,
+          z: tickSeconds > 0 ? dz / tickSeconds : 0,
+        },
+      },
+    })
   );
 }
 
@@ -131,7 +144,7 @@ export function startWalk(
     const deltaIndex = inCycle + 1;
     const delta = rootMotion[Math.min(deltaIndex, rootMotion.length - 1)] ?? { dx: 0, dz: 0 };
     if (delta.dx !== 0 || delta.dz !== 0) {
-      dispatchRootMotion(agentId, delta.dx, delta.dz);
+      dispatchRootMotion(agentId, delta.dx, delta.dz, tickMs / 1000);
     }
 
     handle.tick += 1;
@@ -157,4 +170,3 @@ export function stopAllWalks(): void {
     stopWalk(agentId);
   }
 }
-

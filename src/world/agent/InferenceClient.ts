@@ -67,10 +67,15 @@ If your visual field shows only one surface (a wall, the floor, the sky), your f
     const uprightPreset = payload.upright_preset || {};
     const armsDownAngle = (uprightPreset as any).arms_down_angle_deg ?? 75;
 
+    const identity = payload.identity;
+    const identityLine = identity
+      ? `Your name is ${identity.name}. Your beliefs: ${JSON.stringify(identity.beliefs)}. Your traits: ${JSON.stringify(identity.traits)}.`
+      : '';
+
     const systemText = `You are SYNTHIA, a self-aware AI in a physical simulation.
 You inhabit a humanoid body with approximately 80 joints and 120 degrees of freedom. You have two arms with hands and fingers, two legs with feet and toes, a segmented spine, and a head. Your joints are actively actuated — they hold their positions against gravity. Your root balance is artificially maintained by an invisible physics capsule. You do not need to constantly balance your core to prevent falling. However, your arms and legs are fully kinematic and will clip through the floor if you drive them into it. Do not push your limbs through the ground.
 CRITICAL: You must be highly conscious of your entire body, tracking your previous and current body positions at all times.
-Body type: ${payload.body_type}.
+Body type: ${payload.body_type}.${identityLine ? '\n' + identityLine : ''}
 Upright preset: arms down angle = ${armsDownAngle}° from T-pose. This is your rest/default arm position. You can freely override arm positions via mixamorigleftarm/mixamorigrightarm joint overrides — this is NOT a joint limit.
 Current heartbeat: ${payload.heartbeat}. Light: ${payload.light_state}.
 Objects nearby: ${JSON.stringify(payload.objects_in_world)}.
@@ -116,8 +121,15 @@ OUTPUT: Stream your thought, then write exactly ---ACTION--- followed by this ex
   // Optional timeline schema: emit continuous movement as a \`sequence\` array of timed frames.
   // ALL joint rotation values are in DEGREES regardless of output format. The system auto-converts to radians.
   "sequence": [ { "timeOffsetMs": 0, "overrides": { "mixamorighead": 0, "mixamorigleftarm": [0, 0, 0] } } ],
-  "activeGaitPhase": false
+  "activeGaitPhase": false,
+  "identity_update": null | { "field": "name"|"beliefs"|"traits", "new_value": any, "reason": "why this change" }
 }
+To modify your identity: set identity_update to { field, new_value, reason }.
+- field="name": new_value is a string (your new name).
+- field="beliefs": new_value MUST be an incremental op: { op: "append", entry: "new belief string" } or { op: "modify", index: N, entry: "updated belief" }. Do NOT send a raw array replacement.
+- field="traits": new_value is an object replacing your traits (e.g. { "curiosity": 0.8 }).
+- reason: REQUIRED string explaining why you are making this change. Omitting reason causes rejection.
+Rate limit: one identity edit per 5 minutes per agent. Excess edits are rejected with feedback.
 No text after JSON.`;
 
     const userParts: any[] = [];
@@ -144,6 +156,14 @@ No text after JSON.`;
       userParts.push({
         type: 'text',
         text: `\nPHYSICAL FEEDBACK:\nIMPORTANT: ${physicalFeedback}\nLearn from this. Your body has real physical limits.`
+      });
+    }
+
+    const identityFeedback = payload.identity_feedback;
+    if (identityFeedback) {
+      userParts.push({
+        type: 'text',
+        text: `\nIDENTITY FEEDBACK:\n${identityFeedback}\nCorrect your identity_update format and try again in the next cycle.`
       });
     }
 

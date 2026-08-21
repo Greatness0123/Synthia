@@ -47,7 +47,7 @@ export type DirectiveMode = 'free_will' | 'training';
 
 export interface RejectedAction {
   joint: string;
-  reason: 'unknown_joint' | 'exceeds_anatomical_limit';
+  reason: 'unknown_joint' | 'exceeds_anatomical_limit' | 'missing_reason' | 'rate_limited' | 'malformed_beliefs_op' | 'unknown_field';
   requested: number | number[];
   limit_min?: number;
   limit_max?: number;

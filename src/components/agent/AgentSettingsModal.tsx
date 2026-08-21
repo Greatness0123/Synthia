@@ -38,6 +38,7 @@ import { synthiaToast } from '../../utils/synthiaToast';
 import { useSpeechStore } from '../../store/speechStore';
 import { getSystemVoiceForAgent, ttsProvider } from '../../utils/speech';
 import { useWorldStore } from '../../store/worldStore';
+import { useIdentityStore } from '../../store/identityStore';
 import { InferenceClient } from '../../world/agent/InferenceClient';
 
 const PROVIDER_INFO: Record<ProviderType, { label: string; defaultEndpoint: string; defaultModel: string; needsKey: boolean; models?: string[] }> = {
@@ -96,6 +97,13 @@ export const AgentSettingsModal: React.FC = () => {
   const { settingsModalOpen, setSettingsModalOpen } = useUIStore();
   const { activeAgentId, agents } = useAgentStore();
   const { aiVisionFov, aiVisionSize, setAiVisionFov, setAiVisionSize } = useWorldStore();
+  const identity = useIdentityStore((state) => state.identities[activeAgentId]);
+  const [editName, setEditName] = useState(identity?.name || '');
+  const [editBeliefs, setEditBeliefs] = useState(JSON.stringify(identity?.beliefs || [], null, 2));
+  const [editTraits, setEditTraits] = useState(JSON.stringify(identity?.traits || {}, null, 2));
+  const [editReason, setEditReason] = useState('');
+  const [identitySaving, setIdentitySaving] = useState(false);
+  const [identityMsg, setIdentityMsg] = useState<string | null>(null);
 
   // Use current agent state specifically, to ensure reactive updates if agent selection switches
   const currentAgent = agents[activeAgentId] || {
@@ -212,6 +220,8 @@ export const AgentSettingsModal: React.FC = () => {
 
   // Live status chip: derive from whether the loop can actually run
   const loopState = runtimeStore.getLoopState(activeAgentId);
+  const allLoopStates = useAgentRuntimeStore((s) => s.loopStates);
+  const anyRunning = Object.values(allLoopStates).some((s) => s === 'running');
   const hasProviderConfig = PROVIDER_INFO[config.provider].needsKey
     ? !!config.apiKey && !!config.endpoint
     : !!config.endpoint;
@@ -227,7 +237,7 @@ export const AgentSettingsModal: React.FC = () => {
   const handlePauseResume = () => {
     if (loopState === 'running') {
       window.__synthia?.pauseAgent?.(activeAgentId);
-    } else if (loopState === 'paused' || loopState === 'stopped') {
+    } else {
       window.__synthia?.resumeAgent?.(activeAgentId);
     }
   };
@@ -502,7 +512,7 @@ export const AgentSettingsModal: React.FC = () => {
                       </div>
                     </div>
 
-                    {(loopState === 'running' || loopState === 'paused' || loopState === 'stopped') && hasProviderConfig && (
+                    {hasProviderConfig && (
                       <Button
                         variant="secondary"
                         size="sm"
@@ -521,6 +531,27 @@ export const AgentSettingsModal: React.FC = () => {
                             Resume
                           </>
                         )}
+                      </Button>
+                    )}
+
+                    {hasProviderConfig && (
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        className="h-9 px-3 text-[10px] font-bold uppercase tracking-widest flex items-center justify-center gap-2"
+                        onClick={() => {
+                          if (anyRunning) {
+                            const count = window.__synthia?.sleepAllAgents?.() || 0;
+                            synthiaToast.info(`Paused ${count} agent(s) — all inference halted, physics continues.`);
+                          } else {
+                            const count = window.__synthia?.resumeAllAgents?.() || 0;
+                            synthiaToast.info(`Resumed ${count} agent(s) — inference restarted.`);
+                          }
+                        }}
+                        title={anyRunning ? 'Pause all agent loops' : 'Resume all agent loops'}
+                      >
+                        {anyRunning ? <Pause size={14} /> : <Play size={14} />}
+                        {anyRunning ? 'Sleep All' : 'Wake All'}
                       </Button>
                     )}
                   </div>
@@ -895,6 +926,114 @@ export const AgentSettingsModal: React.FC = () => {
                   </div>
                 </div>
               )}
+
+              {/* Identity Section */}
+              <div key={activeAgentId} className="space-y-3 p-4 rounded-btn border border-border bg-white/[0.01]">
+                <h3 className="text-[10px] uppercase tracking-wider text-text-tertiary font-bold flex items-center gap-2">
+                  <Bookmark size={12} />
+                  Agent Identity
+                </h3>
+                <p className="text-[9px] text-text-tertiary leading-relaxed">
+                  The agent's name, beliefs, and traits are injected into its system prompt each cycle.
+                  Edits are rate-limited to 1 per 5 minutes per agent.
+                </p>
+                <div className="space-y-2">
+                  <label className="text-[9px] text-text-tertiary uppercase tracking-wider font-bold">Name</label>
+                  <input
+                    type="text"
+                    value={editName}
+                    onChange={(e) => setEditName(e.target.value)}
+                    className="w-full h-8 px-3 rounded-btn border border-border bg-white/[0.02] text-xs font-mono text-text-primary focus:outline-none focus:border-accent-blue"
+                    placeholder="Agent name"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[9px] text-text-tertiary uppercase tracking-wider font-bold">Beliefs (JSON array)</label>
+                  <textarea
+                    value={editBeliefs}
+                    onChange={(e) => setEditBeliefs(e.target.value)}
+                    rows={3}
+                    className="w-full px-3 py-2 rounded-btn border border-border bg-white/[0.02] text-xs font-mono text-text-primary focus:outline-none focus:border-accent-blue resize-none"
+                    placeholder='["belief1", "belief2"]'
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[9px] text-text-tertiary uppercase tracking-wider font-bold">Traits (JSON object)</label>
+                  <textarea
+                    value={editTraits}
+                    onChange={(e) => setEditTraits(e.target.value)}
+                    rows={2}
+                    className="w-full px-3 py-2 rounded-btn border border-border bg-white/[0.02] text-xs font-mono text-text-primary focus:outline-none focus:border-accent-blue resize-none"
+                    placeholder='{"trait": "value"}'
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[9px] text-text-tertiary uppercase tracking-wider font-bold">Reason for edit (required)</label>
+                  <input
+                    type="text"
+                    value={editReason}
+                    onChange={(e) => setEditReason(e.target.value)}
+                    className="w-full h-8 px-3 rounded-btn border border-border bg-white/[0.02] text-xs font-mono text-text-primary focus:outline-none focus:border-accent-blue"
+                    placeholder="Why are you changing this?"
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={async () => {
+                      if (!editReason.trim()) {
+                        setIdentityMsg('Error: Reason is required for identity edits');
+                        return;
+                      }
+                      setIdentitySaving(true);
+                      setIdentityMsg(null);
+                      try {
+                        const update: any = {};
+                        if (editName !== (identity?.name || '')) update.name = editName;
+                        let parsedBeliefs: any[] | undefined;
+                        try {
+                          parsedBeliefs = JSON.parse(editBeliefs);
+                          if (!Array.isArray(parsedBeliefs)) throw new Error();
+                        } catch {
+                          setIdentityMsg('Error: Beliefs must be a valid JSON array');
+                          setIdentitySaving(false);
+                          return;
+                        }
+                        let parsedTraits: Record<string, any> | undefined;
+                        try {
+                          parsedTraits = JSON.parse(editTraits);
+                          if (typeof parsedTraits !== 'object' || Array.isArray(parsedTraits)) throw new Error();
+                        } catch {
+                          setIdentityMsg('Error: Traits must be a valid JSON object');
+                          setIdentitySaving(false);
+                          return;
+                        }
+                        update.beliefs = parsedBeliefs.map((b: any) => ({ op: 'replace', value: b }));
+                        update.traits = parsedTraits;
+                        const result = await window.__synthia?.manualIdentityUpdate?.(activeAgentId, update, editReason.trim());
+                        if (result?.ok) {
+                          setIdentityMsg('Identity updated successfully');
+                          setEditReason('');
+                        } else {
+                          setIdentityMsg(`Error: ${result?.error || 'Unknown error'}`);
+                        }
+                      } catch (err) {
+                        setIdentityMsg(`Error: ${err instanceof Error ? err.message : 'Unknown error'}`);
+                      } finally {
+                        setIdentitySaving(false);
+                      }
+                    }}
+                    disabled={identitySaving || !editReason.trim()}
+                    className="h-8 px-4 rounded-btn border border-accent-blue bg-accent-blue/10 text-accent-blue text-[10px] font-bold transition-all hover:bg-accent-blue/20 disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    {identitySaving ? 'Saving...' : 'Save Identity'}
+                  </button>
+                  {identityMsg && (
+                    <span className={cn("text-[9px]", identityMsg.startsWith('Error') ? 'text-accent-red' : 'text-accent-green')}>
+                      {identityMsg}
+                    </span>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
         </Panel>
@@ -902,4 +1041,3 @@ export const AgentSettingsModal: React.FC = () => {
     </div>
   );
 };
-

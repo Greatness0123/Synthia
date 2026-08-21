@@ -2,6 +2,20 @@ import * as THREE from 'three';
 import { PhysicsEngine } from './PhysicsEngine';
 import { logger as Logger } from '../../utils/logger';
 
+// ── Capsule-balance controller gains (Option A: heavy root) ─────────────
+// The root capsule now carries ~15 kg of pelvis mass (MJCF inertial), so the
+// torso-vertical corrector needs proportionally higher gains than the original
+// 100/40 designed for the near-massless 0.001 kg root. Scale chosen: ~8×.
+export const BALANCE_KP = 800.0;
+export const BALANCE_KD = 320.0;
+/** Upright correction torque cap on the root body (N·m). */
+export const MAX_BALANCE_TORQUE = 120.0;
+/**
+ * While a gait timeline is active the balance torque backs off to this
+ * fraction of full strength so it stops fighting the commanded lean.
+ */
+export const GAIT_BALANCE_SCALE = 0.5;
+
 export class MotorController {
   private model: any = null;
   private data: any = null;
@@ -13,6 +27,8 @@ export class MotorController {
   private limpModeActive = false;
   private simulationStepCount = 0;
   private gaitActive = false;
+  private capsuleBalanceOverrideKP: number | null = null;
+  private capsuleBalanceOverrideKD: number | null = null;
 
   // Diagnostics (read externally via PhysicsDiagnostic)
   public lastBalanceTorqueMag: number = 0;
@@ -21,6 +37,10 @@ export class MotorController {
   /** Enabled while a gait timeline is active — softens root balance torque. */
   public setGaitActive(active: boolean): void {
     this.gaitActive = active;
+  }
+
+  public isGaitActive(): boolean {
+    return this.gaitActive;
   }
 
   constructor() {}
@@ -147,6 +167,127 @@ export class MotorController {
     this.data.ctrl[actuatorIds[0]] = val;
   }
 
+  /**
+   * Road-4 — per-physics-step (500 Hz) joint ctrl injection.
+   *
+   * Writes `data.ctrl` DIRECTLY each step (called from the onStep reflex) so
+   * the COM lean + capture-step offsets are additive ON TOP of the 30/60 fps
+   * pose flush produced by `setTargets()`. Unlike `setTargets`, this method:
+   *   - does NOT touch `currentTargets` (the pose flush owns those),
+   *   - does NOT apply the 20-step ramp (the ramp is 1.0 in steady state and
+   *     the reflex must respond immediately).
+   * Indexing mirrors `setTargets()` EXACTLY:
+   *   - spherical (3 actuators): ctrl[0]=yaw, ctrl[1]=pitch, ctrl[2]=roll
+   *   - revolute (1 actuator):   ctrl[0]=angle
+   *   - 2-DOF ankle/foot (2):    ctrl[0]=pitch, ctrl[1]=roll
+   *
+   * @param entries [boneName, pitchRad, rollRad?] — roll omitted = 0.
+   * @returns The actuator ids that were written (for test verification).
+   */
+  public applyPerStepJointTargets(
+    entries: Array<[string, number, number?]>
+  ): number[] {
+    if (!this.model || !this.data || this.limpModeActive) return [];
+
+    const applied: number[] = [];
+    for (const [boneName, pitchRad, rollRad = 0] of entries) {
+      const actuatorIds = this.actuatorMap.get(boneName);
+      if (!actuatorIds || actuatorIds.length === 0) continue;
+
+      if (actuatorIds.length === 1) {
+        const val = Number.isFinite(pitchRad) ? pitchRad : 0;
+        this.data.ctrl[actuatorIds[0]] = val;
+      } else if (actuatorIds.length === 2) {
+        const pitch = Number.isFinite(pitchRad) ? pitchRad : 0;
+        const roll = Number.isFinite(rollRad) ? rollRad : 0;
+        // 2-DOF (foot/ankle): ctrl[0]=pitch, ctrl[1]=roll (exact mirror of setTargets).
+        this.data.ctrl[actuatorIds[0]] = pitch;
+        this.data.ctrl[actuatorIds[1]] = roll;
+      } else {
+        // Spherical (upleg/shoulder): actuator order [yaw, pitch, roll].
+        // Pitch goes to index 1; yaw (index 0) and roll (index 2) = 0.
+        const pitch = Number.isFinite(pitchRad) ? pitchRad : 0;
+        const roll = Number.isFinite(rollRad) ? rollRad : 0;
+        this.data.ctrl[actuatorIds[0]] = 0; // yaw
+        this.data.ctrl[actuatorIds[1]] = pitch;
+        this.data.ctrl[actuatorIds[2]] = roll;
+      }
+      applied.push(...actuatorIds);
+    }
+    return applied;
+  }
+
+  /**
+   * Read the CURRENT `data.ctrl` value for one DOF of a bone (the value last
+   * written by the pose flush at 30/60 fps, before this step's injection).
+   * dofIndex follows setTargets indexing: spherical → 0=yaw 1=pitch 2=roll,
+   * revolute → 0, 2-DOF → 0=pitch 1=roll. Returns null when unknown.
+   */
+  public readBoneCtrl(boneName: string, dofIndex: number): number | null {
+    if (!this.model || !this.data || this.limpModeActive) return null;
+    const actuatorIds = this.actuatorMap.get(boneName);
+    if (!actuatorIds || dofIndex < 0 || dofIndex >= actuatorIds.length) return null;
+    return this.data.ctrl[actuatorIds[dofIndex]] ?? null;
+  }
+
+  /**
+   * Road-4 — ADDITIVE per-step (500 Hz) ctrl injection.
+   *
+   * Exactly like `applyPerStepJointTargets` but ADDS the deltas onto the
+   * currently-flushed ctrl values instead of overwriting them, so a spherical
+   * joint's pose yaw/roll survive the reflex (only the requested axis deltas
+   * move). Dof indexing mirrors setTargets: spherical [yaw,pitch,roll] with
+   * pitchDelta → index 1 and rollDelta → index 2 (yaw never modified here),
+   * revolute → index 0, 2-DOF → pitch 0 / roll 1.
+   *
+   * @param entries [boneName, pitchDeltaRad, rollDeltaRad?] — roll omitted = 0.
+   * @returns The actuator ids that were modified.
+   */
+  public addPerStepJointDeltas(
+    entries: Array<[string, number, number?]>
+  ): number[] {
+    if (!this.model || !this.data || this.limpModeActive) return [];
+
+    const applied: number[] = [];
+    for (const [boneName, pitchDeltaRad, rollDeltaRad = 0] of entries) {
+      const actuatorIds = this.actuatorMap.get(boneName);
+      if (!actuatorIds || actuatorIds.length === 0) continue;
+
+      if (actuatorIds.length === 1) {
+        const d = Number.isFinite(pitchDeltaRad) ? pitchDeltaRad : 0;
+        if (d !== 0) {
+          this.data.ctrl[actuatorIds[0]] += d;
+          applied.push(actuatorIds[0]);
+        }
+      } else if (actuatorIds.length === 2) {
+        const dp = Number.isFinite(pitchDeltaRad) ? pitchDeltaRad : 0;
+        const dr = Number.isFinite(rollDeltaRad) ? rollDeltaRad : 0;
+        if (dp !== 0) {
+          this.data.ctrl[actuatorIds[0]] += dp;
+          applied.push(actuatorIds[0]);
+        }
+        if (dr !== 0) {
+          this.data.ctrl[actuatorIds[1]] += dr;
+          applied.push(actuatorIds[1]);
+        }
+      } else {
+        // Spherical [yaw,pitch,roll]: only pitch (index 1) and roll (index 2)
+        // are touched additively; yaw (index 0) stays exactly as posed.
+        const dp = Number.isFinite(pitchDeltaRad) ? pitchDeltaRad : 0;
+        const dr = Number.isFinite(rollDeltaRad) ? rollDeltaRad : 0;
+        if (dp !== 0) {
+          this.data.ctrl[actuatorIds[1]] += dp;
+          applied.push(actuatorIds[1]);
+        }
+        if (dr !== 0) {
+          this.data.ctrl[actuatorIds[2]] += dr;
+          applied.push(actuatorIds[2]);
+        }
+      }
+    }
+    return applied;
+  }
+
   public setGainScale(stiffnessScale: number, dampingScale: number): void {
     this.globalStiffnessScale = Math.max(0.01, stiffnessScale);
     this.globalDampingScale = Math.max(0.01, dampingScale);
@@ -198,6 +339,16 @@ export class MotorController {
     return this.actuatorMap.size;
   }
 
+  /**
+   * Set live-tunable overrides for capsule balance gains. Pass null to restore defaults.
+   * When non-null, these values become the FINAL effective KP/KD (bypassing BALANCE_KP/KD
+   * constants and all scale multiplication). MAX_BALANCE_TORQUE cap still applies.
+   */
+  public setCapsuleBalanceGains(kp: number | null, kd: number | null): void {
+    this.capsuleBalanceOverrideKP = kp;
+    this.capsuleBalanceOverrideKD = kd;
+  }
+
   public applyCapsuleBalance(capsuleBodyId: number): void {
     if (!this.model || !this.data || capsuleBodyId < 0) return;
 
@@ -231,22 +382,31 @@ export class MotorController {
     ];
     const angVelWorld = PhysicsEngine.mujocoToWorld(angVelMj);
 
-    // Scale balancing gains dynamically
-    const GAIT_BALANCE_SCALE = 0.5;
-    const balanceScale = this.gaitActive ? GAIT_BALANCE_SCALE : 1.0;
-    const BALANCE_KP = 100.0 * this.globalStiffnessScale * balanceScale;
-    const BALANCE_KD = 40.0 * this.globalDampingScale * balanceScale;
+    // Use override gains if set (live-tunable); otherwise use defaults with dynamic scaling.
+    let kp: number;
+    let kd: number;
+    if (this.capsuleBalanceOverrideKP !== null && this.capsuleBalanceOverrideKD !== null) {
+      // Override: bypass all scaling, use the override values directly
+      kp = this.capsuleBalanceOverrideKP;
+      kd = this.capsuleBalanceOverrideKD;
+    } else {
+      // Default: scale balancing gains dynamically. GAIT_BALANCE_SCALE backs the corrector
+      // off while a gait timeline is active so it stops fighting the commanded
+      // lean; gains are tuned for the ~15 kg root (Option A).
+      const balanceScale = this.gaitActive ? GAIT_BALANCE_SCALE : 1.0;
+      kp = BALANCE_KP * this.globalStiffnessScale * balanceScale;
+      kd = BALANCE_KD * this.globalDampingScale * balanceScale;
+    }
 
     // Upright balancing torque in Three.js/world space
     const torqueWorld = new THREE.Vector3(
-      BALANCE_KP * tiltAxis.x * tiltAngle - BALANCE_KD * angVelWorld.x,
-      BALANCE_KP * tiltAxis.y * tiltAngle - BALANCE_KD * angVelWorld.y,
-      BALANCE_KP * tiltAxis.z * tiltAngle - BALANCE_KD * angVelWorld.z
+      kp * tiltAxis.x * tiltAngle - kd * angVelWorld.x,
+      kp * tiltAxis.y * tiltAngle - kd * angVelWorld.y,
+      kp * tiltAxis.z * tiltAngle - kd * angVelWorld.z
     );
 
-    // Clamp balancing torque at 60.0 (matching Rapier clamp in HumanoidMultiBodyManager.ts)
+    // Clamp balancing torque (Option A: raised 60 → 120 N·m for the heavy root)
     const torqueMag = torqueWorld.length();
-    const MAX_BALANCE_TORQUE = 60.0;
     if (torqueMag > MAX_BALANCE_TORQUE) {
       torqueWorld.multiplyScalar(MAX_BALANCE_TORQUE / torqueMag);
     }

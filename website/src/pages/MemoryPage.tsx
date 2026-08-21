@@ -1,7 +1,6 @@
 import { Link } from 'react-router-dom'
 import { PageMeta } from '@/components/seo/PageMeta'
 import { FadeContent } from '@/components/react-bits/FadeContent'
-import { DotPattern } from '@/components/react-bits/DotPattern'
 import { Breadcrumbs } from '@/components/ui/Breadcrumbs'
 import { PageLayout } from '@/components/layout/PageLayout'
 
@@ -47,7 +46,7 @@ const faqs = [
 
 export function MemoryPage() {
   return (
-    <PageLayout dark>
+    <PageLayout>
       <PageMeta
         title="How your AI remembers"
         description="SYNTHIA's three-tier memory system explained in plain language: working, episodic, and long-term memory."
@@ -62,66 +61,63 @@ export function MemoryPage() {
           })),
         }}
       />
-      <div className="relative overflow-hidden">
-        <DotPattern />
 
-        <div className="section-padding relative mx-auto max-w-4xl pt-24 sm:pt-28">
-          <Breadcrumbs items={[{ label: 'Memory' }]} dark />
+      <div className="section-padding mx-auto max-w-4xl pt-24 sm:pt-28">
+        <Breadcrumbs items={[{ label: 'Memory' }]} />
 
-          <FadeContent>
-            <p className="mb-4 text-xs uppercase tracking-[0.2em] text-teal-soft">Memory</p>
-            <h1 className="font-serif text-3xl leading-tight text-white sm:text-4xl md:text-5xl">
-              How your AI remembers
-            </h1>
-            <p className="mt-6 text-base leading-relaxed text-white/70 sm:text-lg">
-              Your AI has three kinds of memory: working memory for the present moment, episodic
-              memory for what just happened, and long-term memory for the big things it has
-              learned. It forgets on purpose so it stays focused.
+        <FadeContent>
+          <p className="mb-4 text-xs uppercase tracking-[0.2em] text-teal">Memory</p>
+          <h1 className="font-serif text-3xl leading-tight text-ink sm:text-4xl md:text-5xl">
+            How your AI remembers
+          </h1>
+          <p className="mt-6 text-base leading-relaxed text-ink-muted sm:text-lg">
+            Your AI has three kinds of memory: working memory for the present moment, episodic
+            memory for what just happened, and long-term memory for the big things it has
+            learned. It forgets on purpose so it stays focused.
+          </p>
+        </FadeContent>
+
+        <div className="my-12 grid gap-5 sm:my-16 sm:gap-6">
+          {tiers.map((tier, index) => (
+            <FadeContent key={tier.name} delay={index * 0.06}>
+              <article className="rounded-2xl border border-ink/8 bg-surface-elevated p-6 shadow-sm sm:p-8">
+                <h2 className="font-serif text-xl text-ink sm:text-2xl">{tier.name}</h2>
+                <p className="mt-3 text-base text-ink sm:text-lg">{tier.plain}</p>
+                <p className="mt-4 leading-relaxed text-ink-muted">{tier.detail}</p>
+              </article>
+            </FadeContent>
+          ))}
+        </div>
+
+        <FadeContent>
+          <div className="rounded-2xl border border-amber/30 bg-amber/5 p-6">
+            <p className="text-sm leading-relaxed text-ink-muted">
+              <strong className="text-amber-700">Honest caveat:</strong> long-term memory
+              relevance ranking uses placeholder embeddings today, being replaced with a real
+              semantic model.
             </p>
-          </FadeContent>
+          </div>
+        </FadeContent>
 
-          <div className="my-12 grid gap-5 sm:my-16 sm:gap-6">
-            {tiers.map((tier, index) => (
-              <FadeContent key={tier.name} delay={index * 0.06}>
-                <article className="rounded-2xl border border-white/10 bg-white/5 p-6 sm:p-8">
-                  <h2 className="font-serif text-xl text-white sm:text-2xl">{tier.name}</h2>
-                  <p className="mt-3 text-base text-white/80 sm:text-lg">{tier.plain}</p>
-                  <p className="mt-4 leading-relaxed text-white/60">{tier.detail}</p>
-                </article>
-              </FadeContent>
+        <FadeContent className="mt-10">
+          <h3 className="mb-4 font-serif text-xl text-ink">Common questions</h3>
+          <div className="grid gap-4 sm:grid-cols-2">
+            {faqs.map((item) => (
+              <article key={item.q} className="rounded-xl border border-ink/8 bg-surface-elevated p-5 shadow-sm">
+                <h4 className="font-medium text-ink">{item.q}</h4>
+                <p className="mt-2 text-sm leading-relaxed text-ink-muted">{item.a}</p>
+              </article>
             ))}
           </div>
+        </FadeContent>
 
-          <FadeContent>
-            <div className="rounded-2xl border border-amber/30 bg-amber/5 p-6">
-              <p className="text-sm leading-relaxed text-white/80">
-                <strong className="text-amber-soft">Honest caveat:</strong> long-term memory
-                relevance ranking uses placeholder embeddings today, being replaced with a real
-                semantic model.
-              </p>
-            </div>
-          </FadeContent>
-
-          <FadeContent className="mt-10">
-            <h3 className="mb-4 font-serif text-xl text-white">Common questions</h3>
-            <div className="grid gap-4 sm:grid-cols-2">
-              {faqs.map((item) => (
-                <article key={item.q} className="rounded-xl border border-white/10 bg-white/5 p-5">
-                  <h4 className="font-medium text-white">{item.q}</h4>
-                  <p className="mt-2 text-sm text-white/60">{item.a}</p>
-                </article>
-              ))}
-            </div>
-          </FadeContent>
-
-          <div className="mt-12">
-            <Link
-              to="/how-it-works"
-              className="text-sm text-teal-soft underline-offset-4 hover:underline"
-            >
-              ← Back to how it works
-            </Link>
-          </div>
+        <div className="mt-12">
+          <Link
+            to="/how-it-works"
+            className="text-sm text-teal underline-offset-4 hover:underline"
+          >
+            ← Back to how it works
+          </Link>
         </div>
       </div>
     </PageLayout>

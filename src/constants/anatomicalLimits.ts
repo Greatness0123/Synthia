@@ -26,7 +26,15 @@ export function getAnatomicalLimitForBone(boneName: string): AnatomicalLimit | n
     return { min: 0, max: 145 * DEG };
   }
 
-  // Fingers / toes: flexion only 0° to +100°
+  // TOEBASE / foot-ball roll joint (WALK FIX): walk like an ankle so the foot
+  // can ROLL ONTO the forefoot at push-off (±45°) — the old finger-like
+  // 0..+100° clamp made a physics toebase hinge impossible, so toes-off
+  // propulsion was dead and every stride pitched the robot backward.
+  if (n.includes('toebase') || n.includes('ball') || n.includes('metatars')) {
+    return { min: -45 * DEG, max: 45 * DEG };
+  }
+
+  // Fingers / second toe segments (excluding the toebase ball joint): 0° to +100°
   if (
     n.includes('thumb') || n.includes('index') || n.includes('middle') ||
     n.includes('ring') || n.includes('pinky') || n.includes('toe')
@@ -37,11 +45,6 @@ export function getAnatomicalLimitForBone(boneName: string): AnatomicalLimit | n
   // WRIST / hand: ±80° flexion, ±20° deviation — use primary flex axis limit
   if (n.includes('wrist') || (n.includes('hand') && !n.includes('shoulder'))) {
     return { min: -80 * DEG, max: 80 * DEG };
-  }
-
-  // ANKLE / foot
-  if (n.includes('ankle') || n.includes('foot')) {
-    return { min: -45 * DEG, max: 45 * DEG };
   }
 
   // NECK / cervical

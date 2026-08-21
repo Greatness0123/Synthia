@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { ObjectPreset, OBJECT_PRESETS } from '../../constants/objectPresets';
 import { PhysicsEngine } from './PhysicsEngine';
-import { CollisionAdapter } from './CollisionAdapter';
+import { CollisionAdapter, ContactPair } from './CollisionAdapter';
 import { AudioEngine } from './AudioEngine';
 import { StateRehydrator } from './StateRehydrator';
 import { NUM_ENV_SLOTS, injectAssetsAndBodies } from './MJCFHumanoidTemplate';
@@ -833,7 +833,7 @@ export class ObjectManager {
         if (!triggeredNotes.has(note)) {
           triggeredNotes.add(note);
           if (this.eventCallback) {
-            this.eventCallback('piano_note', { note });
+            this.eventCallback('piano_note', { note, agentId: extractAgentIdFromPair(pair) });
             this.audioEngine.playNote(note);
           }
         }
@@ -843,7 +843,7 @@ export class ObjectManager {
       this.objects.forEach((obj) => {
         if (obj.preset.id === 'button') {
           if (obj.colliders.includes(pair.geom1Id) || obj.colliders.includes(pair.geom2Id)) {
-            if (this.eventCallback) this.eventCallback('button_press', { id: obj.id });
+            if (this.eventCallback) this.eventCallback('button_press', { id: obj.id, agentId: extractAgentIdFromPair(pair) });
 
             if (obj.mesh instanceof THREE.Mesh) {
               obj.mesh.material = new THREE.MeshStandardMaterial({ color: 0xffffff });
@@ -857,5 +857,24 @@ export class ObjectManager {
         }
       });
     });
+  };
+}
+
+/**
+ * Given a collision pair, extract the agentId from the colliding agent's geom prefix.
+ * Returns '' if the pair contains no agent-identified geoms.
+ */
+function extractAgentIdFromPair(pair: ContactPair): string {
+  const GEOM_PREFIX = 'agent_';
+  for (const name of [pair.name1, pair.name2]) {
+    const idx = name.indexOf(GEOM_PREFIX);
+    if (idx !== -1) {
+      const prefixEnd = idx + GEOM_PREFIX.length;
+      const slashIdx = name.indexOf('/', prefixEnd);
+      if (slashIdx !== -1) return name.substring(idx, slashIdx);
+      const nextUnderscore = name.indexOf('_', prefixEnd);
+      return nextUnderscore >= 0 ? name.substring(idx, nextUnderscore) : name.substring(idx);
+    }
   }
+  return '';
 }
