@@ -22,14 +22,11 @@ export default {
           secondary: 'var(--text-secondary)',
           tertiary: 'var(--text-tertiary)',
         },
-        accent: {
-          blue: 'var(--accent-blue)',
-          amber: 'var(--accent-amber)',
-          green: 'var(--accent-green)',
-          red: 'var(--accent-red)',
-          purple: 'var(--accent-purple)',
-          teal: 'var(--accent-teal)',
+        emphasis: {
+          DEFAULT: 'var(--emphasis)',
+          muted: 'var(--emphasis-muted)',
         },
+        'surface-active': 'var(--surface-active)',
       },
       fontFamily: {
         sans: ['Geist Sans', 'sans-serif'],

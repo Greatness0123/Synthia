@@ -1,10 +1,10 @@
-﻿/**
+/**
  * AgentSettingsModal component.
  * Driven entirely by useAgentStore's activeAgentId selection.
  * Covers: Connection/provider settings, memory explorer, per-agent voice/TTS, vision settings, and connection testing.
  */
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useUIStore } from '../../store/uiStore';
 import { useAgentStore } from '../../store/agentStore';
 import { useAgentRuntimeStore, type AgentRuntimeConfig } from '../../store/agentRuntimeStore';
@@ -24,7 +24,6 @@ import {
   Circle,
   ArrowsClockwise,
   CheckCircle,
-  WifiHigh,
   MagnifyingGlass,
   Bookmark,
   SpeakerHigh,
@@ -32,7 +31,8 @@ import {
   WarningCircle,
   PlugsConnected,
   Pause,
-  Play
+  Play,
+  Save
 } from '../ui/icons';
 import { synthiaToast } from '../../utils/synthiaToast';
 import { useSpeechStore } from '../../store/speechStore';
@@ -40,6 +40,8 @@ import { getSystemVoiceForAgent, ttsProvider } from '../../utils/speech';
 import { useWorldStore } from '../../store/worldStore';
 import { useIdentityStore } from '../../store/identityStore';
 import { InferenceClient } from '../../world/agent/InferenceClient';
+import { SUPABASE_SCHEMA_FULL } from '../../constants/supabaseSchema';
+import { testSupabaseConnection } from '../../utils/supabaseConnection';
 
 const PROVIDER_INFO: Record<ProviderType, { label: string; defaultEndpoint: string; defaultModel: string; needsKey: boolean; models?: string[] }> = {
   kaggle:     { label: 'Kaggle / Cloudflare', defaultEndpoint: 'http://localhost:8000/infer', defaultModel: 'Qwen2.5-VL-3B-Instruct', needsKey: false },
@@ -85,12 +87,30 @@ const PROVIDER_INFO: Record<ProviderType, { label: string; defaultEndpoint: stri
   custom:     { label: 'Custom (OpenAI-compat)', defaultEndpoint: '', defaultModel: '', needsKey: true },
 };
 
+import { MOTOR_CODEX, MOTOR_CODEX_DISCLAIMER } from '../../constants/motorCodex';
+
 const VISION_SIZES = [224, 336, 448, 672, 896];
+
+const TAB_DEFS = [
+  { key: 'infra' as const, icon: Cpu, label: 'Infrastructure' },
+  { key: 'memory' as const, icon: Brain, label: 'Memory' },
+  { key: 'voice' as const, icon: SpeakerHigh, label: 'Voice & TTS' },
+  { key: 'vision' as const, icon: Eye, label: 'Vision' },
+  { key: 'identity' as const, icon: Bookmark, label: 'Identity' },
+  { key: 'codex' as const, icon: Play, label: 'Motor Codex' },
+];
 
 interface ConnectionTestState {
   status: 'idle' | 'testing' | 'ok' | 'fail';
   latencyMs?: number;
   error?: string;
+}
+
+interface SchemaTestState {
+  status: 'idle' | 'testing' | 'ok' | 'fail';
+  latencyMs?: number;
+  error?: string;
+  schemaVersion?: string;
 }
 
 export const AgentSettingsModal: React.FC = () => {
@@ -105,6 +125,14 @@ export const AgentSettingsModal: React.FC = () => {
   const [identitySaving, setIdentitySaving] = useState(false);
   const [identityMsg, setIdentityMsg] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (identity) {
+      setEditName(identity.name || '');
+      setEditBeliefs(JSON.stringify(identity.beliefs || [], null, 2));
+      setEditTraits(JSON.stringify(identity.traits || {}, null, 2));
+    }
+  }, [activeAgentId, identity]);
+
   // Use current agent state specifically, to ensure reactive updates if agent selection switches
   const currentAgent = agents[activeAgentId] || {
     thoughts: [],
@@ -115,7 +143,9 @@ export const AgentSettingsModal: React.FC = () => {
     status: 'idle',
   };
 
-  const [activeTab, setActiveTab] = useState<'infra' | 'memory' | 'voice' | 'vision'>('infra');
+  const [activeTab, setActiveTab] = useState<'infra' | 'memory' | 'voice' | 'vision' | 'identity' | 'codex'>('infra');
+  const [codexCategory, setCodexCategory] = useState<string>('all');
+  const [expandedRecipeId, setExpandedRecipeId] = useState<string | null>(null);
 
   // Speech configurations
   const {
@@ -141,6 +171,41 @@ export const AgentSettingsModal: React.FC = () => {
   const [sentOk, setSentOk] = useState(false);
   const [connectionTest, setConnectionTest] = useState<ConnectionTestState>({ status: 'idle' });
   const [showCustomModel, setShowCustomModel] = useState(false);
+
+  // Database connection test state
+  const [dbTest, setDbTest] = useState<SchemaTestState>({ status: 'idle' });
+
+  const handleCopySql = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(SUPABASE_SCHEMA_FULL);
+      synthiaToast.success('Schema copied. Paste into Supabase SQL Editor and run.');
+    } catch {
+      const textarea = document.createElement('textarea');
+      textarea.value = SUPABASE_SCHEMA_FULL;
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textarea);
+      synthiaToast.success('Schema copied.');
+    }
+  }, []);
+
+  const handleTestDbConnection = useCallback(async () => {
+    const url = config.supabaseUrl || '';
+    const key = config.supabaseKey || '';
+    if (!url || !key) {
+      synthiaToast.error('Enter Supabase URL and key first.');
+      return;
+    }
+    setDbTest({ status: 'testing' });
+    const result = await testSupabaseConnection(url, key);
+    setDbTest({
+      status: result.ok ? 'ok' : 'fail',
+      latencyMs: result.latencyMs,
+      error: result.error,
+      schemaVersion: result.schemaVersion,
+    });
+  }, [config.supabaseUrl, config.supabaseKey]);
 
   // Cognition state (Memory explorer filtering)
   const [memorySearch, setMemorySearch] = useState('');
@@ -191,7 +256,7 @@ export const AgentSettingsModal: React.FC = () => {
         latencyMs: result.latencyMs,
         error: result.error,
       });
-      synthiaToast.error(result.error || 'Connection test failed â€” config not applied.');
+      synthiaToast.error(result.error || 'Connection test failed  -  config not applied.');
     }
   };
 
@@ -227,12 +292,12 @@ export const AgentSettingsModal: React.FC = () => {
     : !!config.endpoint;
 
   const statusChip = !hasProviderConfig
-    ? { color: 'text-accent-red', dot: 'bg-accent-red', label: 'No Provider Configured' }
+    ? { color: 'text-text-primary opacity-60', dot: 'bg-text-primary opacity-60', label: 'No Provider Configured' }
     : loopState === 'running'
-      ? { color: 'text-accent-green', dot: 'bg-accent-green', label: 'Agent Loop Active' }
+      ? { color: 'text-text-primary font-medium', dot: 'bg-text-primary', label: 'Agent Loop Active' }
       : loopState === 'paused'
-        ? { color: 'text-accent-amber', dot: 'bg-accent-amber', label: 'Paused' }
-        : { color: 'text-accent-amber', dot: 'bg-accent-amber', label: 'Not Started' };
+        ? { color: 'text-text-secondary', dot: 'bg-text-secondary', label: 'Paused' }
+        : { color: 'text-text-secondary', dot: 'bg-text-secondary', label: 'Not Started' };
 
   const handlePauseResume = () => {
     if (loopState === 'running') {
@@ -271,94 +336,65 @@ export const AgentSettingsModal: React.FC = () => {
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm"
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70"
       onClick={() => setSettingsModalOpen(false)}
     >
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         onClick={(e) => e.stopPropagation()}
-        className="w-[840px] max-w-[calc(100vw-2rem)] h-[80vh] max-h-[calc(100vh-2rem)] flex flex-col"
+        data-tour="agent-settings-modal"
+        className="w-[640px] max-w-[calc(100vw-2rem)] h-[70vh] max-h-[calc(100vh-2rem)] flex flex-col"
       >
-        <Panel className="border-border-subtle shadow-2xl overflow-hidden flex flex-col h-full bg-bg-panel/95 backdrop-blur-md">
+        <Panel className="border-border-subtle shadow-2xl overflow-hidden flex flex-col h-full bg-bg-panel">
           {/* Header */}
           <div className="p-4 border-b border-border flex items-center justify-between bg-bg-panel shrink-0">
             <div className="flex items-center gap-3">
-              <Cpu size={18} className="text-accent-blue" />
+              <Cpu size={18} className="text-text-primary" />
               <h2 className="text-sm font-bold uppercase tracking-widest text-text-secondary">
                 AGENT SETTINGS
               </h2>
-              <span className="px-2.5 py-0.5 rounded-full bg-accent-blue/10 text-[10px] font-bold font-mono text-accent-blue uppercase tracking-wider">
+              <span className="px-2.5 py-0.5 rounded-full bg-white/10 text-xs font-bold font-mono text-text-primary uppercase tracking-wider">
                 {activeAgentId}
               </span>
             </div>
-            <button
-              onClick={() => setSettingsModalOpen(false)}
-              className="text-text-tertiary hover:text-text-primary w-7 h-7 rounded-full flex items-center justify-center hover:bg-white/5 transition-colors"
-            >
-              <X size={20} />
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => {
+                  window.dispatchEvent(new CustomEvent('synthia:replay-onboarding'));
+                  setSettingsModalOpen(false);
+                }}
+                className="text-[11px] text-text-tertiary hover:text-text-secondary transition-colors px-2 py-1 rounded hover:bg-white/5"
+              >
+                Replay introduction
+              </button>
+              <button
+                onClick={() => setSettingsModalOpen(false)}
+                className="text-text-tertiary hover:text-text-primary w-7 h-7 rounded-full flex items-center justify-center hover:bg-white/5 transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
           </div>
 
           <div className="flex flex-1 overflow-hidden">
-            {/* Sidebar Tabs */}
-            <div className="w-[180px] border-r border-border-subtle bg-bg-elevated/5 p-3 flex flex-col gap-1.5 shrink-0">
-              <button
-                onClick={() => setActiveTab('infra')}
-                className={cn(
-                  "flex items-center gap-2.5 px-3 py-2.5 rounded-btn text-xs font-bold uppercase tracking-wider transition-all text-left",
-                  activeTab === 'infra'
-                    ? "bg-accent-blue/10 text-accent-blue font-black"
-                    : "text-text-tertiary hover:bg-white/5 hover:text-text-secondary"
-                )}
-              >
-                <Cpu size={16} />
-                Infrastructure
-              </button>
-
-              <button
-                onClick={() => setActiveTab('memory')}
-                className={cn(
-                  "flex items-center gap-2.5 px-3 py-2.5 rounded-btn text-xs font-bold uppercase tracking-wider transition-all text-left",
-                  activeTab === 'memory'
-                    ? "bg-accent-purple/10 text-accent-purple font-black"
-                    : "text-text-tertiary hover:bg-white/5 hover:text-text-secondary"
-                )}
-              >
-                <Brain size={16} />
-                Memory
-              </button>
-
-              <button
-                onClick={() => setActiveTab('voice')}
-                className={cn(
-                  "flex items-center gap-2.5 px-3 py-2.5 rounded-btn text-xs font-bold uppercase tracking-wider transition-all text-left",
-                  activeTab === 'voice'
-                    ? "bg-accent-teal/10 text-accent-teal font-black"
-                    : "text-text-tertiary hover:bg-white/5 hover:text-text-secondary"
-                )}
-              >
-                <SpeakerHigh size={16} />
-                Voice & TTS
-              </button>
-
-              <button
-                onClick={() => setActiveTab('vision')}
-                className={cn(
-                  "flex items-center gap-2.5 px-3 py-2.5 rounded-btn text-xs font-bold uppercase tracking-wider transition-all text-left",
-                  activeTab === 'vision'
-                    ? "bg-accent-blue/10 text-accent-blue font-black"
-                    : "text-text-tertiary hover:bg-white/5 hover:text-text-secondary"
-                )}
-              >
-                <Eye size={16} />
-                Vision
-              </button>
-
-              <div className="mt-auto p-2 bg-white/[0.02] border border-white/5 rounded-btn text-[9px] text-text-tertiary text-center leading-normal">
-                Subscribed to <br />
-                <span className="font-mono font-bold text-text-secondary">{activeAgentId}</span>
-              </div>
+            {/* Sidebar Tabs — icon-only with tooltips */}
+            <div className="w-[52px] border-r border-border-subtle bg-bg-elevated/5 p-2 flex flex-col items-center gap-1 shrink-0">
+              {TAB_DEFS.map(({ key, icon: Icon, label }) => (
+                <button
+                  key={key}
+                  onClick={() => setActiveTab(key)}
+                  title={label}
+                  className={cn(
+                    "w-9 h-9 rounded-btn flex items-center justify-center transition-all",
+                    activeTab === key
+                      ? "bg-white/10 text-text-primary"
+                      : "text-text-tertiary hover:bg-white/5 hover:text-text-secondary"
+                  )}
+                >
+                  <Icon size={18} />
+                </button>
+              ))}
             </div>
 
             {/* Main Content Area */}
@@ -367,7 +403,7 @@ export const AgentSettingsModal: React.FC = () => {
                 <div className="space-y-5 max-w-[540px]">
                   <div>
                     <h3 className="text-xs font-bold text-text-primary uppercase tracking-wider">Inference & Database Infrastructure</h3>
-                    <p className="text-[11px] text-text-tertiary leading-normal mt-1">
+                    <p className="text-xs text-text-tertiary leading-normal mt-1">
                       Configure how this specific agent's cognition loops connect to Large Language Model backends and persistent storage.
                     </p>
                   </div>
@@ -375,7 +411,7 @@ export const AgentSettingsModal: React.FC = () => {
                   <div className="grid grid-cols-2 gap-4">
                     {/* Provider dropdown */}
                     <div className="space-y-1.5">
-                      <label className="text-[10px] uppercase tracking-wider text-text-tertiary font-bold">
+                      <label className="text-xs uppercase tracking-wider text-text-tertiary font-bold">
                         Inference Provider
                       </label>
                       <Dropdown
@@ -389,7 +425,7 @@ export const AgentSettingsModal: React.FC = () => {
                     {/* Model (for non-Kaggle) */}
                     {config.provider !== 'kaggle' && (
                       <div className="space-y-1.5">
-                        <label className="text-[10px] uppercase tracking-wider text-text-tertiary font-bold">
+                        <label className="text-xs uppercase tracking-wider text-text-tertiary font-bold">
                           Model
                         </label>
                         {PROVIDER_INFO[config.provider]?.models?.length ? (
@@ -406,7 +442,7 @@ export const AgentSettingsModal: React.FC = () => {
                             }}
                             items={[
                               ...(PROVIDER_INFO[config.provider].models!).map((m) => ({ value: m, label: m })),
-                              { value: '__custom__', label: 'Customâ€¦' },
+                              { value: '__custom__', label: 'Custom...' },
                             ]}
                           />
                         ) : null}
@@ -416,7 +452,7 @@ export const AgentSettingsModal: React.FC = () => {
                             value={config.model || ''}
                             onChange={(e) => runtimeStore.setConfig(activeAgentId, { model: e.target.value })}
                             placeholder={PROVIDER_INFO[config.provider]?.defaultModel || 'model-name'}
-                            className="w-full h-8 px-2.5 bg-bg-elevated border border-border rounded-btn text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-accent-blue"
+                            className="w-full h-8 px-2.5 bg-bg-elevated border border-border rounded-btn text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-white/20"
                           />
                         )}
                       </div>
@@ -426,7 +462,7 @@ export const AgentSettingsModal: React.FC = () => {
                   {/* API Key (conditional) */}
                   {showApiKey && (
                     <div className="space-y-1.5">
-                      <label className="text-[10px] uppercase tracking-wider text-text-tertiary font-bold">
+                      <label className="text-xs uppercase tracking-wider text-text-tertiary font-bold">
                         API Key
                         <span className="ml-1 text-text-tertiary/50 font-normal">(session-scoped only)</span>
                       </label>
@@ -435,14 +471,14 @@ export const AgentSettingsModal: React.FC = () => {
                         value={config.apiKey || ''}
                         onChange={(e) => runtimeStore.setConfig(activeAgentId, { apiKey: e.target.value })}
                         placeholder="sk-..."
-                        className="w-full h-8 px-2.5 bg-bg-elevated border border-border rounded-btn text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-accent-blue"
+                        className="w-full h-8 px-2.5 bg-bg-elevated border border-border rounded-btn text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-white/20"
                       />
                     </div>
                   )}
 
                   {/* Inference Endpoint */}
                   <div className="space-y-1.5">
-                    <label className="text-[10px] uppercase tracking-wider text-text-tertiary font-bold">
+                    <label className="text-xs uppercase tracking-wider text-text-tertiary font-bold">
                       {config.provider === 'kaggle' ? 'Kaggle Inference Endpoint' : 'API Base URL'}
                     </label>
                     <input
@@ -450,46 +486,37 @@ export const AgentSettingsModal: React.FC = () => {
                       value={config.endpoint || ''}
                       onChange={(e) => runtimeStore.setConfig(activeAgentId, { endpoint: e.target.value })}
                       placeholder={PROVIDER_INFO[config.provider]?.defaultEndpoint || 'https://...'}
-                      className="w-full h-8 px-2.5 bg-bg-elevated border border-border rounded-btn text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-accent-blue"
+                      className="w-full h-8 px-2.5 bg-bg-elevated border border-border rounded-btn text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-white/20"
                     />
                   </div>
 
-                  {/* Connection Buttons and Status Row */}
-                  <div className="flex items-center gap-3">
-                    <div className="flex-1">
-                      <button
-                        onClick={handleConnect}
-                        disabled={isSending}
-                        className={`w-full h-9 rounded-btn text-[10px] font-bold uppercase tracking-widest flex items-center justify-center gap-2 transition-all
-                          ${sentOk
-                            ? 'bg-accent-green/20 border border-accent-green/50 text-accent-green'
-                            : 'bg-text-primary text-bg-primary border-transparent hover:opacity-90'
-                          }
-                          disabled:opacity-60 disabled:cursor-not-allowed`}
-                      >
-                        {isSending ? (
-                          <>
-                            <ArrowsClockwise size={12} className="animate-spin" />
-                            Verifying Configâ€¦
-                          </>
-                        ) : sentOk ? (
-                          <>
-                            <CheckCircle size={12} />
-                            Saved Successfully
-                          </>
-                        ) : (
-                          <>
-                            <WifiHigh size={14} />
-                            Save Config
-                          </>
-                        )}
-                      </button>
-                    </div>
+                  {/* Action buttons row: Save Config (icon), Test, Status */}
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={handleConnect}
+                      disabled={isSending}
+                      title={sentOk ? 'Saved successfully' : 'Save config & verify'}
+                      className={cn(
+                        "h-9 w-9 rounded-btn flex items-center justify-center transition-all shrink-0",
+                        sentOk
+                          ? "bg-white/15 border border-white/30 text-text-primary"
+                          : "bg-text-primary text-bg-primary hover:opacity-90",
+                        "disabled:opacity-60 disabled:cursor-not-allowed"
+                      )}
+                    >
+                      {isSending ? (
+                        <ArrowsClockwise size={14} className="animate-spin" />
+                      ) : sentOk ? (
+                        <CheckCircle size={14} />
+                      ) : (
+                        <Save size={14} />
+                      )}
+                    </button>
 
                     <Button
                       variant="secondary"
                       size="sm"
-                      className="h-9 px-3 text-[10px] font-bold uppercase tracking-widest flex items-center justify-center gap-2"
+                      className="h-9 px-3 text-xs font-bold uppercase tracking-widest flex items-center justify-center gap-2"
                       onClick={handleTestConnection}
                       disabled={connectionTest.status === 'testing' || !hasProviderConfig}
                       title={!hasProviderConfig ? 'Configure a provider + key first' : 'Send a test request to the provider'}
@@ -503,98 +530,101 @@ export const AgentSettingsModal: React.FC = () => {
                     </Button>
 
                     <div className={cn(
-                      "flex items-center justify-between h-9 px-4 rounded-btn border min-w-[140px]",
+                      "flex items-center h-9 px-3 rounded-btn border min-w-[120px]",
                       "bg-bg-elevated border-border"
                     )}>
                       <div className="flex items-center gap-2">
                         <Circle size={6} className={statusChip.dot} />
-                        <span className={cn("text-[9px] font-mono uppercase", statusChip.color)}>{statusChip.label}</span>
+                        <span className={cn("text-[10px] font-mono uppercase", statusChip.color)}>{statusChip.label}</span>
                       </div>
                     </div>
-
-                    {hasProviderConfig && (
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        className="h-9 px-3 text-[10px] font-bold uppercase tracking-widest flex items-center justify-center gap-2"
-                        onClick={handlePauseResume}
-                        title={loopState === 'running' ? 'Pause agent loop' : 'Resume agent loop'}
-                      >
-                        {loopState === 'running' ? (
-                          <>
-                            <Pause size={14} />
-                            Pause
-                          </>
-                        ) : (
-                          <>
-                            <Play size={14} />
-                            Resume
-                          </>
-                        )}
-                      </Button>
-                    )}
-
-                    {hasProviderConfig && (
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        className="h-9 px-3 text-[10px] font-bold uppercase tracking-widest flex items-center justify-center gap-2"
-                        onClick={() => {
-                          if (anyRunning) {
-                            const count = window.__synthia?.sleepAllAgents?.() || 0;
-                            synthiaToast.info(`Paused ${count} agent(s) — all inference halted, physics continues.`);
-                          } else {
-                            const count = window.__synthia?.resumeAllAgents?.() || 0;
-                            synthiaToast.info(`Resumed ${count} agent(s) — inference restarted.`);
-                          }
-                        }}
-                        title={anyRunning ? 'Pause all agent loops' : 'Resume all agent loops'}
-                      >
-                        {anyRunning ? <Pause size={14} /> : <Play size={14} />}
-                        {anyRunning ? 'Sleep All' : 'Wake All'}
-                      </Button>
-                    )}
                   </div>
 
                   {/* Connection Test Result */}
                   {connectionTest.status === 'ok' && (
-                    <div className="flex items-center gap-2 p-3 rounded-btn border border-accent-green/30 bg-accent-green/5 text-accent-green">
+                    <div className="flex items-center gap-2 p-3 rounded-btn border border-white/20 bg-white/5 text-text-primary font-medium">
                       <CheckCircle size={14} />
-                      <span className="text-[10px] font-mono">
-                        Connection OK â€” {connectionTest.latencyMs}ms round-trip
+                      <span className="text-xs font-mono">
+                        Connection OK  -  {connectionTest.latencyMs}ms round-trip
                       </span>
                     </div>
                   )}
                   {connectionTest.status === 'fail' && connectionTest.error && (
-                    <div className="flex items-start gap-2 p-3 rounded-btn border border-accent-red/30 bg-accent-red/5 text-accent-red">
+                    <div className="flex items-start gap-2 p-3 rounded-btn border border-white/20 bg-white/5 text-text-primary opacity-60">
                       <WarningCircle size={14} className="mt-0.5 shrink-0" />
-                      <span className="text-[10px] font-mono break-all">
+                      <span className="text-xs font-mono break-all">
                         Failed: {connectionTest.error}
                       </span>
                     </div>
                   )}
 
-                  {/* Cycle speed */}
-                  <div className="space-y-2 border-t border-border-subtle pt-4">
-                    <div className="flex justify-between items-center">
-                      <label className="text-[10px] uppercase tracking-wider text-text-tertiary font-bold">Cognitive Cycle Speed</label>
-                      <span className="text-xs font-mono font-bold text-accent-blue">{config.cycleMs}ms</span>
+                  {/* Cycle speed + Pause/Wake All */}
+                  <div className="space-y-3 border-t border-border-subtle pt-4">
+                    <div className="space-y-2">
+                      <div className="flex justify-between items-center">
+                        <label className="text-xs uppercase tracking-wider text-text-tertiary font-bold">Cognitive Cycle Speed</label>
+                        <span className="text-xs font-mono font-bold text-text-primary">{config.cycleMs}ms</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="500"
+                        max="5000"
+                        step="100"
+                        value={config.cycleMs}
+                        onChange={(e) => {
+                          const newValue = parseInt(e.target.value);
+                          runtimeStore.setCycleMsOverride(activeAgentId, newValue);
+                        }}
+                        className="w-full h-1 bg-bg-elevated rounded-lg appearance-none cursor-pointer text-secondary"
+                      />
+                      <p className="text-xs text-text-tertiary leading-relaxed">
+                        Defines the rest interval between successive environmental sweeps, action decodes, and memory dumps.
+                      </p>
                     </div>
-                    <input
-                      type="range"
-                      min="500"
-                      max="5000"
-                      step="100"
-                      value={config.cycleMs}
-                      onChange={(e) => {
-                        const newValue = parseInt(e.target.value);
-                        runtimeStore.setCycleMsOverride(activeAgentId, newValue);
-                      }}
-                      className="w-full h-1 bg-bg-elevated rounded-lg appearance-none cursor-pointer accent-accent-blue"
-                    />
-                    <p className="text-[9px] text-text-tertiary leading-relaxed">
-                      Defines the rest interval between successive environmental sweeps, action decodes, and memory dumps.
-                    </p>
+
+                    {/* Pause / Wake All — directly below the slider */}
+                    {hasProviderConfig && (
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          className="h-8 px-3 text-xs font-bold uppercase tracking-widest flex items-center justify-center gap-2"
+                          onClick={handlePauseResume}
+                          title={loopState === 'running' ? 'Pause agent loop' : 'Resume agent loop'}
+                        >
+                          {loopState === 'running' ? (
+                            <>
+                              <Pause size={14} />
+                              Pause
+                            </>
+                          ) : (
+                            <>
+                              <Play size={14} />
+                              Resume
+                            </>
+                          )}
+                        </Button>
+
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          className="h-8 px-3 text-xs font-bold uppercase tracking-widest flex items-center justify-center gap-2"
+                          onClick={() => {
+                            if (anyRunning) {
+                              const count = window.__synthia?.sleepAllAgents?.() || 0;
+                              synthiaToast.info(`Paused ${count} agent(s) - all inference halted, physics continues.`);
+                            } else {
+                              const count = window.__synthia?.resumeAllAgents?.() || 0;
+                              synthiaToast.info(`Resumed ${count} agent(s) - inference restarted.`);
+                            }
+                          }}
+                          title={anyRunning ? 'Pause all agent loops' : 'Resume all agent loops'}
+                        >
+                          {anyRunning ? <Pause size={14} /> : <Play size={14} />}
+                          {anyRunning ? 'Sleep All' : 'Wake All'}
+                        </Button>
+                      </div>
+                    )}
                   </div>
 
                   {/* Database Section */}
@@ -604,39 +634,143 @@ export const AgentSettingsModal: React.FC = () => {
                       onClick={() => setDbExpanded(!dbExpanded)}
                       className="w-full px-4 py-2.5 flex items-center justify-between bg-bg-elevated/20 hover:bg-bg-elevated/40 transition-colors"
                     >
-                      <span className="text-[10px] font-bold uppercase tracking-widest text-text-tertiary flex items-center gap-2">
-                        <Database size={13} />
-                        Supabase Memory Archiving
-                        {config.supabaseUrl && <span className="text-accent-green/70">â— Active</span>}
+                      <span className="text-xs font-bold uppercase tracking-widest text-text-tertiary flex items-center gap-2">
+                        <Database size={14} />
+                        Database
+                        {config.supabaseUrl && <span className="text-text-secondary">* Active</span>}
                       </span>
                       {dbExpanded ? <CaretDown size={14} /> : <CaretUp size={14} />}
                     </button>
 
                     {dbExpanded && (
-                      <div className="p-4 space-y-3 bg-bg-elevated/10 border-t border-border-subtle">
-                        <p className="text-[10px] text-text-tertiary leading-relaxed">
-                          Provide a target Supabase DB credentials override to write memories, skills, and model checkpoints specifically for this agent.
-                        </p>
+                      <div className="p-4 space-y-4 bg-bg-elevated/10 border-t border-border-subtle">
+                        {/* SQL Code Block */}
+                        <div>
+                          <label className="text-xs uppercase font-bold text-text-tertiary mb-1.5 block">
+                            Setup SQL
+                          </label>
+                          <div className="relative">
+                            <pre className="max-h-48 overflow-y-auto p-3 bg-black/20 border border-border-subtle rounded-btn text-[10px] font-mono text-text-secondary leading-relaxed custom-scrollbar whitespace-pre-wrap">
+                              {SUPABASE_SCHEMA_FULL}
+                            </pre>
+                          </div>
+                          <div className="flex items-center gap-2 mt-2">
+                            <Button
+                              variant="secondary"
+                              size="sm"
+                              className="h-8 px-3 text-xs font-bold uppercase tracking-widest"
+                              onClick={handleCopySql}
+                            >
+                              Copy SQL
+                            </Button>
+                            <a
+                              href="https://supabase.com/dashboard/project/_/sql/new"
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="h-8 px-3 rounded-btn border border-border text-xs font-bold uppercase tracking-widest text-text-tertiary hover:text-text-secondary hover:border-text-secondary transition-colors flex items-center gap-1.5"
+                            >
+                              Open SQL Editor
+                              <span className="text-[10px]">&#8599;</span>
+                            </a>
+                          </div>
+                        </div>
+
+                        {/* Setup Steps */}
+                        <div className="space-y-1.5 text-xs text-text-tertiary">
+                          <p className="font-bold uppercase tracking-wider text-text-tertiary">Setup Steps</p>
+                          <ol className="list-decimal list-inside space-y-0.5 leading-relaxed">
+                            <li>Copy the SQL above</li>
+                            <li>Open your Supabase SQL Editor</li>
+                            <li>Paste and Run</li>
+                            <li>Confirm storage buckets exist (Storage tab)</li>
+                            <li>Enter your Supabase URL and anon key below</li>
+                            <li>Click Test connection</li>
+                          </ol>
+                        </div>
+
+                        {/* Credentials */}
                         <div className="space-y-1.5">
-                          <label className="text-[9px] uppercase font-bold text-text-tertiary">Supabase URL Override</label>
+                          <label className="text-xs uppercase font-bold text-text-tertiary">Supabase URL</label>
                           <input
                             type="text"
                             value={config.supabaseUrl || ''}
                             onChange={(e) => runtimeStore.setConfig(activeAgentId, { supabaseUrl: e.target.value })}
                             placeholder="https://xxxx.supabase.co"
-                            className="w-full h-8 px-2.5 bg-bg-elevated border border-border rounded-btn text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-accent-blue"
+                            className="w-full h-8 px-2.5 bg-bg-elevated border border-border rounded-btn text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-white/20"
                           />
                         </div>
                         <div className="space-y-1.5">
-                          <label className="text-[9px] uppercase font-bold text-text-tertiary">Service/Anon Key Override</label>
+                          <label className="text-xs uppercase font-bold text-text-tertiary">Anon Key</label>
                           <input
                             type="password"
                             value={config.supabaseKey || ''}
                             onChange={(e) => runtimeStore.setConfig(activeAgentId, { supabaseKey: e.target.value })}
-                            placeholder="eyJhbGciâ€¦"
-                            className="w-full h-8 px-2.5 bg-bg-elevated border border-border rounded-btn text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-accent-blue"
+                            placeholder="eyJhbGci..."
+                            className="w-full h-8 px-2.5 bg-bg-elevated border border-border rounded-btn text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-white/20"
                           />
                         </div>
+
+                        {/* Test Connection */}
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            className="h-8 px-3 text-xs font-bold uppercase tracking-widest flex items-center gap-2"
+                            onClick={handleTestDbConnection}
+                            disabled={dbTest.status === 'testing' || !config.supabaseUrl || !config.supabaseKey}
+                          >
+                            {dbTest.status === 'testing' ? (
+                              <ArrowsClockwise size={12} className="animate-spin" />
+                            ) : (
+                              <PlugsConnected size={14} />
+                            )}
+                            Test connection
+                          </Button>
+
+                          {/* Status indicator */}
+                          <div className={cn(
+                            "flex items-center h-8 px-3 rounded-btn border min-w-[120px]",
+                            "bg-bg-elevated border-border"
+                          )}>
+                            <div className="flex items-center gap-2">
+                              <Circle size={6} className={cn(
+                                dbTest.status === 'ok' ? 'bg-text-primary' :
+                                dbTest.status === 'fail' ? 'bg-text-primary opacity-60' :
+                                'bg-text-primary opacity-30'
+                              )} />
+                              <span className="text-[10px] font-mono uppercase text-text-secondary">
+                                {dbTest.status === 'ok' ? 'Connected' :
+                                 dbTest.status === 'fail' ? 'Failed' :
+                                 dbTest.status === 'testing' ? 'Testing...' :
+                                 'Not tested'}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Connection result */}
+                        {dbTest.status === 'ok' && (
+                          <div className="flex items-center gap-2 p-3 rounded-btn border border-white/10 bg-white/[0.02] text-text-primary">
+                            <CheckCircle size={14} />
+                            <span className="text-xs font-mono">
+                              Connected ({dbTest.latencyMs}ms)
+                              {dbTest.schemaVersion && ` | Schema v${dbTest.schemaVersion}`}
+                              {!dbTest.schemaVersion && ' | Schema v1 (run v2 migration)'}
+                            </span>
+                          </div>
+                        )}
+                        {dbTest.status === 'fail' && dbTest.error && (
+                          <div className="flex items-start gap-2 p-3 rounded-btn border border-white/10 bg-white/[0.02] text-text-primary opacity-60">
+                            <WarningCircle size={14} className="mt-0.5 shrink-0" />
+                            <span className="text-xs font-mono break-all">{dbTest.error}</span>
+                          </div>
+                        )}
+
+                        {dbTest.schemaVersion && dbTest.schemaVersion < '2.0.0' && (
+                          <div className="p-3 rounded-btn border border-white/10 bg-white/[0.02] text-text-secondary text-xs">
+                            Schema v1 detected. Run the v2 migration SQL (included in Copy SQL above) for performance improvements.
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
@@ -649,10 +783,10 @@ export const AgentSettingsModal: React.FC = () => {
                   <div className="border-t border-border-subtle pt-5 flex flex-col flex-1 min-h-0">
                     <div className="flex items-center justify-between mb-3">
                       <div className="flex items-center gap-1.5">
-                        <Database size={16} className="text-accent-purple" />
+                        <Database size={14} className="text-text-secondary" />
                         <h3 className="text-xs font-bold text-text-primary uppercase tracking-wider">Detailed Memory Explorer</h3>
                       </div>
-                      <span className="text-[10px] font-mono text-text-tertiary">
+                      <span className="text-xs font-mono text-text-tertiary">
                         Total Memories Archived: <strong className="text-text-secondary">{currentAgent.memories?.length || 0}</strong>
                       </span>
                     </div>
@@ -678,9 +812,9 @@ export const AgentSettingsModal: React.FC = () => {
                             key={tier}
                             onClick={() => setMemoryTierFilter(tier as any)}
                             className={cn(
-                              "h-8 px-2.5 text-[9px] font-bold uppercase border rounded-btn transition-all",
+                              "h-8 px-2.5 text-xs font-bold uppercase border rounded-btn transition-all",
                               memoryTierFilter === tier
-                                ? "border-accent-purple bg-accent-purple/10 text-text-primary"
+                                ? "border-white/20 bg-white/10 text-text-primary"
                                 : "border-border text-text-tertiary hover:border-text-secondary"
                             )}
                           >
@@ -693,8 +827,8 @@ export const AgentSettingsModal: React.FC = () => {
                     {/* Memories List */}
                     <div className="flex-1 overflow-y-auto max-h-[220px] border border-border-subtle rounded-btn bg-black/10 divide-y divide-border-subtle custom-scrollbar">
                       {filteredMemories.length === 0 ? (
-                        <div className="p-8 text-center text-[10px] uppercase tracking-wider text-text-tertiary opacity-30">
-                          No matching memories found in activeAgent archive
+                        <div className="p-8 text-center text-xs text-text-tertiary opacity-30">
+                          No matching memories found in this agent's archive
                         </div>
                       ) : (
                         filteredMemories.map((m) => {
@@ -703,32 +837,32 @@ export const AgentSettingsModal: React.FC = () => {
                             <div key={m.id} className="p-3 bg-bg-panel/40 space-y-2 text-left relative group hover:bg-white/[0.01]">
                               <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-2">
-                                  <Badge variant="tertiary" className="text-[9px]">HB {m.heartbeat}</Badge>
-                                  <span className={`px-1.5 py-0.5 text-[8px] font-bold font-mono rounded ${
-                                    m.tier === 1 ? 'bg-accent-green/10 text-accent-green' :
-                                    m.tier === 2 ? 'bg-accent-blue/10 text-accent-blue' :
-                                    'bg-accent-amber/10 text-accent-amber'
+                                  <Badge variant="tertiary" className="text-xs">HB {m.heartbeat}</Badge>
+                                  <span className={`px-1.5 py-0.5 text-xs font-bold font-mono rounded ${
+                                    m.tier === 1 ? 'bg-white/10 text-text-primary font-medium' :
+                                    m.tier === 2 ? 'bg-white/10 text-text-primary' :
+                                    'bg-white/10 text-text-secondary'
                                   }`}>
                                     TIER {m.tier}
                                   </span>
                                   {m.tier === 1 && (
-                                    <Bookmark size={11} className="text-accent-teal" />
+                                    <Bookmark size={11} className="text-text-secondary" />
                                   )}
                                 </div>
                                 <span className={cn(
-                                  "text-[10px] font-mono font-bold",
-                                  reward >= 0.8 ? 'text-accent-green' : reward >= 0.3 ? 'text-accent-amber' : 'text-accent-red'
+                                  "text-xs font-mono font-bold",
+                                  reward >= 0.8 ? 'text-text-primary font-medium' : reward >= 0.3 ? 'text-text-secondary' : 'text-text-primary opacity-60'
                                 )}>
                                   Reward: {reward > 0 ? '+' : ''}{reward.toFixed(2)}
                                 </span>
                               </div>
 
                               <div className="space-y-1">
-                                <p className="text-[11px] text-text-primary leading-relaxed font-mono">
+                                <p className="text-xs text-text-primary leading-relaxed font-mono">
                                   {m.thought}
                                 </p>
                                 {m.summary && (
-                                  <p className="text-[10px] text-text-tertiary italic">
+                                  <p className="text-xs text-text-tertiary italic">
                                     Summary: {m.summary}
                                   </p>
                                 )}
@@ -746,7 +880,7 @@ export const AgentSettingsModal: React.FC = () => {
                 <div className="space-y-5 max-w-[540px]">
                   <div>
                     <h3 className="text-xs font-bold text-text-primary uppercase tracking-wider">Agent Voice & TTS Synthesis</h3>
-                    <p className="text-[11px] text-text-tertiary leading-normal mt-1">
+                    <p className="text-xs text-text-tertiary leading-normal mt-1">
                       Configure text-to-speech settings, choose custom browser-native system voices, and tune playback behavior for {activeAgentId}.
                     </p>
                   </div>
@@ -755,16 +889,16 @@ export const AgentSettingsModal: React.FC = () => {
                   <div className="flex items-center justify-between p-4 rounded-btn border border-border bg-white/[0.01]">
                     <div className="space-y-0.5">
                       <label className="text-xs font-bold text-text-primary uppercase tracking-wider">Enable Voice Playback</label>
-                      <p className="text-[10px] text-text-tertiary leading-normal">
-                        Only text wrapped in <code className="text-accent-teal">{"<speak>...</speak>"}</code> tags is spoken aloud. Internal thoughts stay silent.
+                      <p className="text-xs text-text-tertiary leading-normal">
+                        Only text wrapped in <code className="text-text-secondary">{"<speak>...</speak>"}</code> tags is spoken aloud. Internal thoughts stay silent.
                       </p>
                     </div>
                     <button
                       onClick={() => setTtsEnabledForAgent(activeAgentId, !isAgentTtsEnabled)}
                       className={cn(
-                        "px-4 h-8 rounded-btn text-[10px] font-bold uppercase tracking-wider border transition-all",
+                        "px-4 h-8 rounded-btn text-xs font-bold uppercase tracking-wider border transition-all",
                         isAgentTtsEnabled
-                          ? "border-accent-teal bg-accent-teal/10 text-text-primary font-bold"
+                          ? "border-white/20 bg-white/10 text-text-primary font-bold"
                           : "border-border text-text-tertiary hover:border-text-secondary"
                       )}
                     >
@@ -774,7 +908,7 @@ export const AgentSettingsModal: React.FC = () => {
 
                   {/* Voice Selector Dropdown */}
                   <div className="space-y-1.5">
-                    <label className="text-[10px] uppercase tracking-wider text-text-tertiary font-bold flex justify-between">
+                    <label className="text-xs uppercase tracking-wider text-text-tertiary font-bold flex justify-between">
                       <span>Select Speech Voice</span>
                       <span className="text-text-tertiary/50 font-normal">Browser-Native Web Speech API</span>
                     </label>
@@ -793,7 +927,7 @@ export const AgentSettingsModal: React.FC = () => {
                       ]}
                     />
                     {availableVoices.length === 0 && (
-                      <p className="text-[9px] text-accent-amber mt-1">
+                      <p className="text-xs text-text-secondary mt-1">
                         No system voices detected yet. Ensure your device audio output is active or wait for browser voices to load.
                       </p>
                     )}
@@ -816,7 +950,7 @@ export const AgentSettingsModal: React.FC = () => {
                           synthiaToast.error("Failed to play voice test.");
                         }
                       }}
-                      className="w-full h-9 text-[10px] font-bold uppercase tracking-widest flex items-center justify-center gap-2"
+                      className="w-full h-9 text-xs font-bold uppercase tracking-widest flex items-center justify-center gap-2"
                     >
                       <SpeakerHigh size={14} />
                       Test Synthesized Voice
@@ -826,8 +960,8 @@ export const AgentSettingsModal: React.FC = () => {
                   {/* Multi-agent Audio Behavior (Global Option presented here for convenience) */}
                   <div className="space-y-3 border-t border-border-subtle pt-4">
                     <div>
-                      <h4 className="text-[10px] font-bold text-text-secondary uppercase tracking-wider">Multi-Agent Concurrent Speech</h4>
-                      <p className="text-[10px] text-text-tertiary leading-normal mt-1">
+                      <h4 className="text-xs font-bold text-text-secondary uppercase tracking-wider">Multi-Agent Concurrent Speech</h4>
+                      <p className="text-xs text-text-tertiary leading-normal mt-1">
                         Configure how the application handles concurrent thoughts from non-active background agents.
                       </p>
                     </div>
@@ -838,12 +972,12 @@ export const AgentSettingsModal: React.FC = () => {
                         className={cn(
                           "p-3 rounded-btn border text-left flex flex-col justify-between min-h-[70px] transition-all",
                           nonActiveBehavior === 'mute'
-                            ? "border-accent-blue bg-accent-blue/5 text-text-primary"
+                            ? "border-white/20 bg-white/5 text-text-primary"
                             : "border-border text-text-tertiary hover:border-text-secondary bg-white/[0.01]"
                         )}
                       >
-                        <span className="text-[10px] font-bold uppercase tracking-wider">Mute Background (Option A)</span>
-                        <span className="text-[9px] text-text-tertiary/80 leading-tight mt-1">
+                        <span className="text-xs font-bold uppercase tracking-wider">Mute Background (Option A)</span>
+                        <span className="text-xs text-text-tertiary/80 leading-tight mt-1">
                           Only the active agent is spoken. Background thoughts are skipped to avoid browser queue lag.
                         </span>
                       </button>
@@ -853,12 +987,12 @@ export const AgentSettingsModal: React.FC = () => {
                         className={cn(
                           "p-3 rounded-btn border text-left flex flex-col justify-between min-h-[70px] transition-all",
                           nonActiveBehavior === 'attenuate'
-                            ? "border-accent-blue bg-accent-blue/5 text-text-primary"
+                            ? "border-white/20 bg-white/5 text-text-primary"
                             : "border-border text-text-tertiary hover:border-text-secondary bg-white/[0.01]"
                         )}
                       >
-                        <span className="text-[10px] font-bold uppercase tracking-wider">Attenuate (Duck Volume)</span>
-                        <span className="text-[9px] text-text-tertiary/80 leading-tight mt-1">
+                        <span className="text-xs font-bold uppercase tracking-wider">Attenuate (Duck Volume)</span>
+                        <span className="text-xs text-text-tertiary/80 leading-tight mt-1">
                           Background thoughts speak at 10% volume, queued behind the active agent's thoughts.
                         </span>
                       </button>
@@ -871,16 +1005,16 @@ export const AgentSettingsModal: React.FC = () => {
                 <div className="space-y-5 max-w-[540px]">
                   <div>
                     <h3 className="text-xs font-bold text-text-primary uppercase tracking-wider">AI Perception Vision</h3>
-                    <p className="text-[11px] text-text-tertiary leading-normal mt-1">
-                      Tune how the agent's eyes work â€” wider FOV behaves like a first-person shooter's field of view, higher resolution costs more per frame.
+                    <p className="text-xs text-text-tertiary leading-normal mt-1">
+                      Tune how the agent's eyes work  -  wider FOV behaves like a first-person shooter's field of view, higher resolution costs more per frame.
                     </p>
                   </div>
 
                   {/* FOV Slider */}
                   <div className="space-y-2 p-4 rounded-btn border border-border bg-white/[0.01]">
                     <div className="flex justify-between items-center">
-                      <label className="text-[10px] uppercase tracking-wider text-text-tertiary font-bold">Field of View (FOV)</label>
-                      <span className="text-xs font-mono font-bold text-accent-blue">{aiVisionFov}Â°</span>
+                      <label className="text-xs uppercase tracking-wider text-text-tertiary font-bold">Field of View (FOV)</label>
+                      <span className="text-xs font-mono font-bold text-text-primary">{aiVisionFov}°</span>
                     </div>
                     <input
                       type="range"
@@ -889,18 +1023,18 @@ export const AgentSettingsModal: React.FC = () => {
                       step="1"
                       value={aiVisionFov}
                       onChange={(e) => setAiVisionFov(parseInt(e.target.value))}
-                      className="w-full h-1 bg-bg-elevated rounded-lg appearance-none cursor-pointer accent-accent-blue"
+                      className="w-full h-1 bg-bg-elevated rounded-lg appearance-none cursor-pointer text-secondary"
                     />
-                    <p className="text-[9px] text-text-tertiary leading-relaxed">
-                      Higher FOV = wider view like FPS games (default 110Â°). Lower = tighter, more focused shots.
+                    <p className="text-xs text-text-tertiary leading-relaxed">
+                      Higher FOV = wider view like FPS games (default 110°). Lower = tighter, more focused shots.
                     </p>
                   </div>
 
                   {/* Resolution Picker */}
                   <div className="space-y-2 p-4 rounded-btn border border-border bg-white/[0.01]">
                     <div className="flex justify-between items-center">
-                      <label className="text-[10px] uppercase tracking-wider text-text-tertiary font-bold">Render Resolution</label>
-                      <span className="text-xs font-mono font-bold text-accent-blue">{aiVisionSize}Ã—{aiVisionSize}</span>
+                      <label className="text-xs uppercase tracking-wider text-text-tertiary font-bold">Render Resolution</label>
+                      <span className="text-xs font-mono font-bold text-text-primary">{aiVisionSize}×{aiVisionSize}</span>
                     </div>
                     <div className="flex gap-2">
                       {VISION_SIZES.map((size) => (
@@ -908,9 +1042,9 @@ export const AgentSettingsModal: React.FC = () => {
                           key={size}
                           onClick={() => setAiVisionSize(size)}
                           className={cn(
-                            "flex-1 h-9 rounded-btn border text-[10px] font-bold transition-all",
+                            "flex-1 h-9 rounded-btn border text-xs font-bold transition-all",
                             aiVisionSize === size
-                              ? "border-accent-blue bg-accent-blue/10 text-text-primary"
+                              ? "border-white/20 bg-white/10 text-text-primary"
                               : "border-border text-text-tertiary hover:border-text-secondary"
                           )}
                         >
@@ -918,7 +1052,7 @@ export const AgentSettingsModal: React.FC = () => {
                         </button>
                       ))}
                     </div>
-                    <p className={cn("text-[9px] leading-relaxed", aiVisionSize > 448 ? 'text-accent-amber' : 'text-text-tertiary')}>
+                    <p className={cn("text-xs leading-relaxed", aiVisionSize > 448 ? 'text-text-secondary' : 'text-text-tertiary')}>
                       {aiVisionSize > 448
                         ? `⚠ Higher resolutions increase API token/cost per frame significantly.`
                         : 'Default 448×448. Lower sizes reduce API cost; higher sizes improve detail but cost more.'}
@@ -927,53 +1061,53 @@ export const AgentSettingsModal: React.FC = () => {
                 </div>
               )}
 
-              {/* Identity Section */}
+              {activeTab === 'identity' && (
               <div key={activeAgentId} className="space-y-3 p-4 rounded-btn border border-border bg-white/[0.01]">
-                <h3 className="text-[10px] uppercase tracking-wider text-text-tertiary font-bold flex items-center gap-2">
+                <h3 className="text-xs uppercase tracking-wider text-text-tertiary font-bold flex items-center gap-2">
                   <Bookmark size={12} />
                   Agent Identity
                 </h3>
-                <p className="text-[9px] text-text-tertiary leading-relaxed">
+                <p className="text-xs text-text-tertiary leading-relaxed">
                   The agent's name, beliefs, and traits are injected into its system prompt each cycle.
                   Edits are rate-limited to 1 per 5 minutes per agent.
                 </p>
                 <div className="space-y-2">
-                  <label className="text-[9px] text-text-tertiary uppercase tracking-wider font-bold">Name</label>
+                  <label className="text-xs text-text-tertiary uppercase tracking-wider font-bold">Name</label>
                   <input
                     type="text"
                     value={editName}
                     onChange={(e) => setEditName(e.target.value)}
-                    className="w-full h-8 px-3 rounded-btn border border-border bg-white/[0.02] text-xs font-mono text-text-primary focus:outline-none focus:border-accent-blue"
+                    className="w-full h-8 px-3 rounded-btn border border-border bg-white/[0.02] text-xs font-mono text-text-primary focus:outline-none focus:border-white/20"
                     placeholder="Agent name"
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[9px] text-text-tertiary uppercase tracking-wider font-bold">Beliefs (JSON array)</label>
+                  <label className="text-xs text-text-tertiary uppercase tracking-wider font-bold">Beliefs (JSON array)</label>
                   <textarea
                     value={editBeliefs}
                     onChange={(e) => setEditBeliefs(e.target.value)}
                     rows={3}
-                    className="w-full px-3 py-2 rounded-btn border border-border bg-white/[0.02] text-xs font-mono text-text-primary focus:outline-none focus:border-accent-blue resize-none"
+                    className="w-full px-3 py-2 rounded-btn border border-border bg-white/[0.02] text-xs font-mono text-text-primary focus:outline-none focus:border-white/20 resize-none"
                     placeholder='["belief1", "belief2"]'
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[9px] text-text-tertiary uppercase tracking-wider font-bold">Traits (JSON object)</label>
+                  <label className="text-xs text-text-tertiary uppercase tracking-wider font-bold">Traits (JSON object)</label>
                   <textarea
                     value={editTraits}
                     onChange={(e) => setEditTraits(e.target.value)}
                     rows={2}
-                    className="w-full px-3 py-2 rounded-btn border border-border bg-white/[0.02] text-xs font-mono text-text-primary focus:outline-none focus:border-accent-blue resize-none"
+                    className="w-full px-3 py-2 rounded-btn border border-border bg-white/[0.02] text-xs font-mono text-text-primary focus:outline-none focus:border-white/20 resize-none"
                     placeholder='{"trait": "value"}'
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[9px] text-text-tertiary uppercase tracking-wider font-bold">Reason for edit (required)</label>
+                  <label className="text-xs text-text-tertiary uppercase tracking-wider font-bold">Reason for edit (required)</label>
                   <input
                     type="text"
                     value={editReason}
                     onChange={(e) => setEditReason(e.target.value)}
-                    className="w-full h-8 px-3 rounded-btn border border-border bg-white/[0.02] text-xs font-mono text-text-primary focus:outline-none focus:border-accent-blue"
+                    className="w-full h-8 px-3 rounded-btn border border-border bg-white/[0.02] text-xs font-mono text-text-primary focus:outline-none focus:border-white/20"
                     placeholder="Why are you changing this?"
                   />
                 </div>
@@ -987,9 +1121,7 @@ export const AgentSettingsModal: React.FC = () => {
                       setIdentitySaving(true);
                       setIdentityMsg(null);
                       try {
-                        const update: any = {};
-                        if (editName !== (identity?.name || '')) update.name = editName;
-                        let parsedBeliefs: any[] | undefined;
+                        let parsedBeliefs: any[];
                         try {
                           parsedBeliefs = JSON.parse(editBeliefs);
                           if (!Array.isArray(parsedBeliefs)) throw new Error();
@@ -998,7 +1130,8 @@ export const AgentSettingsModal: React.FC = () => {
                           setIdentitySaving(false);
                           return;
                         }
-                        let parsedTraits: Record<string, any> | undefined;
+
+                        let parsedTraits: Record<string, any>;
                         try {
                           parsedTraits = JSON.parse(editTraits);
                           if (typeof parsedTraits !== 'object' || Array.isArray(parsedTraits)) throw new Error();
@@ -1007,14 +1140,22 @@ export const AgentSettingsModal: React.FC = () => {
                           setIdentitySaving(false);
                           return;
                         }
-                        update.beliefs = parsedBeliefs.map((b: any) => ({ op: 'replace', value: b }));
-                        update.traits = parsedTraits;
+
+                        const update = {
+                          name: editName.trim(),
+                          beliefs: parsedBeliefs,
+                          traits: parsedTraits,
+                        };
+
                         const result = await window.__synthia?.manualIdentityUpdate?.(activeAgentId, update, editReason.trim());
                         if (result?.ok) {
-                          setIdentityMsg('Identity updated successfully');
+                          setIdentityMsg('Identity updated and saved to Supabase');
                           setEditReason('');
+                          synthiaToast.success(`Identity updated for ${activeAgentId}`);
                         } else {
-                          setIdentityMsg(`Error: ${result?.error || 'Unknown error'}`);
+                          const errStr = result?.error || 'Unknown error';
+                          setIdentityMsg(`Error: ${errStr}`);
+                          synthiaToast.error(`Identity update failed: ${errStr}`);
                         }
                       } catch (err) {
                         setIdentityMsg(`Error: ${err instanceof Error ? err.message : 'Unknown error'}`);
@@ -1023,17 +1164,66 @@ export const AgentSettingsModal: React.FC = () => {
                       }
                     }}
                     disabled={identitySaving || !editReason.trim()}
-                    className="h-8 px-4 rounded-btn border border-accent-blue bg-accent-blue/10 text-accent-blue text-[10px] font-bold transition-all hover:bg-accent-blue/20 disabled:opacity-40 disabled:cursor-not-allowed"
+                    className="h-8 px-4 rounded-btn border border-white/20 bg-white/10 text-text-primary text-xs font-bold transition-all hover:bg-white/10/20 disabled:opacity-40 disabled:cursor-not-allowed"
                   >
                     {identitySaving ? 'Saving...' : 'Save Identity'}
                   </button>
                   {identityMsg && (
-                    <span className={cn("text-[9px]", identityMsg.startsWith('Error') ? 'text-accent-red' : 'text-accent-green')}>
+                    <span className={cn("text-xs", identityMsg.startsWith('Error') ? 'text-text-primary opacity-60' : 'text-text-primary font-medium')}>
                       {identityMsg}
                     </span>
                   )}
                 </div>
               </div>
+              )}
+
+              {activeTab === 'codex' && (
+              <div key={activeAgentId} className="space-y-4 p-4 rounded-btn border border-border bg-white/[0.01]">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <h3 className="text-xs uppercase tracking-wider text-text-tertiary font-bold flex items-center gap-2">
+                      <Play size={12} />
+                      Motion Guide Manual
+                    </h3>
+                    <p className="text-xs text-text-tertiary leading-relaxed">
+                      Toggle whether this agent has access to baseline motion recipes during cognitive inference.
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      const enabled = currentAgent.useActionDictionary !== false;
+                      useAgentStore.getState().setUseActionDictionaryForAgent(activeAgentId, !enabled);
+                      synthiaToast.info(`Motor Codex ${!enabled ? 'enabled' : 'disabled'} for ${activeAgentId}`);
+                    }}
+                    className={cn(
+                      "px-3 py-1.5 rounded-btn text-xs font-mono font-bold transition-all border",
+                      currentAgent.useActionDictionary !== false
+                        ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/30"
+                        : "bg-white/5 text-text-tertiary border-border hover:bg-white/10"
+                    )}
+                  >
+                    {currentAgent.useActionDictionary !== false ? 'ENABLED' : 'DISABLED (Tabula Rasa)'}
+                  </button>
+                </div>
+
+                <div className="p-3 rounded-btn border border-border bg-white/[0.02] flex items-center justify-between gap-4">
+                  <div className="space-y-1">
+                    <div className="text-xs font-bold text-text-primary">View Motion Dictionary</div>
+                    <div className="text-[11px] text-text-tertiary">
+                      Inspect recorded motion recipes, milestone keyframes, and joint parameters in a dedicated window.
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => {
+                      useUIStore.getState().setMotorCodexModalOpen(true);
+                    }}
+                    className="h-8 px-4 rounded-btn border border-white/20 bg-white/10 hover:bg-white/15 text-text-primary text-xs font-medium transition-colors shrink-0"
+                  >
+                    Open Dictionary
+                  </button>
+                </div>
+              </div>
+              )}
             </div>
           </div>
         </Panel>

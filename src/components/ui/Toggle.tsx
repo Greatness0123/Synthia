@@ -15,15 +15,15 @@ interface ToggleProps {
 export const Toggle: React.FC<ToggleProps> = ({ label, ariaLabel, enabled, onChange, className }) => {
   return (
     <div className={cn("flex items-center justify-between gap-3", className)}>
-      {label && <span className="text-[10px] uppercase tracking-wider text-text-tertiary">{label}</span>}
+      {label && <span className="text-xs text-text-tertiary">{label}</span>}
       <button
         role="switch"
         aria-checked={enabled}
         aria-label={ariaLabel ?? label ?? 'Toggle'}
         onClick={() => onChange(!enabled)}
         className={cn(
-          "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-1 focus:ring-accent-blue",
-          enabled ? "bg-accent-blue" : "bg-bg-elevated"
+          "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-1 focus:ring-white/20",
+          enabled ? "bg-white/20" : "bg-bg-elevated"
         )}
       >
         <span

@@ -86,7 +86,7 @@ export const StructureViewer: React.FC = () => {
       <div className="flex flex-col items-center justify-center h-full text-text-tertiary p-8 text-center">
         <Cube size={48} className="mb-4 opacity-20" />
         <p className="text-xs font-mono uppercase tracking-widest">No Entity Selected</p>
-        <p className="text-[10px] mt-2 leading-relaxed">Click an object in the world to view its structure and properties.</p>
+        <p className="text-xs mt-2 leading-relaxed">Click an object in the world to view its structure and properties.</p>
       </div>
     );
   }
@@ -95,10 +95,10 @@ export const StructureViewer: React.FC = () => {
     <div className="flex flex-col h-full overflow-hidden">
       <div className="p-4 border-b border-border bg-bg-elevated/30">
         <div className="flex items-center gap-2 mb-1">
-          {entityData.isHumanoid ? <Bone size={16} className="text-accent-blue" /> : <Cube size={16} className="text-accent-blue" />}
+          {entityData.isHumanoid ? <Bone size={16} className="text-text-primary" /> : <Cube size={16} className="text-text-primary" />}
           <input
             type="text"
-            className="text-xs font-bold bg-transparent border-b border-transparent focus:border-accent-blue outline-none uppercase tracking-tight flex-1"
+            className="text-xs font-bold bg-transparent border-b border-transparent focus:border-white/20 outline-none uppercase tracking-tight flex-1"
             value={entityData.name ?? ''}
             onChange={(e) => setEntityData({ ...entityData, name: e.target.value })}
             onFocus={() => { isRenamingRef.current = true; }}
@@ -121,19 +121,19 @@ export const StructureViewer: React.FC = () => {
             title={entityData.isHumanoid ? "Cannot rename humanoid" : "Click to rename"}
           />
         </div>
-        <p className="text-[10px] text-text-tertiary font-mono">UUID: {selectedEntityId.split('-')[0]}...</p>
+        <p className="text-xs text-text-tertiary font-mono">UUID: {selectedEntityId.split('-')[0]}...</p>
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         <section>
-          <h4 className="text-[10px] font-bold text-text-secondary uppercase mb-2 flex items-center gap-1">
+          <h4 className="text-xs font-bold text-text-secondary uppercase mb-2 flex items-center gap-1">
             <Move size={12} /> Transform
           </h4>
           <div className="grid grid-cols-3 gap-2">
             {['x', 'y', 'z'].map((axis) => (
               <div key={axis} className="bg-bg-elevated p-1.5 rounded border border-border/50 text-center">
-                <div className="text-[8px] text-text-tertiary uppercase font-bold">{axis}</div>
-                <div className="text-[10px] font-mono">{(entityData.position as any)[axis].toFixed(2)}</div>
+                <div className="text-xs text-text-tertiary uppercase font-bold">{axis}</div>
+                <div className="text-xs font-mono">{(entityData.position as any)[axis].toFixed(2)}</div>
               </div>
             ))}
           </div>
@@ -141,12 +141,12 @@ export const StructureViewer: React.FC = () => {
 
         {entityData.isHumanoid ? (
           <section>
-            <h4 className="text-[10px] font-bold text-text-secondary uppercase mb-2 flex items-center gap-1">
+            <h4 className="text-xs font-bold text-text-secondary uppercase mb-2 flex items-center gap-1">
               <Bone size={12} /> Bone Hierarchy ({entityData.bones.length})
             </h4>
             <div className="space-y-1">
               {entityData.bones.map((bone: any, i: number) => (
-                <div key={i} className="text-[9px] bg-bg-elevated/50 p-2 rounded border border-border/30 group hover:border-accent-blue/30 transition-colors">
+                <div key={i} className="text-xs bg-bg-elevated/50 p-2 rounded border border-border/30 group hover:border-white/20 transition-colors">
                   <div className="font-bold text-text-primary mb-1 truncate">{bone.name.replace('mixamorig', '')}</div>
                   <div className="flex gap-2 text-text-tertiary font-mono">
                     <span>{bone.rotation[0]}°</span>
@@ -160,18 +160,18 @@ export const StructureViewer: React.FC = () => {
         ) : (
           <>
             <section>
-              <h4 className="text-[10px] font-bold text-text-secondary uppercase mb-2 flex items-center gap-1">
+              <h4 className="text-xs font-bold text-text-secondary uppercase mb-2 flex items-center gap-1">
                 <Cube size={12} /> Physics Properties
               </h4>
               <div className="space-y-2">
                 {Object.entries(entityData.physics || {}).map(([key, value]: [string, any]) => (
                   <div key={key} className="flex justify-between items-center bg-bg-elevated/50 p-2 rounded border border-border/30">
-                    <span className="text-[10px] text-text-tertiary uppercase font-bold">{key}</span>
+                    <span className="text-xs text-text-tertiary uppercase font-bold">{key}</span>
                     <input
                       type="number"
                       step={key === 'mass' ? 0.1 : 0.05}
                       min={0}
-                      className="text-[10px] font-mono bg-transparent text-right w-16 outline-none border-b border-transparent focus:border-accent-blue"
+                      className="text-xs font-mono bg-transparent text-right w-16 outline-none border-b border-transparent focus:border-white/20"
                       value={value}
                       onChange={(e) => {
                         const num = parseFloat(e.target.value);
@@ -203,7 +203,7 @@ export const StructureViewer: React.FC = () => {
                   }
                 }}
                 aria-label="Delete selected object"
-                className="w-full py-2 bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/30 rounded text-[10px] font-bold uppercase tracking-widest transition-colors"
+                className="w-full py-2 bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/30 rounded text-xs font-bold uppercase tracking-widest transition-colors"
               >
                 Delete Object
               </button>

@@ -1,4 +1,5 @@
 import { PhysicsEngine } from './PhysicsEngine';
+import { logger as Logger } from '../../utils/logger';
 
 export interface CapturedAgentState {
   rootPos: [number, number, number];
@@ -15,6 +16,36 @@ export interface CapturedObjectState {
   quat: [number, number, number, number];
   linvel: [number, number, number];
   angvel: [number, number, number];
+}
+
+// Module-level caches for WASM name→ID lookups (cleared on model reload)
+let _jointNameCache: Map<string, number> | null = null;
+let _actuatorNameCache: Map<string, number> | null = null;
+
+/** Clear name→ID caches (call after model reload). */
+export function clearStateRehydratorCaches(): void {
+  _jointNameCache?.clear();
+  _actuatorNameCache?.clear();
+}
+
+function getJointId(model: any, module: any, name: string): number {
+  if (!_jointNameCache) _jointNameCache = new Map();
+  let id = _jointNameCache.get(name);
+  if (id === undefined) {
+    id = module.mj_name2id(model, module.mjtObj.mjOBJ_JOINT.value, name);
+    _jointNameCache.set(name, id);
+  }
+  return id;
+}
+
+function getActuatorId(model: any, module: any, name: string): number {
+  if (!_actuatorNameCache) _actuatorNameCache = new Map();
+  let id = _actuatorNameCache.get(name);
+  if (id === undefined) {
+    id = module.mj_name2id(model, module.mjtObj.mjOBJ_ACTUATOR.value, name);
+    _actuatorNameCache.set(name, id);
+  }
+  return id;
 }
 
 export class StateRehydrator {
@@ -38,7 +69,7 @@ export class StateRehydrator {
     // 1. Capture agents' state
     for (const agentId of activeAgentIds) {
       const prefix = `${agentId}_`;
-      const rootJntId = module.mj_name2id(model, module.mjtObj.mjOBJ_JOINT.value, prefix + 'root_freejoint');
+      const rootJntId = getJointId(model, module, prefix + 'root_freejoint');
 
       let rootPos: [number, number, number] = [0, 0.9, 0];
       let rootQuat: [number, number, number, number] = [1, 0, 0, 0];
@@ -90,7 +121,7 @@ export class StateRehydrator {
         jointVels,
         ctrl,
       };
-      console.log(`[STATE_REHYDRATOR] Captured ${agentId}: rootPos=[${rootPos.map(n=>n.toFixed(3)).join(', ')}], jointCount=${Object.keys(jointAngles).length}, ctrlCount=${Object.keys(ctrl).length}`);
+      Logger.info(`[STATE_REHYDRATOR] Captured ${agentId}: rootPos=[${rootPos.map(n=>n.toFixed(3)).join(', ')}], jointCount=${Object.keys(jointAngles).length}, ctrlCount=${Object.keys(ctrl).length}`);
     }
 
     // 2. Capture objects' state
@@ -133,7 +164,7 @@ export class StateRehydrator {
     // 1. Restore agents' state
     for (const [agentId, state] of Object.entries(captured.agents)) {
       const prefix = `${agentId}_`;
-      const rootJntId = module.mj_name2id(model, module.mjtObj.mjOBJ_JOINT.value, prefix + 'root_freejoint');
+      const rootJntId = getJointId(model, module, prefix + 'root_freejoint');
       if (rootJntId >= 0) {
         const qp = model.jnt_qposadr[rootJntId];
         const qv = model.jnt_dofadr[rootJntId];
@@ -150,7 +181,7 @@ export class StateRehydrator {
       }
 
       for (const [jntName, angle] of Object.entries(state.jointAngles)) {
-        const ji = module.mj_name2id(model, module.mjtObj.mjOBJ_JOINT.value, jntName);
+        const ji = getJointId(model, module, jntName);
         if (ji >= 0) {
           const qp = model.jnt_qposadr[ji];
           const qv = model.jnt_dofadr[ji];
@@ -164,13 +195,13 @@ export class StateRehydrator {
       // no 20-step ramp from zero, no pose flop.
       if (state.ctrl) {
         for (const [actName, value] of Object.entries(state.ctrl)) {
-          const ai = module.mj_name2id(model, module.mjtObj.mjOBJ_ACTUATOR.value, actName);
+          const ai = getActuatorId(model, module, actName);
           if (ai >= 0) {
             data.ctrl[ai] = value;
           }
         }
       }
-      console.log(`[STATE_REHYDRATOR] Restored ${agentId}: rootPos=[${state.rootPos.map(n=>n.toFixed(3)).join(', ')}] into new world.`);
+      Logger.info(`[STATE_REHYDRATOR] Restored ${agentId}: rootPos=[${state.rootPos.map(n=>n.toFixed(3)).join(', ')}] into new world.`);
     }
 
     // 2. Restore objects' state
@@ -183,6 +214,7 @@ export class StateRehydrator {
         if (jntadr >= 0) {
           const qposAdr = model.jnt_qposadr[jntadr];
           if (dofNum === 6 && qposAdr >= 0) {
+            Logger.info(`[RESTORE OBJ] ${obj.id} bodyId=${obj.bodyId} writing pos=[${state.pos.map((n:number)=>n.toFixed(3))}] to qposAdr=${qposAdr}`);
             data.qpos[qposAdr] = state.pos[0];
             data.qpos[qposAdr + 1] = state.pos[1];
             data.qpos[qposAdr + 2] = state.pos[2];

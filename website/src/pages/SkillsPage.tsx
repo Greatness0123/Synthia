@@ -3,12 +3,32 @@ import { Link } from 'react-router-dom'
 import { skillLevels } from '@/data/skills'
 import { FadeContent } from '@/components/react-bits/FadeContent'
 import { PageLayout } from '@/components/layout/PageLayout'
+import { PageMeta } from '@/components/seo/PageMeta'
 import { ShimmerButton } from '@/components/ui/ShimmerButton'
 import { siteConfig } from '@/config/site'
 
 export function SkillsPage() {
   return (
     <PageLayout>
+      <PageMeta
+        title="Watch your AI learn — the embodied AI skill ladder"
+        description="Watch an AI character learn physical skills step by step: from holding still and balancing, to walking, turning, climbing stairs, and reaching goals. AI that learns skills in a real physics simulation. AI that learns to walk."
+        path="/skills"
+        keywords="AI that learns to walk, AI that learns skills, watch an AI learn, skill ladder AI, AI physical evolution, AI learning progression, AI balance skills, AI walking skills, AI motor skills, embodied AI skills, AI obstacle navigation, AI stair climbing, AI reaching goals, AI body control, AI movement learning, progressive AI learning, AI skill levels, AI physical milestones, AI standing balance, AI turning skills, AI negotiation obstacles, humanoid AI skills, AI motor programs, AI reusable movements, AI skill persistence, AI skill export, how do AI agents learn skills, can AI learn to walk, AI task benchmark, AI character you can watch learn, AI physical learning, AI body learning, AI movement mastery, AI coordination skills, AI balance training, AI locomotion skills, AI dexterity skills, AI spatial awareness, AI terrain navigation, AI physics skills, real physics AI learning, browser AI skills, AI skill demonstration, AI progress tracking, AI learning visualization, AI evolution stages, AI capability ladder, AI skill acquisition, AI motor learning, AI physical intelligence"
+        jsonLd={{
+          '@context': 'https://schema.org',
+          '@type': 'ItemList',
+          name: 'SYNTHIA AI Skill Ladder',
+          description: 'A 10-level progression of physical skills an AI learns in a browser-based physics simulation',
+          numberOfItems: skillLevels.length,
+          itemListElement: skillLevels.map((lvl, i) => ({
+            '@type': 'ListItem',
+            position: i + 1,
+            name: lvl.name,
+            description: lvl.description,
+          })),
+        }}
+      />
       <div className="section-padding mx-auto max-w-4xl pt-28">
         <FadeContent>
           <p className="mb-4 text-xs uppercase tracking-[0.2em] text-teal">

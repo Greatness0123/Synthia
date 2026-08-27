@@ -110,10 +110,11 @@ export function Header() {
               <Link
                 to="/"
                 className={cn(
-                  'shrink-0 font-serif text-[22px] sm:text-2xl tracking-tight transition-opacity duration-200 hover:opacity-80',
+                  'shrink-0 flex items-center gap-2.5 font-serif text-[22px] sm:text-2xl tracking-tight transition-opacity duration-200 hover:opacity-80',
                   isEnginePage ? 'text-white' : 'text-ink',
                 )}
               >
+                <img src="/logo.svg" alt="" className="w-9 h-9 object-contain shrink-0" draggable={false} />
                 {siteConfig.name}
               </Link>
 
@@ -136,7 +137,7 @@ export function Header() {
                 ))}
                 <SocialLinks dark={isEnginePage} size="sm" />
                 <ShimmerButton href={siteConfig.appUrl} variant="primary" className="!py-2 !px-5 text-xs font-semibold">
-                  It's Free
+                  Get Started
                 </ShimmerButton>
               </nav>
 
@@ -169,10 +170,11 @@ export function Header() {
               <Link
                 to="/"
                 className={cn(
-                  'shrink-0 font-serif text-[17px] tracking-tight transition-opacity duration-200 hover:opacity-80',
+                  'shrink-0 flex items-center gap-1.5 font-serif text-[17px] tracking-tight transition-opacity duration-200 hover:opacity-80',
                   isEnginePage ? 'text-white' : 'text-ink',
                 )}
               >
+                <img src="/logo.svg" alt="" className="w-6 h-6 object-contain shrink-0" draggable={false} />
                 {siteConfig.name}
               </Link>
 
@@ -236,7 +238,7 @@ export function Header() {
               ))}
               <div className="pt-2">
                 <ShimmerButton href={siteConfig.appUrl} className="w-full !py-2.5 text-sm font-semibold">
-                  It's Free
+                  Get Started
                 </ShimmerButton>
               </div>
             </div>

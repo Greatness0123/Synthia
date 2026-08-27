@@ -11,28 +11,19 @@ import { siteConfig } from '@/config/site'
 const flowSteps = [
   {
     title: 'Perceive',
-    body: 'Each cycle, the agent captures the world (the same 3D render you see, proprioception, touch, sound) and receives a plain-language summary of its situation.',
-    files: ['ObservationBuilder.ts', 'payloadBuilder.ts'],
+    body: 'The agent captures the world through its own eyes, the same 3D render you see, plus proprioception and audio.',
   },
   {
-    title: 'Decide & Reason',
-    body: "The inference client streams a structured payload to the LLM. You can watch the AI's inner monologue stream live as it evaluates options.",
-    files: ['InferenceClient.ts', 'AgentLoop.ts'],
-  },
-  {
-    title: "Steer (Devil's Advocate)",
-    body: "Inject thoughts directly into its mind while it acts: play Devil's Advocate to test its reasoning, offer alternative goals, or steer its physical direction in real-time.",
-    files: ['ThoughtStream.ts', 'DevilsAdvocate.ts'],
+    title: 'Decide',
+    body: 'The LLM reasons over the perception and streams a structured plan of action.',
   },
   {
     title: 'Act',
-    body: 'Motor commands drive an ~80-joint humanoid in MuJoCo WASM. Real physics: balance, contact, collision. The agent falls, recovers, and learns.',
-    files: ['MotorController.ts', 'PhysicsEngine.ts'],
+    body: 'Motor commands drive the humanoid body in a real physics engine running in your browser.',
   },
   {
-    title: 'Remember & Export',
-    body: 'Outcomes write into working, episodic, and long-term memory. Export the full session as a clean Parquet dataset with one click.',
-    files: ['memoryManager.ts', 'DatasetExporter.ts'],
+    title: 'Remember',
+    body: 'Outcomes write into working, episodic, and long-term memory for future reference.',
   },
 ]
 
@@ -55,9 +46,10 @@ export function HowItWorksPage() {
   return (
     <PageLayout>
       <PageMeta
-        title="How SYNTHIA works"
-        description="How an AI with a body perceives, decides, acts, and remembers in your browser. Plain language first, technical detail for the curious."
+        title="How SYNTHIA works — AI that perceives, decides, acts, and remembers"
+        description="How an AI with a body perceives the world, decides what to do, acts in real physics, and remembers what happened. Plain language walkthrough of embodied AI agent architecture, browser physics simulation, and client-side AI agent loop."
         path="/how-it-works"
+        keywords="how SYNTHIA works, embodied AI agent, AI that perceives decides acts, AI agent loop, browser physics simulation, MuJoCo WASM, LLM controlled humanoid, client-side AI agent, AI with proprioception, AI that sees its world, AI that can hear, agent memory system, agent-to-agent communication, vision language model agent, AI physics simulation, how does an AI agent work, give an AI a goal, steer an AI agent, inject a thought into an AI, build a world for an AI, place objects in AI world, AI obstacle course, AI world builder, AI environment editor, AI experiment tool, AI goal directed behavior, motor program agent, agent perception payload, thought injection LLM agent, directive mode AI agent, proprioception observation agent, outcome detection agent task, multi-agent physics simulation, AI with a body, AI that acts on its own, humanoid AI simulation, browser based AI, MuJoCo for beginners, AI sandbox, measure AI task success, set tasks for AI"
         jsonLd={{
           '@context': 'https://schema.org',
           '@type': 'FAQPage',
@@ -106,31 +98,10 @@ export function HowItWorksPage() {
                   <h2 className="font-serif text-xl text-ink sm:text-2xl">{step.title}</h2>
                 </div>
                 <p className="leading-relaxed text-ink-muted">{step.body}</p>
-                <div className="mt-4 flex flex-wrap gap-2">
-                  {step.files.map((file) => (
-                    <code
-                      key={file}
-                      className="rounded-md bg-surface-card px-2 py-1 font-mono text-xs text-ink-muted"
-                    >
-                      {file}
-                    </code>
-                  ))}
-                </div>
               </motion.div>
             </FadeContent>
           ))}
         </div>
-
-        <FadeContent>
-          <div className="rounded-2xl border border-ink/8 bg-surface-elevated p-6 shadow-sm sm:p-8">
-            <h3 className="font-serif text-xl text-ink">The cognitive loop</h3>
-            <p className="mt-4 leading-relaxed text-ink-muted">
-              Each agent runs a setInterval-driven loop entirely in the browser. On every
-              cycle: capture world state, build perception payload, call inference, parse joint
-              actions (degrees to radians, clamped to ±π), write to memory.
-            </p>
-          </div>
-        </FadeContent>
 
         <FadeContent className="mt-12">
           <h3 className="mb-6 font-serif text-xl text-ink">Common questions</h3>

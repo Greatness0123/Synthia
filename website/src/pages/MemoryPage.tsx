@@ -48,9 +48,10 @@ export function MemoryPage() {
   return (
     <PageLayout>
       <PageMeta
-        title="How your AI remembers"
-        description="SYNTHIA's three-tier memory system explained in plain language: working, episodic, and long-term memory."
+        title="How your AI remembers — agent memory system explained"
+        description="SYNTHIA's three-tier agent memory system: working memory for the present moment, episodic memory for recent events, and long-term memory for skills learned across sessions. AI with memory that persists and forgets on purpose."
         path="/memory"
+        keywords="AI with memory, AI that remembers, agent memory system, working memory AI, episodic memory AI, long-term memory AI, AI memory system, what is agent memory, does AI remember me, AI forgets on purpose, AI persistent memory, AI memory across sessions, AI skill memory, AI motor memory, AI world memory, agent memory explained, three tier memory AI, AI memory private, AI memory on machine, AI working memory, AI episodic memory, AI long-term memory, memory pruning AI, AI focused memory, semantic memory AI, AI recall system, AI experience storage, AI learning memory, how AI remembers, AI memory architecture, agent cognition memory, AI brain memory, memory layers AI, AI short term memory, AI long term learning, AI session persistence, save AI progress, resume AI training, AI memory export, AI memory data, embodied AI memory, physics memory AI, body memory AI, movement memory AI, skill retention AI, AI remembers skills, AI forgets stale data, AI memory privacy, local AI memory, private AI memory, AI memory system explained"
         jsonLd={{
           '@context': 'https://schema.org',
           '@type': 'FAQPage',

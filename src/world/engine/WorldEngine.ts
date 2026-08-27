@@ -34,6 +34,7 @@ export class WorldEngine {
 
   private lastAIFrame: string = '';
   private lastPipUpdateTime = 0;
+  private _engineAlive = true;
 
   constructor(container: HTMLElement, physicsEngine: PhysicsEngine) {
     this.container = container;
@@ -46,7 +47,7 @@ export class WorldEngine {
 
     this.renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
     this.renderer.setSize(width, height);
-    this.renderer.setPixelRatio(window.devicePixelRatio);
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
     this.container.querySelectorAll('canvas').forEach(c => c.remove());
     this.container.appendChild(this.renderer.domElement);
@@ -220,78 +221,96 @@ export class WorldEngine {
   public start(onStep?: () => void, onFrame?: () => void): void {
     this.lastPhysicsTime = performance.now();
     this.physicsAccumulator = 0;
+    this._engineAlive = true;
 
     const animate = (time: number) => {
-      this.animationFrameId = requestAnimationFrame(animate);
+      // Guard: stop scheduling frames if engine is dead (WASM abort)
+      if (!this._engineAlive) return;
 
-      const currentTime = performance.now();
-      let dt = (currentTime - this.lastPhysicsTime) / 1000;
-      this.lastPhysicsTime = currentTime;
+      try {
+        const currentTime = performance.now();
+        let dt = (currentTime - this.lastPhysicsTime) / 1000;
+        this.lastPhysicsTime = currentTime;
 
-      if (dt > this.MAX_ACCUMULATOR) {
-        dt = this.MAX_ACCUMULATOR;
-      }
+        if (dt > this.MAX_ACCUMULATOR) {
+          dt = this.MAX_ACCUMULATOR;
+        }
 
-      this.physicsAccumulator += dt;
+        this.physicsAccumulator += dt;
 
-      if (this.physicsEngine.isReady && !this.wasReady) {
-        this.physicsAccumulator = 0;
-      }
-      this.wasReady = this.physicsEngine.isReady;
+        if (this.physicsEngine.isReady && !this.wasReady) {
+          this.physicsAccumulator = 0;
+        }
+        this.wasReady = this.physicsEngine.isReady;
 
-      if (this.physicsEngine.isReady) {
-        while (this.physicsAccumulator >= this.FIXED_TIMESTEP) {
-          this.physicsEngine.step();
-          if (!this.physicsEngine.isBroken && onStep) {
-            onStep();
+        if (this.physicsEngine.isReady) {
+          while (this.physicsAccumulator >= this.FIXED_TIMESTEP) {
+            this.physicsEngine.step();
+            if (!this.physicsEngine.isBroken && onStep) {
+              onStep();
+            }
+            this.physicsAccumulator -= this.FIXED_TIMESTEP;
           }
-          this.physicsAccumulator -= this.FIXED_TIMESTEP;
-        }
 
-        if (!this.physicsEngine.isBroken && onFrame) {
-          onFrame();
-        }
-      }
-
-      const now = performance.now();
-      const currentAgentId = useAgentStore.getState().activeAgentId || 'agent_0';
-      const shouldUpdatePiP = currentAgentId !== (this as any).lastActiveAgentIdForPiP || (now - this.lastPipUpdateTime > 200);
-
-      if (shouldUpdatePiP) {
-        try {
-          const frameBase64 = this.cameraManager.captureAIFrame(this.scene);
-          if (frameBase64) {
-            this.lastAIFrame = frameBase64;
-            (this as any).lastActiveAgentIdForPiP = currentAgentId;
-            useWorldStore.getState().setLastAIFrameForDisplay(frameBase64);
-            this.lastPipUpdateTime = now;
+          if (!this.physicsEngine.isBroken && onFrame) {
+            onFrame();
           }
-        } catch (err) {
-          Logger.warn('WorldEngine: AI frame capture failed', err);
         }
-      }
 
-      this.cameraManager.updateTransformControls();
+        const now = performance.now();
+        const currentAgentId = useAgentStore.getState().activeAgentId || 'agent_0';
+        const shouldUpdatePiP = currentAgentId !== (this as any).lastActiveAgentIdForPiP || (now - this.lastPipUpdateTime > 200);
 
-      if (this.particles && time > this.particleTargetTime) {
-        this.scene.remove(this.particles);
-        this.particles.geometry.dispose();
-        (this.particles.material as THREE.Material).dispose();
-        this.particles = null;
-      } else if (this.particles) {
-        const positions = this.particles.geometry.attributes.position.array as Float32Array;
-        for (let i = 0; i < positions.length; i += 3) {
-          positions[i + 1] += 0.02; 
+        if (shouldUpdatePiP) {
+          try {
+            const frameBase64 = this.cameraManager.captureAIFrame(this.scene);
+            if (frameBase64) {
+              this.lastAIFrame = frameBase64;
+              (this as any).lastActiveAgentIdForPiP = currentAgentId;
+              useWorldStore.getState().setLastAIFrameForDisplay(frameBase64);
+              this.lastPipUpdateTime = now;
+            }
+          } catch (err) {
+            Logger.warn('WorldEngine: AI frame capture failed', err);
+          }
         }
-        this.particles.geometry.attributes.position.needsUpdate = true;
-      }
 
-      if (this.selectionBox) {
-        this.selectionBox.update();
-      }
+        this.cameraManager.updateTransformControls();
 
-      this.camera = this.cameraManager.getMainCamera();
-      this.renderer.render(this.scene, this.camera);
+        if (this.particles && time > this.particleTargetTime) {
+          this.scene.remove(this.particles);
+          this.particles.geometry.dispose();
+          (this.particles.material as THREE.Material).dispose();
+          this.particles = null;
+        } else if (this.particles) {
+          const positions = this.particles.geometry.attributes.position.array as Float32Array;
+          for (let i = 0; i < positions.length; i += 3) {
+            positions[i + 1] += 0.02;
+          }
+          this.particles.geometry.attributes.position.needsUpdate = true;
+        }
+
+        if (this.selectionBox) {
+          this.selectionBox.update();
+        }
+
+        this.camera = this.cameraManager.getMainCamera();
+        this.renderer.render(this.scene, this.camera);
+
+        // Schedule next frame ONLY after successful work — if any throw above
+        // reaches the catch, we must NOT schedule another frame.
+        this.animationFrameId = requestAnimationFrame(animate);
+      } catch (e) {
+        // WASM abort detected — stop the loop immediately to prevent browser OOM kill
+        const msg = e instanceof Error ? e.message : String(e);
+        if (msg.includes('Aborted') || msg.includes('Cannot enlarge memory') || msg.includes('memory access out of bounds')) {
+          console.error('[SYNTHIA] WASM abort detected — stopping render loop', e);
+          this._engineAlive = false;
+          useWorldStore.getState().setEngineCrashed(msg);
+          return; // Do NOT schedule next frame
+        }
+        throw e; // Re-throw unexpected errors
+      }
     };
     animate(performance.now());
     Logger.info('WorldEngine: Animation loop started');
@@ -304,6 +323,16 @@ export class WorldEngine {
     window.removeEventListener('resize', this.onWindowResize);
     this.renderer.domElement.removeEventListener('pointerdown', this.onPointerDown);
     this.renderer.domElement.removeEventListener('pointerup', this.onPointerUp);
+    // Dispose static scene resources
+    if (this.floorMesh) {
+      this.floorMesh.geometry.dispose();
+      const floorMat = this.floorMesh.material;
+      if (Array.isArray(floorMat)) {
+        floorMat.forEach(m => m.dispose());
+      } else {
+        floorMat.dispose();
+      }
+    }
     this.renderer.dispose();
     Logger.info('WorldEngine: Animation loop stopped');
   }

@@ -4,6 +4,9 @@ interface PageMetaProps {
   title: string
   description: string
   path?: string
+  ogImage?: string
+  ogType?: string
+  keywords?: string
   jsonLd?: Record<string, unknown> | Record<string, unknown>[]
 }
 
@@ -28,9 +31,12 @@ function upsertLink(rel: string, href: string) {
   el.href = href
 }
 
-export function PageMeta({ title, description, path = '', jsonLd }: PageMetaProps) {
+const DEFAULT_OG_IMAGE = 'https://synthia.online/media/og-image.jpg'
+
+export function PageMeta({ title, description, path = '', ogImage, ogType = 'website', keywords, jsonLd }: PageMetaProps) {
   const fullTitle = title.includes('SYNTHIA') ? title : `${title} | SYNTHIA`
   const url = `https://synthia.online${path}`
+  const image = ogImage || DEFAULT_OG_IMAGE
 
   useEffect(() => {
     document.title = fullTitle
@@ -38,8 +44,13 @@ export function PageMeta({ title, description, path = '', jsonLd }: PageMetaProp
     upsertMeta('og:title', fullTitle, true)
     upsertMeta('og:description', description, true)
     upsertMeta('og:url', url, true)
+    upsertMeta('og:image', image, true)
+    upsertMeta('og:type', ogType, true)
+    upsertMeta('twitter:card', 'summary_large_image')
     upsertMeta('twitter:title', fullTitle)
     upsertMeta('twitter:description', description)
+    upsertMeta('twitter:image', image)
+    if (keywords) upsertMeta('keywords', keywords)
     upsertLink('canonical', url)
 
     const existing = document.getElementById('page-jsonld')
@@ -56,7 +67,7 @@ export function PageMeta({ title, description, path = '', jsonLd }: PageMetaProp
     return () => {
       document.getElementById('page-jsonld')?.remove()
     }
-  }, [fullTitle, description, url, jsonLd])
+  }, [fullTitle, description, url, image, ogType, keywords, jsonLd])
 
   return null
 }

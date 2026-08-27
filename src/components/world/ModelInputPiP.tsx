@@ -5,7 +5,7 @@ import { Eye } from '../ui/icons';
 import { motion } from 'framer-motion';
 
 /**
- * Draggable picture-in-picture overlay showing what the AI sees (same 448Ã—448 frame as inference).
+ * Draggable picture-in-picture overlay showing what the AI sees (same 448x448 frame as inference).
  */
 export const ModelInputPiP: React.FC = () => {
   const lastFrame = useWorldStore(state => state.lastAIFrameForDisplay);
@@ -26,7 +26,7 @@ export const ModelInputPiP: React.FC = () => {
       dragElastic={0}
       className="absolute bottom-4 right-4 z-40 cursor-grab active:cursor-grabbing"
     >
-      <div className="text-[9px] font-mono text-text-tertiary mb-1 uppercase tracking-tighter select-none">
+      <div className="text-xs font-mono text-text-tertiary mb-1 uppercase tracking-tighter select-none">
         {STRINGS.AGENT.SENDING_TO_AI}
       </div>
       <div className="w-[200px] h-[113px] bg-bg-elevated border border-border rounded-[8px] relative overflow-hidden">
@@ -52,7 +52,7 @@ export const ModelInputPiP: React.FC = () => {
         {hasContent && (
           <div className="absolute top-1 right-1 flex items-center gap-1 pointer-events-none">
             <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
-            <span className="text-[8px] font-mono text-green-400 uppercase">live</span>
+            <span className="text-xs font-mono text-green-400 uppercase">live</span>
           </div>
         )}
       </div>

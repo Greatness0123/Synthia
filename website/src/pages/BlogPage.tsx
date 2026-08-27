@@ -9,9 +9,10 @@ export function BlogPage() {
   return (
     <PageLayout>
       <PageMeta
-        title="Blog"
-        description="Stories about embodied AI, selling AI training data, and building a world where an AI mind with a body learns to live."
+        title="Blog | Embodied AI, AI training data, and AI worlds"
+        description="Stories about embodied AI, selling AI training data, building worlds for AI agents, and what happens when AI minds with bodies learn to live. First-person builder voice from the creator of SYNTHIA."
         path="/blog"
+        keywords="embodied AI blog, AI training data blog, AI world simulation blog, AI with a body stories, selling AI data stories, AI agent blog, AI that learns to walk blog, AI memory blog, AI physics blog, multi-agent AI blog, AI character stories, make money AI data blog, AI dataset marketplace blog, browser AI blog, open source AI blog, AI builder stories, AI development blog, AI experiment stories, AI learning stories, AI mind body blog, AI embodiment stories, AI sandbox stories, AI world builder blog, AI training stories, AI skill learning blog, AI movement stories, AI perception blog, AI reasoning stories, AI autonomous agent blog, AI vision stories, AI hearing stories, AI speech stories, AI communication stories, AI behavior stories, AI emergence stories, AI research blog, AI education blog, AI tutorial blog, AI guide blog, AI how to blog, AI getting started blog, AI beginner stories, AI advanced stories, AI technical blog, AI plain language blog, SYNTHIA creator blog, Greatness Okorie blog, AI open source stories, AI MIT licensed blog"
       />
       <Section className="pt-24 sm:pt-32">
         <SectionHeader

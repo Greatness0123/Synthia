@@ -18,25 +18,28 @@ import {
   Database,
   Cube,
   ListChecks,
-  TreeStructure,
   Camera,
   VideoCamera,
   Monitor,
   X,
   Sun,
   Moon,
-  Gear,
   SpeakerHigh,
   SpeakerSlash,
-  Export,
+  Gear,
 } from './components/ui/icons';
 import { ExportModal } from './components/export/ExportModal';
 import { AgentSettingsModal } from './components/agent/AgentSettingsModal';
+import { MotorCodexModal } from './components/agent/MotorCodexModal';
 import { LogViewer } from './components/agent/LogViewer';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useEffect } from 'react';
 import * as Tone from 'tone';
 import { cn } from './components/ui/Panel';
+import { TaskInput } from './components/layout/TaskInput';
+import { LeftRail } from './components/layout/LeftRail';
+import { OnboardingProvider } from './components/onboarding/OnboardingProvider';
+import { CrashOverlay } from './components/ui/CrashOverlay';
 import type { CameraMode } from './types/world';
 import { useSpeechStore } from './store/speechStore';
 import { initSpeech } from './utils/speech';
@@ -100,11 +103,8 @@ function App() {
 
       {/* === Floating UI Layer === */}
 
-      {/* Logo Pill - Top Left */}
-      <div className="fixed top-4 left-4 glassmorphism rounded-full flex items-center gap-2.5 px-4 py-2 z-50">
-        <img src="/logo.png" alt="Synthia" className="w-6 h-6 object-contain" />
-        <span className="text-xs font-bold tracking-widest text-text-secondary uppercase">Synthia</span>
-      </div>
+      {/* Left Rail - consolidated trigger buttons */}
+      <LeftRail />
 
       {/* Dev Multi-Agent Controller - Top Center */}
       <div className="fixed top-4 left-1/2 -translate-x-1/2 glassmorphism rounded-full flex items-center gap-3 p-2 z-50">
@@ -117,7 +117,7 @@ function App() {
               if (newBinder) {
                 synthiaToast.success('Agent spawned successfully.');
               } else {
-                synthiaToast.error('Spawning failed — check the log for details.');
+                synthiaToast.error('Spawning failed - check the log for details.');
               }
             } catch {
               synthiaToast.error('Spawning failed unexpectedly.');
@@ -126,7 +126,8 @@ function App() {
             }
           }}
           disabled={spawning}
-          className="px-4 py-1.5 bg-accent-blue/20 hover:bg-accent-blue/30 disabled:opacity-50 disabled:cursor-not-allowed text-accent-blue text-[10px] font-bold uppercase tracking-widest rounded-full transition-all flex items-center gap-2"
+          data-tour="spawn-agent"
+          className="px-4 py-1.5 bg-white/10 hover:bg-white/15 disabled:opacity-50 disabled:cursor-not-allowed text-text-primary text-xs font-medium rounded-full transition-all flex items-center gap-2"
         >
           {spawning ? 'Spawning…' : '+ Spawn Agent'}
         </button>
@@ -137,7 +138,7 @@ function App() {
           onChange={(nextAgentId) => useAgentStore.getState().setActiveAgentId(nextAgentId)}
           items={agentItems}
           className="w-28"
-          triggerClassName="h-7 text-[10px] font-bold uppercase tracking-wider bg-transparent border-0 text-text-secondary hover:text-text-primary px-2"
+          triggerClassName="h-7 text-xs font-medium bg-transparent border-0 text-text-secondary hover:text-text-primary px-2"
         />
 
         {/* Agent Settings Button (Gear) */}
@@ -145,7 +146,7 @@ function App() {
           onClick={() => setSettingsModalOpen(!settingsModalOpen)}
           className={cn(
             "w-7 h-7 rounded-full flex items-center justify-center hover:bg-white/10 transition-all text-text-secondary group",
-            settingsModalOpen && "bg-white/10 text-accent-blue"
+            settingsModalOpen && "bg-white/10 text-text-primary"
           )}
           aria-label="Agent Settings"
           title="Agent Settings"
@@ -161,9 +162,9 @@ function App() {
           title={globalTtsEnabled ? "Mute Global TTS Voice" : "Unmute Global TTS Voice"}
         >
           {globalTtsEnabled ? (
-            <SpeakerHigh size={15} className="group-hover:text-accent-blue transition-colors" />
+            <SpeakerHigh size={15} className="group-hover:text-text-primary transition-colors" />
           ) : (
-            <SpeakerSlash size={15} className="text-text-tertiary group-hover:text-accent-red transition-colors" />
+            <SpeakerSlash size={15} className="text-text-tertiary group-hover:text-text-primary transition-colors" />
           )}
         </button>
 
@@ -175,15 +176,15 @@ function App() {
           title={theme === 'dark' ? "Switch to Light Mode" : "Switch to Dark Mode"}
         >
           {theme === 'dark' ? (
-            <Sun size={15} className="group-hover:text-accent-amber transition-colors" />
+            <Sun size={15} className="group-hover:text-text-primary transition-colors" />
           ) : (
-            <Moon size={15} className="group-hover:text-accent-purple transition-colors" />
+            <Moon size={15} className="group-hover:text-text-primary transition-colors" />
           )}
         </button>
       </div>
 
       {/* Camera Controls Pill - Top Right */}
-      <div className="fixed top-4 right-4 glassmorphism rounded-full flex items-center p-1 z-50">
+      <div data-tour="camera-modes" className="fixed top-4 right-4 glassmorphism rounded-full flex items-center p-1 z-50">
         {[
           { mode: 'third_person', icon: Camera, label: '3RD' },
           { mode: 'first_person', icon: VideoCamera, label: '1ST' },
@@ -195,16 +196,19 @@ function App() {
             className={cn(
               "flex items-center gap-1.5 px-3 py-1.5 rounded-full transition-all",
               cameraMode === mode
-                ? "bg-white/10 text-accent-blue"
+                ? "bg-white/10 text-text-primary"
                 : "text-text-tertiary hover:text-text-secondary hover:bg-white/5"
             )}
             aria-label={`Camera Mode ${label}`}
           >
             <Icon size={14} />
-            <span className="text-[10px] font-bold">{label}</span>
+            <span className="text-xs font-medium">{label}</span>
           </button>
         ))}
       </div>
+
+      {/* Task Input Pill - Bottom Center */}
+      <TaskInput />
 
       {/* Metrics Pill - Bottom Center */}
       <StatusBar />
@@ -212,58 +216,24 @@ function App() {
       {/* GodMode Panel */}
       <GodModePanel />
 
-      {/* Circular Export Trigger Button - Top Left, below GodMode button */}
-      <button
-        onClick={() => setExportModalOpen(true)}
-        className="fixed top-[116px] left-4 w-10 h-10 glassmorphism rounded-full flex items-center justify-center hover:bg-white/10 transition-all z-50 group"
-        aria-label="Export Data"
-        title="Export Data"
-      >
-        <Export size={20} className="text-text-secondary group-hover:text-accent-blue" />
-      </button>
-
-      {/* Circular Object Spawner Trigger Button - Top Left, below Export button */}
-      <button
-        onClick={() => setObjectSpawnerOpen(true)}
-        className="fixed top-[164px] left-4 w-10 h-10 glassmorphism rounded-full flex items-center justify-center hover:bg-white/10 transition-all z-50 group"
-        aria-label="Spawn Objects"
-        title="Spawn Objects"
-      >
-        <Cube size={20} className="text-text-secondary group-hover:text-accent-blue" />
-      </button>
-
-      {/* Right Panel Trigger Button - Top Right, under camera pill */}
-      {!rightPanelOpen && (
-        <button
-          onClick={() => setRightPanelOpen(true)}
-          className="fixed top-[68px] right-4 w-10 h-10 glassmorphism rounded-full flex items-center justify-center hover:bg-white/10 transition-all z-50 group"
-          aria-label="Open Agent Inspector"
-          title="Open Agent Inspector"
-        >
-          <TreeStructure size={20} className="text-text-secondary group-hover:text-accent-purple" />
-        </button>
-      )}
-
-      {/* Right Panel Modal */}
+      {/* Right Panel - Agent Inspector */}
       <AnimatePresence>
         {rightPanelOpen && (
           <motion.div
-            initial={{ opacity: 0, y: -8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
+            initial={{ opacity: 0, x: 8 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 8 }}
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
             drag
             dragMomentum={false}
             dragElastic={0}
-            dragConstraints={{ top: -400, left: -600, right: 600, bottom: 400 }}
-            style={{ isolation: 'isolate' }}
-            className="fixed top-[10vh] right-[15%] w-[380px] max-w-[calc(100vw-2rem)] h-[80vh] max-h-[calc(100vh-2rem)] glassmorphism rounded-modal z-[60] flex flex-col overflow-hidden cursor-grab active:cursor-grabbing"
+            dragConstraints={{ top: -200, left: -600, right: 200, bottom: 400 }}
+            data-tour="agent-inspector-panel"
+            className="fixed top-[10vh] right-[5vw] w-[380px] max-w-[calc(100vw-5rem)] h-[80vh] max-h-[calc(100vh-2rem)] bg-bg-panel border border-white/10 rounded-modal z-[60] flex flex-col overflow-hidden cursor-grab active:cursor-grabbing"
           >
-            {/* Header */}
+            {/* Header - drag handle */}
             <div className="flex items-center justify-between px-4 py-2 border-b border-white/10 shrink-0 cursor-grab">
-              <span className="text-[10px] font-bold uppercase tracking-widest text-text-secondary select-none">
-                Agent ({activeAgentId})
-              </span>
+              <AgentStatus />
               <button
                 onClick={() => setRightPanelOpen(false)}
                 className="w-6 h-6 rounded-full flex items-center justify-center hover:bg-white/10 transition-colors"
@@ -273,15 +243,12 @@ function App() {
               </button>
             </div>
 
-            {/* Agent Status */}
-            <AgentStatus />
-
             {/* Tab Bar */}
             <div className="flex border-b border-white/10 p-1 gap-1 shrink-0">
               {[
                 { id: 'thoughts', icon: Brain, label: 'Thoughts' },
                 { id: 'memories', icon: Database, label: 'Memories' },
-                { id: 'structure', icon: Cube, label: 'Structure' },
+                { id: 'structure', icon: Cube, label: 'Body' },
                 { id: 'logs', icon: ListChecks, label: 'Logs' },
               ].map(({ id, icon: Icon, label }) => (
                 <button
@@ -289,13 +256,13 @@ function App() {
                   onClick={() => setActiveRightPanelTab(id as any)}
                   className={`flex-1 flex items-center justify-center gap-2 py-1.5 rounded transition-all ${
                     activeRightPanelTab === id
-                      ? 'bg-white/10 text-accent-blue font-bold'
+                      ? 'bg-white/10 text-text-primary font-bold'
                       : 'text-text-tertiary hover:text-text-secondary hover:bg-white/5'
                   }`}
                   aria-label={`View ${label}`}
                 >
                   <Icon size={14} />
-                  <span className="text-[10px] font-bold uppercase tracking-tighter">{label}</span>
+                  <span className="text-xs font-medium">{label}</span>
                 </button>
               ))}
             </div>
@@ -322,7 +289,14 @@ function App() {
       {/* Existing Modals */}
       <ExportModal />
       <AgentSettingsModal />
+      <MotorCodexModal />
       <RehydrationModal />
+
+      {/* Onboarding */}
+      <OnboardingProvider />
+
+      {/* WASM Crash Overlay */}
+      <CrashOverlay />
     </AppShell>
   );
 }

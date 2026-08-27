@@ -34,6 +34,16 @@ export class CameraManager {
   private boundKeyUp: (e: KeyboardEvent) => void;
   private static readonly CAMERA_MOVE_SPEED = 5.0;
 
+  // ── Cached per-frame objects (avoid allocation churn) ──────────────────
+  private _headPos = new THREE.Vector3();
+  private _headQuat = new THREE.Quaternion();
+  private _headScale = new THREE.Vector3();
+  private _localOffset = new THREE.Vector3();
+  private _targetCamPos = new THREE.Vector3();
+  private _forward = new THREE.Vector3();
+  private _right = new THREE.Vector3();
+  private _moveDelta = new THREE.Vector3();
+
   public onDragEnd?: (object: THREE.Object3D) => void;
   public onDragChanged?: (dragging: boolean, object: THREE.Object3D | null) => void;
 
@@ -130,25 +140,19 @@ export class CameraManager {
     const isValidVector = (v: THREE.Vector3) => Number.isFinite(v.x) && Number.isFinite(v.y) && Number.isFinite(v.z);
 
     if (headMatrix) {
-      const headPos = new THREE.Vector3();
-      const headQuat = new THREE.Quaternion();
-      const headScale = new THREE.Vector3();
-      headMatrix.decompose(headPos, headQuat, headScale);
+      headMatrix.decompose(this._headPos, this._headQuat, this._headScale);
 
-      if (isValidVector(headPos)) {
-        this.aiPerceptionCamera.position.copy(headPos);
-        this.aiPerceptionCamera.quaternion.copy(headQuat);
+      if (isValidVector(this._headPos)) {
+        this.aiPerceptionCamera.position.copy(this._headPos);
+        this.aiPerceptionCamera.quaternion.copy(this._headQuat);
         this.aiPerceptionCamera.up.set(0, 1, 0);
       }
 
       let effectiveLookTarget = capsulePos;
       if (!effectiveLookTarget || !isValidVector(effectiveLookTarget)) {
         if (headMatrix) {
-          const hPos = new THREE.Vector3();
-          const hQuat = new THREE.Quaternion();
-          const hScale = new THREE.Vector3();
-          headMatrix.decompose(hPos, hQuat, hScale);
-          effectiveLookTarget = hPos;
+          headMatrix.decompose(this._headPos, this._headQuat, this._headScale);
+          effectiveLookTarget = this._headPos;
         }
       }
 
@@ -172,21 +176,21 @@ export class CameraManager {
         // Facing direction forward is -Z (0, 0, -1), so "behind" is +Z (0, 0, 1)
         const heightAbove = 1.8;
         const distanceBehind = 3.5;
-        const localOffset = new THREE.Vector3(0, heightAbove, distanceBehind);
+        this._localOffset.set(0, heightAbove, distanceBehind);
 
         if (capsuleQuat) {
-          localOffset.applyQuaternion(capsuleQuat);
+          this._localOffset.applyQuaternion(capsuleQuat);
         }
 
-        const targetCamPos = effectiveLookTarget.clone().add(localOffset);
+        this._targetCamPos.copy(effectiveLookTarget).add(this._localOffset);
 
         if (this.snapNextFrame) {
-          this.chaseCam.position.copy(targetCamPos);
+          this.chaseCam.position.copy(this._targetCamPos);
           this.snapNextFrame = false;
         } else {
           const speed = 5.0; // Follow speed factor
           const factor = 1 - Math.exp(-speed * deltaTime);
-          this.chaseCam.position.lerp(targetCamPos, factor);
+          this.chaseCam.position.lerp(this._targetCamPos, factor);
         }
 
         this.chaseCam.up.set(0, 1, 0);
@@ -217,23 +221,21 @@ export class CameraManager {
         const dt = this.lastUpdateTime > 0 ? Math.min(0.1, (now - this.lastUpdateTime) / 1000) : 0.016;
         const moveSpeed = CameraManager.CAMERA_MOVE_SPEED * dt;
 
-        const forward = new THREE.Vector3();
-        this.thirdPersonCamera.getWorldDirection(forward);
-        forward.y = 0;
-        forward.normalize();
+        this.thirdPersonCamera.getWorldDirection(this._forward);
+        this._forward.y = 0;
+        this._forward.normalize();
 
-        const right = new THREE.Vector3();
-        right.crossVectors(forward, new THREE.Vector3(0, 1, 0)).normalize();
+        this._right.crossVectors(this._forward, new THREE.Vector3(0, 1, 0)).normalize();
 
-        const moveDelta = new THREE.Vector3(0, 0, 0);
+        this._moveDelta.set(0, 0, 0);
 
-        if (this.keysPressed.has('ArrowUp')) moveDelta.add(forward.clone().multiplyScalar(moveSpeed));
-        if (this.keysPressed.has('ArrowDown')) moveDelta.add(forward.clone().multiplyScalar(-moveSpeed));
-        if (this.keysPressed.has('ArrowLeft')) moveDelta.add(right.clone().multiplyScalar(-moveSpeed));
-        if (this.keysPressed.has('ArrowRight')) moveDelta.add(right.clone().multiplyScalar(moveSpeed));
+        if (this.keysPressed.has('ArrowUp')) this._moveDelta.add(this._forward.clone().multiplyScalar(moveSpeed));
+        if (this.keysPressed.has('ArrowDown')) this._moveDelta.add(this._forward.clone().multiplyScalar(-moveSpeed));
+        if (this.keysPressed.has('ArrowLeft')) this._moveDelta.add(this._right.clone().multiplyScalar(-moveSpeed));
+        if (this.keysPressed.has('ArrowRight')) this._moveDelta.add(this._right.clone().multiplyScalar(moveSpeed));
 
-        this.thirdPersonCamera.position.add(moveDelta);
-        this.controls.target.add(moveDelta);
+        this.thirdPersonCamera.position.add(this._moveDelta);
+        this.controls.target.add(this._moveDelta);
       }
 
       this.controls.update();
@@ -395,5 +397,8 @@ export class CameraManager {
     this.keysPressed.clear();
     this.controls.dispose();
     this.transformControls.dispose();
+    // Dispose GPU render targets to free framebuffer memory
+    this.renderTarget?.dispose();
+    this.aiRenderTarget?.dispose();
   }
 }

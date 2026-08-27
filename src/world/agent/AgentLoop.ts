@@ -39,6 +39,7 @@ export class AgentLoop {
   private lastActionFeedback: any[] = [];
   private currentSessionId: string | null = null;
   private pendingCycles: Map<string, any> = new Map();
+  private cycleTimers: Map<string, ReturnType<typeof setTimeout>> = new Map();
   private hasWarnedConnectionError: boolean = false;
 
   constructor(config: AgentLoopConfig) {
@@ -77,20 +78,16 @@ export class AgentLoop {
     this.payloadBuilder = new PayloadBuilder(this.memoryManager);
   }
 
-  public async manualIdentityUpdate(update: {
-    name?: string;
-    beliefs?: { op: string; value?: any; index?: number; entry?: any }[];
-    traits?: Record<string, any>;
-  }, reason: string): Promise<{ ok: boolean; error?: string }> {
+  public async manualIdentityUpdate(update: any, reason: string): Promise<{ ok: boolean; error?: string }> {
     const result = await this.identityManager.applyIdentityUpdate(this.config.agentId, {
       ...update,
       reason,
-    });
-    if (result.ok && this.identity) {
-      this.identity = result.identity!;
+    }, true);
+    if (result.ok && result.identity) {
+      this.identity = result.identity;
       useIdentityStore.getState().setIdentity(this.config.agentId, this.identity);
     }
-    return { ok: result.ok, error: result.error };
+    return { ok: result.ok, error: result.error || result.rejection };
   }
 
   public async start() {
@@ -133,6 +130,12 @@ export class AgentLoop {
       clearInterval(this.interval);
       this.interval = null;
     }
+    // Clear all pending auto-finalize timers
+    for (const timerId of this.cycleTimers.values()) {
+      clearTimeout(timerId);
+    }
+    this.cycleTimers.clear();
+    this.pendingCycles.clear();
     if (this.currentSessionId) {
       this.memoryManager.endSession(this.currentSessionId);
       this.currentSessionId = null;
@@ -168,6 +171,12 @@ export class AgentLoop {
     // from flickering thinking → acting → idle when no provider/key is set.
     if (!this.inferenceClient.hasCredentials()) {
       useAgentRuntimeStore.getState().setLoopState(this.config.agentId, 'not_started');
+      return;
+    }
+
+    // Circuit breaker: skip entirely during backoff to avoid zombie HTTP spam
+    if (this.inferenceClient.isInBackoff()) {
+      useAgentRuntimeStore.getState().setLoopState(this.config.agentId, 'retrying');
       return;
     }
 
@@ -216,12 +225,17 @@ export class AgentLoop {
       // Force session ID
       worldState.sessionId = this.currentSessionId || `session_${this.config.agentId}`;
 
+      const useActionDictionary = agentState?.useActionDictionary !== undefined
+        ? agentState.useActionDictionary
+        : (useAgentRuntimeStore.getState().configs[this.config.agentId]?.useActionDictionary ?? true);
+
       const payload = await this.payloadBuilder.build(worldState, this.config.agentId, {
         motorPrograms: [],
         masteredSkills,
         physicalFeedback: this.lastActionFeedback,
         identity: this.identity,
         identityFeedback: this.lastIdentityFeedback,
+        useActionDictionary,
         ...this.directives
       });
       this.lastActionFeedback = [];
@@ -275,12 +289,14 @@ export class AgentLoop {
         this.pendingCycles.set(cycleId, cycleData);
 
         // Auto finalize with 'unknown' after 4s
-        setTimeout(() => {
+        const timerId = setTimeout(() => {
+          this.cycleTimers.delete(cycleId);
           const cycle = this.pendingCycles.get(cycleId);
           if (cycle && !cycle.finalized) {
             this.finalizeCycle({ description: 'timeout', reward: 0 }, cycleId);
           }
         }, 4000);
+        this.cycleTimers.set(cycleId, timerId);
 
       } else {
         console.warn(`[AgentLoop (${this.config.agentId})] Action parse failed. XML action raw text: ${result.actionJson}`);
@@ -291,14 +307,14 @@ export class AgentLoop {
                                 err?.message?.includes('NetworkError') ||
                                 err?.message?.includes('ERR_CONNECTION_REFUSED') ||
                                 err?.name === 'TypeError';
+      const isBackoff = err?.message?.includes('backoff active');
 
-      if (isConnectionError) {
+      if (isConnectionError || isBackoff) {
         if (!this.hasWarnedConnectionError) {
           this.hasWarnedConnectionError = true;
-          console.warn(`[AgentLoop (${this.config.agentId})] Local inference server offline (${err.message}). Cognitive loop auto-paused.`);
-          synthiaToast.warning(`Inference server offline. Agent loop paused.`);
+          console.warn(`[AgentLoop (${this.config.agentId})] Local inference server offline (${err.message}). Retrying...`);
+          synthiaToast.warning(`Inference server offline. Retrying...`);
         }
-        this.pause();
       } else {
         console.error(`[AgentLoop (${this.config.agentId})] Cycle error:`, err);
         const shortError = err?.message ? String(err.message).slice(0, 120) : 'Inference failed';
@@ -312,7 +328,7 @@ export class AgentLoop {
     } finally {
       this.isProcessing = false;
       const loopState = useAgentRuntimeStore.getState().getLoopState(this.config.agentId);
-      if (loopState !== 'error' && store.setStatusForAgent) {
+      if (loopState !== 'error' && loopState !== 'retrying' && store.setStatusForAgent) {
         store.setStatusForAgent(this.config.agentId, 'idle');
       }
     }
@@ -335,6 +351,13 @@ export class AgentLoop {
   private async finalizeCycle(outcome: any, cycleId: string) {
     const cycle = this.pendingCycles.get(cycleId);
     if (!cycle || cycle.finalized) return;
+
+    // Cancel auto-finalize timer if still pending
+    const timerId = this.cycleTimers.get(cycleId);
+    if (timerId !== undefined) {
+      clearTimeout(timerId);
+      this.cycleTimers.delete(cycleId);
+    }
 
     cycle.finalized = true;
     this.pendingCycles.delete(cycleId);

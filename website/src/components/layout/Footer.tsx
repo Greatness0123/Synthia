@@ -1,6 +1,8 @@
 import { Link } from 'react-router-dom'
 import { siteConfig } from '@/config/site'
 import { SocialLinks } from '@/components/layout/SocialLinks'
+import { NewsletterForm } from '@/components/newsletter/NewsletterForm'
+import { CalcomButton } from '@/components/calendly/CalcomButton'
 import { cn } from '@/lib/utils'
 
 interface FooterProps {
@@ -16,6 +18,7 @@ export function Footer({ dark }: FooterProps) {
           ? 'border-white/10 bg-surface-dark text-white/70'
           : 'border-ink/5 bg-surface text-ink-muted',
       )}
+      {...(dark ? { 'data-cursor-dark': '' } : {})}
     >
       <div className="mx-auto flex max-w-6xl flex-col gap-10 lg:flex-row lg:items-start lg:justify-between">
         <div className="max-w-md space-y-4">
@@ -24,6 +27,21 @@ export function Footer({ dark }: FooterProps) {
           </p>
           <p className="leading-relaxed">{siteConfig.tagline}</p>
           <SocialLinks dark={dark} />
+          <div className="pt-2">
+            <p className={cn('mb-2 text-sm font-medium', dark ? 'text-white/80' : 'text-ink-muted')}>
+              Stay in the loop
+            </p>
+            <NewsletterForm
+              source="footer-newsletter"
+              buttonText="Subscribe"
+            />
+          </div>
+          <div className="pt-1">
+            <CalcomButton
+              variant="secondary"
+              className="w-full justify-center !text-xs"
+            />
+          </div>
         </div>
 
         <div className="grid gap-8 sm:grid-cols-2 md:grid-cols-3">

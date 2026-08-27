@@ -1,6 +1,7 @@
 import mujoco, { MainModule, MjModel, MjData, MjContact } from '@mujoco/mujoco';
 import * as THREE from 'three';
 import { logger as Logger } from '../../utils/logger';
+import { clearStateRehydratorCaches } from './StateRehydrator';
 
 export interface ColliderContactState {
   inContact: boolean;
@@ -37,6 +38,8 @@ export class PhysicsEngine {
   private contactForceRegistry: Map<number, ColliderContactState> = new Map();
   private velocityClampBodies: Set<number> = new Set();
   private stepCount = 0;
+  private lastContactRegistryPrune: number = 0;
+  private _contactDrainCounter: number = 0;
 
   private cachedQPos: Float64Array | null = null;
   private cachedQVel: Float64Array | null = null;
@@ -179,6 +182,8 @@ export class PhysicsEngine {
       module.mj_forward(this.model, this.data);
       this.initialized = true;
       this.isPhysicsBroken = false;
+      // Clear StateRehydrator name→ID caches since the model changed
+      clearStateRehydratorCaches();
       Logger.info('MuJoCoPhysicsEngine: MJCF model loaded successfully');
     } catch (error) {
       Logger.error('MuJoCoPhysicsEngine: Failed to load MJCF model', error);
@@ -242,6 +247,15 @@ export class PhysicsEngine {
       return;
     }
 
+    // Circuit breaker: stop physics if WASM memory is critical
+    if (this.isWasmMemoryCritical()) {
+      Logger.error('[SYNTHIA] WASM memory critical — stopping physics engine');
+      this.isPhysicsBroken = true;
+      this.isReady = false;
+      this.isStepping = false;
+      return;
+    }
+
     try {
       module.mj_step(this.model, this.data);
       this.stepCount++;
@@ -250,7 +264,14 @@ export class PhysicsEngine {
 
       this.drainContactForceEventsInternal();
     } catch (error) {
-      Logger.error('MuJoCoPhysicsEngine: Fatal WASM memory or aliasing fault detected during step.', error);
+      const isMemoryError = error instanceof Error &&
+        (error.message.includes('Cannot enlarge memory') ||
+         error.message.includes('memory access out of bounds'));
+      if (isMemoryError) {
+        Logger.error('MuJoCoPhysicsEngine: WASM memory exhausted. The simulation must restart.', error);
+      } else {
+        Logger.error('MuJoCoPhysicsEngine: Fatal WASM memory or aliasing fault detected during step.', error);
+      }
       this.isPhysicsBroken = true;
       this.isReady = false;
     } finally {
@@ -282,45 +303,59 @@ export class PhysicsEngine {
     // Direct access to qvel using getter to re-acquire fresh views
     const currentQVel = this.qvel;
 
-    // Clamp velocities for registered bodies
-    // MuJoCo joint velocities can be retrieved/modified via qvel.
-    // Each body's DOF starts at dofadr[bodyId]. For free bodies, they have 6 DOFs (3 lin, 3 ang).
-    const maxLinear = 10.0; // matching MAX_LINEAR_VELOCITY in Rapier engine
-    const maxAngular = 10.0; // matching MAX_ANGULAR_VELOCITY in Rapier engine
+    const maxLinear = 10.0;
+    const maxAngular = 10.0;
 
-    for (const bodyId of this.velocityClampBodies) {
+    // Clamp ALL free bodies (dofnum == 6), not just registered ones.
+    // Pre-allocated slot bodies sit underground with contype=0 and accumulate
+    // extreme velocity under gravity each frame, destabilizing the solver.
+    const nbody = this.model.nbody;
+    for (let bodyId = 0; bodyId < nbody; bodyId++) {
       const dofAdr: number = this.model.body_dofadr[bodyId];
       const dofNum: number = this.model.body_dofnum[bodyId];
-      if (dofAdr === undefined || dofNum === undefined) continue;
+      if (dofAdr < 0 || dofNum !== 6) continue;
 
-      // If it's a 6-DOF body (free body), we clamp linear (first 3) and angular (next 3) velocities
-      if (dofNum === 6) {
-        const linIdx = dofAdr;
-        const angIdx = dofAdr + 3;
+      const linIdx = dofAdr;
+      const angIdx = dofAdr + 3;
 
-        const lx = currentQVel[linIdx];
-        const ly = currentQVel[linIdx + 1];
-        const lz = currentQVel[linIdx + 2];
-        const linSpeed = Math.sqrt(lx * lx + ly * ly + lz * lz);
-        if (linSpeed > maxLinear) {
-          const scale = maxLinear / linSpeed;
-          currentQVel[linIdx] = lx * scale;
-          currentQVel[linIdx + 1] = ly * scale;
-          currentQVel[linIdx + 2] = lz * scale;
-        }
+      const lx = currentQVel[linIdx];
+      const ly = currentQVel[linIdx + 1];
+      const lz = currentQVel[linIdx + 2];
+      const linSpeed = Math.sqrt(lx * lx + ly * ly + lz * lz);
+      if (linSpeed > maxLinear) {
+        const scale = maxLinear / linSpeed;
+        currentQVel[linIdx] = lx * scale;
+        currentQVel[linIdx + 1] = ly * scale;
+        currentQVel[linIdx + 2] = lz * scale;
+      }
 
-        const ax = currentQVel[angIdx];
-        const ay = currentQVel[angIdx + 1];
-        const az = currentQVel[angIdx + 2];
-        const angSpeed = Math.sqrt(ax * ax + ay * ay + az * az);
-        if (angSpeed > maxAngular) {
-          const scale = maxAngular / angSpeed;
-          currentQVel[angIdx] = ax * scale;
-          currentQVel[angIdx + 1] = ay * scale;
-          currentQVel[angIdx + 2] = az * scale;
-        }
+      const ax = currentQVel[angIdx];
+      const ay = currentQVel[angIdx + 1];
+      const az = currentQVel[angIdx + 2];
+      const angSpeed = Math.sqrt(ax * ax + ay * ay + az * az);
+      if (angSpeed > maxAngular) {
+        const scale = maxAngular / angSpeed;
+        currentQVel[angIdx] = ax * scale;
+        currentQVel[angIdx + 1] = ay * scale;
+        currentQVel[angIdx + 2] = az * scale;
       }
     }
+  }
+
+  private isWasmMemoryCritical(): boolean {
+    try {
+      // Use performance.memory (Chrome/Edge only).
+      // NEVER access HEAP8/HEAPU8/HEAPF64 on the MuJoCo embind module — they are
+      // not exported and accessing them triggers a fatal Emscripten abort that
+      // permanently kills the WASM instance.
+      const mem = (performance as any).memory;
+      if (mem && mem.usedJSHeapSize) {
+        return mem.usedJSHeapSize > 1.8 * 1024 * 1024 * 1024; // 1.8 GB
+      }
+    } catch {
+      // If we can't read heap, assume safe
+    }
+    return false;
   }
 
   public get isBroken(): boolean {
@@ -369,10 +404,21 @@ export class PhysicsEngine {
     const module = PhysicsEngine.mujocoModule;
     if (!module) return;
 
+    // Throttle: process contacts every 10th step (50Hz at 500Hz physics)
+    // Reduces embind proxy allocations from data.contact.get(i) by 90%
+    this._contactDrainCounter++;
+    if (this._contactDrainCounter % 10 !== 0) return;
+
     try {
       const now = Date.now();
       const ncon = this.data.ncon;
-      if (ncon <= 0 || ncon > 200) return;
+      if (ncon <= 0 || ncon > 50) return;
+
+      // Prune stale contact registry entries once per second
+      if (now - this.lastContactRegistryPrune > 1000) {
+        this.pruneContactForceRegistry();
+        this.lastContactRegistryPrune = now;
+      }
 
       // Reset contact states
       for (const [, state] of this.contactForceRegistry) {
@@ -474,7 +520,7 @@ export class PhysicsEngine {
 
     try {
       const ncon = this.data.ncon;
-      if (ncon <= 0 || ncon > 200) return;
+      if (ncon <= 0 || ncon > 50) return;
       for (let i = 0; i < ncon; i++) {
         const contact: MjContact = this.data.contact.get(i) as MjContact;
         if (!contact) continue;
@@ -507,5 +553,19 @@ export class PhysicsEngine {
     this.isPhysicsBroken = false;
     this.contactForceRegistry.clear();
     this.velocityClampBodies.clear();
+    this.stepCount = 0;
+    this.lastContactRegistryPrune = 0;
+    this._contactDrainCounter = 0;
+  }
+
+  /** Prune stale entries from contactForceRegistry (call at most once per second). */
+  public pruneContactForceRegistry(maxAgeMs: number = 1000, maxSize: number = 4096): void {
+    if (this.contactForceRegistry.size < maxSize) return;
+    const now = Date.now();
+    for (const [geomId, state] of this.contactForceRegistry) {
+      if (now - state.lastUpdate > maxAgeMs) {
+        this.contactForceRegistry.delete(geomId);
+      }
+    }
   }
 }

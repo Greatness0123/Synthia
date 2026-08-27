@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useConnectionStore } from '../../store/connectionStore';
 import { useAgentRuntimeStore } from '../../store/agentRuntimeStore';
-import { createClient } from '@supabase/supabase-js';
+import { getSupabaseClient } from '../../utils/supabaseClient';
 
 /**
  * Custom hook to run client-side Supabase keepalive pings.
@@ -50,7 +50,8 @@ export function useSupabaseKeepalive() {
         lastPingTimes.current.set(url, now);
 
         console.log(`[Supabase Keepalive] Triggering ping to prevent pause for ${url}...`);
-        const supabase = createClient(url, key);
+        const supabase = getSupabaseClient(url, key);
+        if (!supabase) return;
         (async () => {
           try {
             const { error } = await supabase.from('sessions').select('id').limit(1);

@@ -11,12 +11,15 @@ import { HumanoidPhysicsBinder } from "../engine/HumanoidPhysicsBinder";
 import { generateCombinedMultiAgentMJCF } from "../engine/MJCFHumanoidTemplate";
 import { StateRehydrator } from "../engine/StateRehydrator";
 import { AgentLoop } from "../agent/AgentLoop";
+import { initMemoryMonitor, stopMemoryMonitor } from "../engine/memoryMonitor";
 import { useWorldStore } from "../../store/worldStore";
 import { useAgentStore } from "../../store/agentStore";
+import { useTrainingStore } from "../../store/trainingStore";
 import { useConnectionStore } from "../../store/connectionStore";
 import { useSpeechStore } from "../../store/speechStore";
 import { useAgentRuntimeStore } from "../../store/agentRuntimeStore";
 import { useUIStore } from "../../store/uiStore";
+import { useMemoryStore } from "../../store/memoryStore";
 import { synthiaToast } from "../../utils/synthiaToast";
 import { debouncedToast } from "../../utils/toastUtils";
 import { STRINGS } from "../../constants/strings";
@@ -43,6 +46,9 @@ export const useWorld = (containerRef: React.RefObject<HTMLDivElement>) => {
   const agentStore = useAgentStore();
   const pendingOutcomesRef = useRef<any[]>([]);
   const lastJointStateRef = useRef<Record<string, any>>({});
+  // Per-agent cooldown for in-place OOB resets. Prevents the check from
+  // firing every frame when the model is reset at an out-of-bounds position.
+  const oobResetCooldownRef = useRef<Map<string, number>>(new Map());
 
   // ─── Fall diagnostics ring buffer ────────────────────
   const DIAG_RING_SIZE = 300; // ~5 seconds at 60fps (throttled from 500Hz physics)
@@ -54,6 +60,58 @@ export const useWorld = (containerRef: React.RefObject<HTMLDivElement>) => {
   const diagJointCacheRef = useRef<Map<string, { bodyId: number; qposAdr: number; dofAdr: number; dofCount: number; qposCount: number; name: string }> | null>(null);
   const diagGeomCacheRef = useRef<Map<string, { geomId: number; bodyName: string; type: number }> | null>(null);
   const diagBodyCacheRef = useRef<Map<string, { bodyId: number; mass: number; parentBodyId: number; geomIds: number[] }> | null>(null);
+
+  // ── Early-termination emitter ────────────────────────────────────────
+  // Called from the per-frame sync loop when an ET trigger fires (OOB /
+  // unhealthy_height / timeout). Pushes a -1.0 outcome (same shape as the
+  // existing fall outcome), stands the agent up in-place (only for non-OOB
+  // paths — the existing OOB block already does its own reset), and starts
+  // a new episode. Idempotent within ~100ms to prevent double-fire.
+  const etFiredAtMsRef = useRef<number>(-1);
+  const maybeEmitEpisodeTermination = useCallback((reason: 'out_of_bounds' | 'unhealthy_height' | 'timeout') => {
+    const training = useTrainingStore.getState();
+    if (!training.etEnabled) return;
+    if (useAgentStore.getState().directiveMode !== 'training') return;
+
+    const nowMs = performance.now();
+    if (etFiredAtMsRef.current > 0 && nowMs - etFiredAtMsRef.current < 100) return;
+    etFiredAtMsRef.current = nowMs;
+
+    const activeId = useAgentStore.getState().activeAgentId || 'agent_0';
+    const binder = humanoidPhysicsBindersRef.current.get(activeId);
+    if (!binder) return;
+
+    // The OOB path is invoked from inside the existing isOutOfWorldBounds()
+    // branch which already calls binder.resetPose(). Skip the second reset.
+    if (reason !== 'out_of_bounds') {
+      // Stand up in-place at the model's current XZ, don't teleport.
+      const capsuleBody = binder.getCapsuleBody();
+      let x = 0;
+      let z = 0;
+      if (capsuleBody?.isValid()) {
+        const t = capsuleBody.translation();
+        x = t.x;
+        z = t.z;
+      }
+      binder.resetPose(new THREE.Vector3(x, 0, z));
+    }
+
+    pendingOutcomesRef.current.push({
+      type: 'outcome',
+      data: {
+        success: false,
+        reward: -1.0,
+        description: `Episode terminated (${reason})`,
+        episode_terminated: true,
+        termination_reason: reason,
+      },
+      agentId: activeId,
+    });
+
+    training.setLastTerminationReason(reason);
+    training.startNewEpisode(performance.now());
+    Logger.info(`[useWorld] ET fired: ${reason} for ${activeId}`);
+  }, []);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -95,6 +153,15 @@ export const useWorld = (containerRef: React.RefObject<HTMLDivElement>) => {
           audioEngine
         );
         objectManagerRef.current = objectManager;
+
+        // Initialize memory monitor — feeds live WASM/JS heap data to the status bar
+        initMemoryMonitor({
+          wasmModule: PhysicsEngine.getModule(),
+          physicsEngine,
+          objectManager,
+          intervalMs: 5000,
+          onSnapshot: (snap) => useMemoryStore.getState().setSnapshot(snap),
+        });
 
         if (cancelled) {
           physicsEngine.cleanup();
@@ -732,32 +799,6 @@ export const useWorld = (containerRef: React.RefObject<HTMLDivElement>) => {
                     }
                   }
 
-                  const contacts: Array<{ geom1: string; geom2: string; pos: number[]; dist: number; normal: number[]; force: number[] }> = [];
-                  if (mujocoModule && geomCache && d.ncon > 0 && d.ncon <= 200) {
-                    const forceBuffer = new mujocoModule.DoubleBuffer(6);
-                    try {
-                      for (let ci = 0; ci < d.ncon; ci++) {
-                        try {
-                          const contact = d.contact.get(ci);
-                          if (!contact) continue;
-                          const g1 = mujocoModule.mj_id2name(mdl, 5, contact.geom1) || `geom_${contact.geom1}`;
-                          const g2 = mujocoModule.mj_id2name(mdl, 5, contact.geom2) || `geom_${contact.geom2}`;
-                          mujocoModule.mj_contactForce(mdl, d, ci, forceBuffer);
-                          const fv = forceBuffer.GetView();
-                          contacts.push({
-                            geom1: g1, geom2: g2,
-                            pos: [contact.pos[0], contact.pos[1], contact.pos[2]],
-                            dist: contact.dist,
-                            normal: [contact.frame[0], contact.frame[1], contact.frame[2]],
-                            force: [fv[0], fv[1], fv[2]],
-                          });
-                        } catch { /* ignore */ }
-                      }
-                    } finally {
-                      forceBuffer.delete();
-                    }
-                  }
-
                   const snapshot = {
                     f: diagRingFrameCount.current++,
                     t: Date.now(),
@@ -775,7 +816,7 @@ export const useWorld = (containerRef: React.RefObject<HTMLDivElement>) => {
                     joints,
                     bodies,
                     geoms,
-                    contacts,
+                    contacts: [],
                   };
                   if (!diagCaptureDone.current) {
                     const ring = diagRingRef.current;
@@ -837,15 +878,63 @@ export const useWorld = (containerRef: React.RefObject<HTMLDivElement>) => {
                   }
 
                   if (binder.isOutOfWorldBounds()) {
-                    const offsetIndex = parseInt(id.replace('agent_', '')) || 0;
-                    let spawnX = 0;
-                    if (offsetIndex === 1) spawnX = 1.75;
-                    else if (offsetIndex === 2) spawnX = -1.75;
-                    else if (offsetIndex > 2) {
-                      spawnX = offsetIndex % 2 === 1 ? 1.75 * Math.ceil(offsetIndex / 2) : -1.75 * (offsetIndex / 2);
+                    // Cooldown: skip if we reset this agent within the last
+                    // 500ms — gives the model time to settle after an in-place
+                    // reset that lands near the boundary.
+                    const nowMs = performance.now();
+                    const lastReset = oobResetCooldownRef.current.get(id) || 0;
+                    if (nowMs - lastReset < 500) {
+                      // Still in cooldown — skip this frame's OOB check.
+                    } else {
+                      // Stand up in-place at the model's current XZ, y=0.
+                      const capsuleBody = binder.getCapsuleBody();
+                      let x = 0;
+                      let z = 0;
+                      if (capsuleBody?.isValid()) {
+                        const t = capsuleBody.translation();
+                        x = t.x;
+                        z = t.z;
+                      }
+                      binder.resetPose(new THREE.Vector3(x, 0, z));
+                      oobResetCooldownRef.current.set(id, nowMs);
+
+                      // If training mode + ET are on, the OOB counts as a
+                      // terminated episode. Emit an outcome and start the next.
+                      if (id === activeId) {
+                        maybeEmitEpisodeTermination('out_of_bounds');
+                      }
                     }
-                    const agentSpawn = new THREE.Vector3(spawnX, 0, 0);
-                    binder.resetPose(agentSpawn);
+                  }
+
+                  // Early-termination (height + timeout). Only fires for the
+                  // active agent in training mode with ET enabled.
+                  if (id === activeId) {
+                    const training = useTrainingStore.getState();
+                    const inTrainingMode =
+                      useAgentStore.getState().directiveMode === 'training';
+                    if (inTrainingMode && training.etEnabled) {
+                      const capsuleBody = binder.getCapsuleBody();
+                      if (capsuleBody?.isValid()) {
+                        const t = capsuleBody.translation();
+                        const y = t.y;
+                        if (
+                          y < training.healthyHeightMin ||
+                          y > training.healthyHeightMax
+                        ) {
+                          maybeEmitEpisodeTermination('unhealthy_height');
+                        }
+                      }
+                      const nowMs = performance.now();
+                      const elapsedSec =
+                        training.episodeStartTime > 0
+                          ? (nowMs - training.episodeStartTime) / 1000
+                          : 0;
+                      if (
+                        elapsedSec >= training.maxEpisodeSeconds
+                      ) {
+                        maybeEmitEpisodeTermination('timeout');
+                      }
+                    }
                   }
                 } catch (error) {
                   Logger.warn(`HumanoidPhysicsBinder (${id}) sync failed:`, error);
@@ -871,6 +960,7 @@ export const useWorld = (containerRef: React.RefObject<HTMLDivElement>) => {
 
     return () => {
       cancelled = true;
+      stopMemoryMonitor();
       worldEngineRef.current?.stop();
       physicsEngineRef.current?.cleanup();
     };
@@ -904,6 +994,46 @@ export const useWorld = (containerRef: React.RefObject<HTMLDivElement>) => {
       binder.renderDebugSpheres(worldStore.showDebugJoints);
     });
   }, [worldStore.showDebugJoints]);
+
+  // RMBS (reaction-mass balance) — opt-in assistive torque. The setter also
+  // reconfigures the capsule-balance gains to a shock-absorber pair when on,
+  // and restores Road-2 defaults when off.
+  useEffect(() => {
+    humanoidPhysicsBindersRef.current.forEach((binder) => {
+      try {
+        binder.setReactionMassEnabled(worldStore.reactionMassEnabled);
+      } catch (err) {
+        Logger.warn(`setReactionMassEnabled on ${binder.agentId} failed:`, err);
+      }
+    });
+  }, [worldStore.reactionMassEnabled]);
+
+  // Capsule balance (Road-2 root-balance corrector). Master switch; works
+  // independently of RMBS so researchers can isolate which assist is active.
+  useEffect(() => {
+    humanoidPhysicsBindersRef.current.forEach((binder) => {
+      try {
+        binder.setCapsuleBalanceEnabled(worldStore.capsuleBalanceEnabled);
+      } catch (err) {
+        Logger.warn(`setCapsuleBalanceEnabled on ${binder.agentId} failed:`, err);
+      }
+    });
+  }, [worldStore.capsuleBalanceEnabled]);
+
+  // ET lifecycle: when both training mode and ET toggle are on and no
+  // episode is in progress (episodeStartTime === 0), kick off episode #1.
+  // This prevents the timeout check from firing immediately on first enable.
+  // Subscribes to both trainingStore.etEnabled and agentStore.directiveMode.
+  const etEnabledFlag = useTrainingStore((s) => s.etEnabled);
+  const directiveModeForActive = useAgentStore((s) => s.directiveMode);
+  useEffect(() => {
+    if (!etEnabledFlag) return;
+    if (directiveModeForActive !== 'training') return;
+    const training = useTrainingStore.getState();
+    if (training.episodeStartTime > 0) return;
+    training.startNewEpisode(performance.now());
+    Logger.info('[useWorld] ET enabled while in training mode — started episode 1');
+  }, [etEnabledFlag, directiveModeForActive]);
 
 
   // Handle floor, grid, and sky state
@@ -1079,7 +1209,7 @@ export const useWorld = (containerRef: React.RefObject<HTMLDivElement>) => {
           synthiaToast.success(`${obj.name} spawned near the agent`);
         } else {
           const unclaimedIndex = (activeObjManager as any).slotClaimed.indexOf(false);
-          if (unclaimedIndex < 0 && presetId !== 'piano') {
+          if (unclaimedIndex < 0) {
             synthiaToast.error('Spawning failed: Primitive slot pool exhausted (20/20)');
           } else {
             Logger.error(`useWorld: spawnObject returned null for preset '${presetId}'`);
@@ -1723,14 +1853,16 @@ export const useWorld = (containerRef: React.RefObject<HTMLDivElement>) => {
       const targetId = (e as CustomEvent)?.detail?.agentId;
       humanoidPhysicsBindersRef.current.forEach((binder, id) => {
         if (targetId && id !== targetId) return;
-        const offsetIndex = parseInt(id.replace('agent_', '')) || 0;
-        let spawnX = 0;
-        if (offsetIndex === 1) spawnX = 1.75;
-        else if (offsetIndex === 2) spawnX = -1.75;
-        else if (offsetIndex > 2) {
-          spawnX = offsetIndex % 2 === 1 ? 1.75 * Math.ceil(offsetIndex / 2) : -1.75 * (offsetIndex / 2);
+        // Stand up in-place at the model's current XZ, don't teleport to origin.
+        const capsuleBody = binder.getCapsuleBody();
+        let x = 0;
+        let z = 0;
+        if (capsuleBody?.isValid()) {
+          const t = capsuleBody.translation();
+          x = t.x;
+          z = t.z;
         }
-        binder.resetPose(new THREE.Vector3(spawnX, 0, 0));
+        binder.resetPose(new THREE.Vector3(x, 0, z));
       });
     };
     window.addEventListener('synthia:resetPose', handleResetPose);

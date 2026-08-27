@@ -12,6 +12,9 @@ export interface ContactPair {
   force: number;
 }
 
+// Module-level pooled buffer for contact force reads (reused across calls)
+let _pooledForceBuffer: any = null;
+
 export class CollisionAdapter {
   /**
    * Helper to map Rapier preset shape properties to MuJoCo XML geoms
@@ -23,9 +26,6 @@ export class CollisionAdapter {
       case 'cylinder':
         return { geomType: 'cylinder', size: '0.5 0.5' };
       case 'wedge':
-      case 'slope':
-      case 'ramp':
-        // Rotated box represented as wedge/slope/ramp
         return { geomType: 'box', size: '0.5 0.5 0.5' };
       case 'cube':
       default:
@@ -44,10 +44,13 @@ export class CollisionAdapter {
     const pairs: ContactPair[] = [];
     if (!data) return pairs;
     const ncon = data.ncon;
-    if (ncon <= 0 || ncon > 200) return pairs;
+    if (ncon <= 0 || ncon > 50) return pairs;
 
-    // Use a DoubleBuffer of size 6 to store the 6D contact force/torque
-    const forceBuffer = new module.DoubleBuffer(6);
+    // Use pooled buffer instead of allocating per-call
+    if (!_pooledForceBuffer) {
+      _pooledForceBuffer = new module.DoubleBuffer(6);
+    }
+    const forceBuffer = _pooledForceBuffer;
 
     try {
       for (let i = 0; i < ncon; i++) {
@@ -94,7 +97,7 @@ export class CollisionAdapter {
         }
       }
     } finally {
-      forceBuffer.delete();
+      // Pooled buffer — no delete() needed per call
     }
     return pairs;
   }
@@ -105,7 +108,7 @@ export class CollisionAdapter {
   public static isGeomInContact(data: MjData, geomId: number): boolean {
     if (!data) return false;
     const ncon = data.ncon;
-    if (ncon <= 0 || ncon > 200) return false;
+    if (ncon <= 0 || ncon > 50) return false;
     for (let i = 0; i < ncon; i++) {
       const contact = data.contact.get(i);
       if (contact && (contact.geom1 === geomId || contact.geom2 === geomId)) {
@@ -113,5 +116,31 @@ export class CollisionAdapter {
       }
     }
     return false;
+  }
+
+  /**
+   * Check if two specific geom IDs are in direct contact with each other.
+   */
+  public static areGeomsInContact(data: MjData, geomIdA: number, geomIdB: number): boolean {
+    if (!data) return false;
+    const ncon = data.ncon;
+    if (ncon <= 0 || ncon > 50) return false;
+    for (let i = 0; i < ncon; i++) {
+      const contact = data.contact.get(i);
+      if (!contact) continue;
+      if ((contact.geom1 === geomIdA && contact.geom2 === geomIdB) ||
+          (contact.geom1 === geomIdB && contact.geom2 === geomIdA)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /** Dispose pooled WASM buffers (call on app shutdown). */
+  public static disposePooledBuffers(): void {
+    if (_pooledForceBuffer) {
+      _pooledForceBuffer.delete();
+      _pooledForceBuffer = null;
+    }
   }
 }

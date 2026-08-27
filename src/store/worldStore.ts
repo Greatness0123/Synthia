@@ -33,6 +33,12 @@ interface WorldState {
   useMuJoCo: boolean;
   aiVisionFov: number;
   aiVisionSize: number;
+  reactionMassEnabled: boolean;
+  capsuleBalanceEnabled: boolean;
+
+  // Fatal engine crash state (not persisted)
+  engineCrashed: boolean;
+  crashMessage: string | null;
 
   // Actions
   setAiVisionFov: (fov: number) => void;
@@ -58,6 +64,9 @@ interface WorldState {
   setMovementSmoothing: (speed: number) => void;
   setLastAIFrameForDisplay: (frame: string | null) => void;
   setUseMuJoCo: (enable: boolean) => void;
+  setReactionMassEnabled: (enabled: boolean) => void;
+  setCapsuleBalanceEnabled: (enabled: boolean) => void;
+  setEngineCrashed: (msg: string) => void;
   addObject: (obj: WorldObject) => void;
   removeObject: (id: string) => void;
   saveSession: () => void;
@@ -93,6 +102,10 @@ export const useWorldStore = create<WorldState>((set, get) => ({
   useMuJoCo: false,
   aiVisionFov: 110,
   aiVisionSize: 448,
+  reactionMassEnabled: true,
+  capsuleBalanceEnabled: true,
+  engineCrashed: false,
+  crashMessage: null,
 
   setAiVisionFov: (aiVisionFov) => set({ aiVisionFov }),
   setAiVisionSize: (aiVisionSize) => set({ aiVisionSize }),
@@ -166,6 +179,15 @@ export const useWorldStore = create<WorldState>((set, get) => ({
     set({ useMuJoCo });
     get().saveSession();
   },
+  setReactionMassEnabled: (reactionMassEnabled) => {
+    set({ reactionMassEnabled });
+    get().saveSession();
+  },
+  setCapsuleBalanceEnabled: (capsuleBalanceEnabled) => {
+    set({ capsuleBalanceEnabled });
+    get().saveSession();
+  },
+  setEngineCrashed: (msg) => set({ engineCrashed: true, crashMessage: msg }),
   addObject: (obj) => {
     set((state) => ({ objects: [...state.objects, obj] }));
     get().saveSession();
@@ -196,6 +218,8 @@ export const useWorldStore = create<WorldState>((set, get) => ({
       useMuJoCo: state.useMuJoCo,
       aiVisionFov: state.aiVisionFov,
       aiVisionSize: state.aiVisionSize,
+      reactionMassEnabled: state.reactionMassEnabled,
+      capsuleBalanceEnabled: state.capsuleBalanceEnabled,
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
   },

@@ -24,6 +24,7 @@ export interface SingleAgentState {
   injectionQueueCount: number;
   bodyMode: 'rigid' | 'ragdoll';
   useMultiBodyPD: boolean;
+  useActionDictionary: boolean;
 }
 
 const createDefaultAgent = (agentId: string): SingleAgentState => ({
@@ -43,6 +44,7 @@ const createDefaultAgent = (agentId: string): SingleAgentState => ({
   injectionQueueCount: 0,
   bodyMode: 'rigid',
   useMultiBodyPD: true,
+  useActionDictionary: true,
 });
 
 interface AgentStoreState {
@@ -68,6 +70,7 @@ interface AgentStoreState {
   injectionQueueCount: number;
   bodyMode: 'rigid' | 'ragdoll';
   useMultiBodyPD: boolean;
+  useActionDictionary: boolean;
 
   // ── Per-agent actions ─────────────────────────────
   setActiveAgentId: (id: string) => void;
@@ -92,6 +95,7 @@ interface AgentStoreState {
   decrementInjectionQueueCountForAgent: (id: string) => void;
   setBodyModeForAgent: (id: string, mode: 'rigid' | 'ragdoll') => void;
   setUseMultiBodyPDForAgent: (id: string, enable: boolean) => void;
+  setUseActionDictionaryForAgent: (id: string, enable: boolean) => void;
 
   // ── Mirrored Actions on the currently active agent ─
   addThought: (thought: Thought) => void;
@@ -108,6 +112,7 @@ interface AgentStoreState {
   addMasteredSkill: (skill: string) => void;
   setInjectionQueue: (queue: string[]) => void;
   setInjectionQueueCount: (count: number) => void;
+  setUseActionDictionary: (enable: boolean) => void;
   incrementInjectionQueueCount: () => void;
   decrementInjectionQueueCount: () => void;
   setRung: (rung: number) => void;
@@ -318,6 +323,10 @@ export const useAgentStore = create<AgentStoreState>((set, get) => {
     },
     setUseMultiBodyPD: (enable) => {
       get().setUseMultiBodyPDForAgent(get().activeAgentId, enable);
+    },
+    setUseActionDictionaryForAgent: (id, useActionDictionary) => set((state) => updateAgent(state, id, { useActionDictionary })),
+    setUseActionDictionary: (enable) => {
+      get().setUseActionDictionaryForAgent(get().activeAgentId, enable);
     },
   };
 });

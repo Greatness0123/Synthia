@@ -8,6 +8,9 @@ export const siteConfig = {
   builderName: 'Greatness Okorie',
   builderPortfolioUrl: 'https://greatnessokorie.vercel.app',
   license: 'MIT',
+  calcomUrl: 'https://cal.com/greatnessokorie/15min',
+  githubOwner: 'Greatness0123',
+  githubRepo: 'synthia1.5.1',
   social: [
     {
       label: 'GitHub',
@@ -16,22 +19,22 @@ export const siteConfig = {
     },
     {
       label: 'Telegram',
-      href: import.meta.env.VITE_SOCIAL_TELEGRAM ?? '',
+      href: import.meta.env.VITE_SOCIAL_TELEGRAM ?? 'https://t.me/+IHNi6lg3PWNhNjVk',
       icon: 'telegram' as const,
     },
     {
       label: 'X (Twitter)',
-      href: import.meta.env.VITE_SOCIAL_X ?? '',
+      href: import.meta.env.VITE_SOCIAL_X ?? 'https://x.com/Gruco_okorie',
       icon: 'x' as const,
     },
     {
       label: 'Discord',
-      href: import.meta.env.VITE_SOCIAL_DISCORD ?? '',
+      href: import.meta.env.VITE_SOCIAL_DISCORD ?? 'https://discord.gg/bgw9fXHRTs',
       icon: 'discord' as const,
     },
     {
       label: 'YouTube',
-      href: import.meta.env.VITE_SOCIAL_YOUTUBE ?? '',
+      href: import.meta.env.VITE_SOCIAL_YOUTUBE ?? 'https://www.youtube.com/@Synthia.online',
       icon: 'youtube' as const,
     },
   ],

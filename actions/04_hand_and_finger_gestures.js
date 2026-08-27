@@ -1,5 +1,98 @@
 (function() {
+  'use strict';
   const DEG = Math.PI / 180;
+  const RAD2DEG = 180 / Math.PI;
+
+  // ── Embedded Action Recorder & Exporter ───────────────────────────────────
+  const Recorder = (function() {
+    function radToDegOverrides(overrides) {
+      const out = {};
+      for (const [k, v] of Object.entries(overrides || {})) {
+        if (Array.isArray(v)) {
+          out[k] = v.map(x => Math.round(x * RAD2DEG));
+        } else if (typeof v === 'number') {
+          out[k] = Math.round(v * RAD2DEG);
+        }
+      }
+      return out;
+    }
+
+    function downloadJSON(data, filename) {
+      try {
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        console.log(`[Recorder] Downloaded: ${filename}`);
+      } catch (e) {
+        console.error('[Recorder] Export failed:', e);
+      }
+    }
+
+    return {
+      recordSinglePose: function(id, title, overrides, commentary = '', autoExport = true) {
+        const recipe = {
+          id: `gesture_${id}`,
+          category: 'gesture',
+          title: title,
+          disclaimer: 'SUGGESTION ONLY: Reference motion recorded from baseline scripts. Adapt angles dynamically.',
+          summary: `Hand/finger gesture preset for ${title}.`,
+          biomechanics_note: commentary || 'Maintains stable arm posture with isolated finger joints.',
+          parameters: { balanceMode: 'auto' },
+          steps: [
+            {
+              phase: `${title} Pose`,
+              timeOffsetMs: 0,
+              commentary: commentary || `Forming ${title} gesture.`,
+              overrides: radToDegOverrides(overrides)
+            }
+          ]
+        };
+        console.log(`[Recorder] Recorded gesture: ${title}`, recipe);
+        if (typeof window.synthiaRegisterRecipe === 'function') {
+          window.synthiaRegisterRecipe(recipe);
+        }
+        if (autoExport) {
+          downloadJSON(recipe, `motor_codex_gesture_${id}.json`);
+        }
+        return recipe;
+      },
+
+      recordSequence: function(id, title, summary, biomechanics, sequence, autoExport = true) {
+        const recipe = {
+          id: `gesture_${id}`,
+          category: 'gesture',
+          title: title,
+          disclaimer: 'SUGGESTION ONLY: Reference motion recorded from baseline scripts. Adapt angles dynamically.',
+          summary: summary || `Dynamic gesture sequence for ${title}.`,
+          biomechanics_note: biomechanics || 'Articulates wrist and arm oscillations smoothly.',
+          parameters: {
+            cycleDurationMs: sequence.length > 0 ? sequence[sequence.length - 1].timeOffsetMs : 0,
+            balanceMode: 'auto'
+          },
+          steps: sequence.map((f, idx) => ({
+            phase: `Frame ${idx + 1} (${f.timeOffsetMs}ms)`,
+            timeOffsetMs: f.timeOffsetMs,
+            commentary: `Gesture milestone frame at ${f.timeOffsetMs}ms`,
+            overrides: radToDegOverrides(f.overrides)
+          }))
+        };
+        console.log(`[Recorder] Recorded gesture sequence: ${title}`, recipe);
+        if (typeof window.synthiaRegisterRecipe === 'function') {
+          window.synthiaRegisterRecipe(recipe);
+        }
+        if (autoExport) {
+          downloadJSON(recipe, `motor_codex_gesture_${id}.json`);
+        }
+        return recipe;
+      }
+    };
+  })();
 
   function sendPose(jointOverrides, agentId = 'agent_0') {
     window.dispatchEvent(new CustomEvent('synthia:action', {
@@ -29,17 +122,9 @@
     [`mixamorig${side}handpinky1`]: 0, [`mixamorig${side}handpinky2`]: 0, [`mixamorig${side}handpinky3`]: 0,
   });
 
-  const RELAXED = (side) => ({
-    [`mixamorig${side}handthumb1`]: 15*DEG, [`mixamorig${side}handthumb2`]: 20*DEG, [`mixamorig${side}handthumb3`]: 15*DEG,
-    [`mixamorig${side}handindex1`]: 15*DEG, [`mixamorig${side}handindex2`]: 20*DEG, [`mixamorig${side}handindex3`]: 15*DEG,
-    [`mixamorig${side}handmiddle1`]: 15*DEG, [`mixamorig${side}handmiddle2`]: 20*DEG, [`mixamorig${side}handmiddle3`]: 15*DEG,
-    [`mixamorig${side}handring1`]: 12*DEG, [`mixamorig${side}handring2`]: 16*DEG, [`mixamorig${side}handring3`]: 12*DEG,
-    [`mixamorig${side}handpinky1`]: 10*DEG, [`mixamorig${side}handpinky2`]: 14*DEG, [`mixamorig${side}handpinky3`]: 10*DEG,
-  });
-
-  window.synthiaPoint = (side = 'right') => {
+  window.synthiaPoint = (side = 'right', autoRecord = true) => {
     const armRoll = -(side === 'right' ? 75 : -75);
-    sendPose({
+    const overrides = {
       [`mixamorig${side}arm`]: [10*DEG, 0, armRoll*DEG],
       [`mixamorig${side}forearm`]: 30*DEG,
       [`mixamorig${side}hand`]: [0, 0, 0],
@@ -48,10 +133,14 @@
       [`mixamorig${side}handmiddle1`]: 75*DEG, [`mixamorig${side}handmiddle2`]: 85*DEG, [`mixamorig${side}handmiddle3`]: 75*DEG,
       [`mixamorig${side}handring1`]: 75*DEG, [`mixamorig${side}handring2`]: 85*DEG, [`mixamorig${side}handring3`]: 75*DEG,
       [`mixamorig${side}handpinky1`]: 75*DEG, [`mixamorig${side}handpinky2`]: 85*DEG, [`mixamorig${side}handpinky3`]: 75*DEG,
-    });
+    };
+    sendPose(overrides);
+    if (autoRecord) {
+      Recorder.recordSinglePose(`pointing_${side}`, `Target Pointing (${side})`, overrides, 'Arm elevated forward with extended index finger and curled remaining fingers.');
+    }
   };
 
-  window.synthiaFist = (which = 'both') => {
+  window.synthiaFist = (which = 'both', autoRecord = true) => {
     const sides = which === 'both' ? ['left', 'right'] : [which];
     const overrides = {};
     for (const side of sides) {
@@ -62,21 +151,12 @@
       Object.assign(overrides, FIST(side));
     }
     sendPose(overrides);
-  };
-
-  window.synthiaOpenHand = (which = 'both') => {
-    const sides = which === 'both' ? ['left', 'right'] : [which];
-    const overrides = {};
-    for (const side of sides) {
-      const armRoll = side === 'right' ? -20 : 20;
-      overrides[`mixamorig${side}arm`] = [60*DEG, 0, armRoll*DEG];
-      overrides[`mixamorig${side}forearm`] = 15*DEG;
-      Object.assign(overrides, OPEN(side));
+    if (autoRecord) {
+      Recorder.recordSinglePose(`fist_${which}`, `Closed Fist (${which})`, overrides, 'Tight bilateral or unilateral fist with fully curled phalanges.');
     }
-    sendPose(overrides);
   };
 
-  window.synthiaThumbsUp = (side = 'right') => {
+  window.synthiaThumbsUp = (side = 'right', autoRecord = true) => {
     const armRoll = -(side === 'right' ? 25 : -25);
     const overrides = {
       [`mixamorig${side}arm`]: [60*DEG, 0, armRoll*DEG],
@@ -89,9 +169,12 @@
       [`mixamorig${side}handpinky1`]: 80*DEG, [`mixamorig${side}handpinky2`]: 90*DEG, [`mixamorig${side}handpinky3`]: 80*DEG,
     };
     sendPose(overrides);
+    if (autoRecord) {
+      Recorder.recordSinglePose(`thumbs_up_${side}`, `Thumbs Up Approval (${side})`, overrides, 'Extended vertical thumb with closed fist.');
+    }
   };
 
-  window.synthiaPeace = (side = 'right') => {
+  window.synthiaPeace = (side = 'right', autoRecord = true) => {
     const armRoll = -(side === 'right' ? 60 : -60);
     const overrides = {
       [`mixamorig${side}arm`]: [10*DEG, 0, armRoll*DEG],
@@ -103,23 +186,12 @@
       [`mixamorig${side}handpinky1`]: 75*DEG, [`mixamorig${side}handpinky2`]: 85*DEG, [`mixamorig${side}handpinky3`]: 75*DEG,
     };
     sendPose(overrides);
+    if (autoRecord) {
+      Recorder.recordSinglePose(`peace_${side}`, `Peace / Victory Sign (${side})`, overrides, 'V-sign with extended index and middle fingers.');
+    }
   };
 
-  window.synthiaOK = (side = 'right') => {
-    const armRoll = -(side === 'right' ? 30 : -30);
-    const overrides = {
-      [`mixamorig${side}arm`]: [65*DEG, 0, armRoll*DEG],
-      [`mixamorig${side}forearm`]: 35*DEG,
-      [`mixamorig${side}handthumb1`]: 50*DEG, [`mixamorig${side}handthumb2`]: 65*DEG, [`mixamorig${side}handthumb3`]: 50*DEG,
-      [`mixamorig${side}handindex1`]: 40*DEG, [`mixamorig${side}handindex2`]: 55*DEG, [`mixamorig${side}handindex3`]: 40*DEG,
-      [`mixamorig${side}handmiddle1`]: 0, [`mixamorig${side}handmiddle2`]: 0, [`mixamorig${side}handmiddle3`]: 0,
-      [`mixamorig${side}handring1`]: 0, [`mixamorig${side}handring2`]: 0, [`mixamorig${side}handring3`]: 0,
-      [`mixamorig${side}handpinky1`]: 0, [`mixamorig${side}handpinky2`]: 0, [`mixamorig${side}handpinky3`]: 0,
-    };
-    sendPose(overrides);
-  };
-
-  window.synthiaWave = (side = 'right', cycles = 3) => {
+  window.synthiaWave = (side = 'right', cycles = 3, autoRecord = true) => {
     const armRoll = -(side === 'right' ? 60 : -60);
     const rollSign = side === 'right' ? 1 : -1;
     
@@ -140,48 +212,17 @@
       });
     }
     sendSequence(sequence);
-  };
-
-  window.synthiaFingerRipple = (side = 'right') => {
-    const basePose = {
-      [`mixamorig${side}arm`]: [75*DEG, 0, 0],
-      [`mixamorig${side}forearm`]: 15*DEG,
-      ...OPEN(side)
-    };
-    
-    const frames = [
-      { t: 0, changes: {} },
-      { t: 200, changes: { [`mixamorig${side}handthumb1`]: 75*DEG, [`mixamorig${side}handthumb2`]: 85*DEG, [`mixamorig${side}handthumb3`]: 75*DEG } },
-      { t: 380, changes: { [`mixamorig${side}handindex1`]: 75*DEG, [`mixamorig${side}handindex2`]: 85*DEG, [`mixamorig${side}handindex3`]: 75*DEG } },
-      { t: 560, changes: { [`mixamorig${side}handmiddle1`]: 75*DEG, [`mixamorig${side}handmiddle2`]: 85*DEG, [`mixamorig${side}handmiddle3`]: 75*DEG } },
-      { t: 740, changes: { [`mixamorig${side}handring1`]: 75*DEG, [`mixamorig${side}handring2`]: 85*DEG, [`mixamorig${side}handring3`]: 75*DEG } },
-      { t: 920, changes: { [`mixamorig${side}handpinky1`]: 75*DEG, [`mixamorig${side}handpinky2`]: 85*DEG, [`mixamorig${side}handpinky3`]: 75*DEG } },
-      { t: 1100, changes: {} }
-    ];
-
-    const sequence = frames.map((frame, idx) => {
-      // For each frame, we merge the base open hand with the specific finger curled
-      const overrides = { ...basePose, ...frame.changes };
-      return {
-        timeOffsetMs: frame.t,
-        overrides
-      };
-    });
-
-    sendSequence(sequence);
+    if (autoRecord) {
+      Recorder.recordSequence(`wave_${side}`, `Hand Wave Greeting (${side})`, 'Friendly hand waving motion with wrist oscillation.', 'Wrist roll oscillation with open palm.', sequence);
+    }
   };
 
   console.log(`
-[SYNTHIA] Hand & Finger Gestures Loaded:
-- synthiaPoint(side)
-- synthiaFist(which)
-- synthiaOpenHand(which)
-- synthiaThumbsUp(side)
-- synthiaPeace(side)
-- synthiaOK(side)
-- synthiaWave(side, cycles)
-- synthiaFingerRipple(side)
-All functions exported to window. 'side' defaults to 'right', 'which' to 'both'.
+[SYNTHIA] Hand & Finger Gestures Loaded with Embedded Recorder:
+- synthiaPoint(side)      : Point index finger & auto-export
+- synthiaFist(which)       : Closed fist & auto-export
+- synthiaThumbsUp(side)   : Thumbs up approval & auto-export
+- synthiaPeace(side)      : Peace sign & auto-export
+- synthiaWave(side, count): Wave hand back and forth & auto-export
   `);
-
 })();

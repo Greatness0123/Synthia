@@ -1,12 +1,13 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { ArrowRight, Play } from 'lucide-react'
+import { ArrowRight } from 'lucide-react'
 import { heroCopy, siteConfig } from '@/config/site'
 import { SplitText } from '@/components/react-bits/SplitText'
 import { AmbientOrbs } from '@/components/react-bits/AmbientOrbs'
 import { MeshGradient } from '@/components/react-bits/MeshGradient'
 import { GrainOverlay } from '@/components/react-bits/GrainOverlay'
 import { ShimmerButton } from '@/components/ui/ShimmerButton'
+import { StarButton } from '@/components/github/StarButton'
 import { motionTransition } from '@/lib/motion'
 import { Link } from 'react-router-dom'
 
@@ -66,24 +67,11 @@ export function Hero() {
           className="mt-10 flex flex-col items-center gap-3 sm:mt-12 sm:flex-row sm:gap-4"
         >
           <ShimmerButton href={siteConfig.appUrl} className="px-7 py-3.5 text-base font-medium">
-            It's Free
+            Get Started
             <ArrowRight size={18} className="transition-transform group-hover:translate-x-0.5" />
           </ShimmerButton>
 
-          <a
-            href="#why-synthia"
-            onClick={(e) => {
-              const el = document.getElementById('why-synthia')
-              if (el) {
-                e.preventDefault()
-                el.scrollIntoView({ behavior: 'smooth' })
-              }
-            }}
-            className="inline-flex items-center gap-2 rounded-full border border-ink/10 bg-surface-elevated px-7 py-3.5 text-base font-medium text-ink transition-colors hover:bg-surface-card"
-          >
-            <Play size={16} />
-            See how it works
-          </a>
+          <StarButton className="px-7 py-3.5 text-base" />
         </motion.div>
 
         <motion.p

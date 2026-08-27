@@ -70,7 +70,7 @@ export const ThoughtBank: React.FC = () => {
           {displayedText && (
             <div className="group mb-4">
               <div className="flex items-center gap-2 mb-1">
-                <span className="text-[10px] font-mono text-text-tertiary">
+                <span className="text-xs font-mono text-text-tertiary">
                   [LIVE]
                 </span>
               </div>
@@ -79,7 +79,7 @@ export const ThoughtBank: React.FC = () => {
                 <motion.span
                   animate={{ opacity: [0, 1, 0] }}
                   transition={{ duration: 0.8, repeat: Infinity }}
-                  className="inline-block w-1 h-3 ml-0.5 bg-accent-blue"
+                  className="inline-block w-1 h-3 ml-0.5 bg-text-primary"
                 />
               </p>
             </div>
@@ -94,11 +94,11 @@ export const ThoughtBank: React.FC = () => {
               className="group"
             >
               <div className="flex items-center gap-2 mb-1">
-                <span className="text-[10px] font-mono text-text-tertiary">
+                <span className="text-xs font-mono text-text-tertiary">
                   [{new Date(thought.timestamp).toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })}]
                 </span>
                 {thought.isInjected && (
-                  <Syringe size={12} className="text-accent-purple" />
+                  <Syringe size={12} className="text-text-secondary" />
                 )}
               </div>
 
@@ -120,6 +120,7 @@ export const ThoughtBank: React.FC = () => {
         {thoughts.length === 0 && !displayedText && (
           <div className="h-full flex flex-col items-center justify-center text-center opacity-20">
             <p className="text-xs font-serif italic text-text-tertiary">{STRINGS.AGENT.VOID_SILENT}</p>
+            <p className="text-xs text-text-tertiary mt-2">Configure a provider in Settings to begin cognition.</p>
           </div>
         )}
       </div>
@@ -134,7 +135,7 @@ export const ThoughtBank: React.FC = () => {
           transform: showJump ? 'translateY(0) scale(1)' : 'translateY(6px) scale(0.9)',
           transition: 'opacity 0.2s ease, transform 0.2s ease',
         }}
-        className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-bg-elevated border border-border shadow-lg text-[11px] font-medium text-text-secondary hover:text-text-primary hover:border-accent-blue/60 hover:bg-bg-elevated/90 z-10"
+        className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-bg-elevated border border-border shadow-lg text-xs font-medium text-text-secondary hover:text-text-primary hover:border-white/20 hover:bg-bg-elevated/90 z-10"
       >
         <ArrowDown size={12} />
         Latest

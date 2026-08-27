@@ -1,172 +1,150 @@
-import { useEffect, useState } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
-import { Eye, Brain, Activity, Database, ArrowRight, Play, Pause } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { Eye, Brain, Activity, Database } from 'lucide-react'
 
-const STAGES = [
+const stages = [
   {
     id: 'perceive',
-    index: '01',
     name: 'Perceive',
-    icon: Eye,
-    tag: 'Sensory Input',
-    metric: 'RGB + 80-DOF Joints',
-    log: 'Capturing 3D point-of-view camera render, audio PCM, and joint proprioception array',
-    accent: 'border-teal/40 bg-teal/5 text-teal',
+    sub: 'Sensory Input',
+    Icon: Eye,
   },
   {
     id: 'decide',
-    index: '02',
     name: 'Decide',
-    icon: Brain,
-    tag: 'LLM Reasoning',
-    metric: 'Token Stream',
-    log: '"Obstacle detected at 1.4m. Adjusting hip pitch +18° to clear elevation smoothly"',
-    accent: 'border-amber/40 bg-amber/5 text-amber',
+    sub: 'LLM Reasoning',
+    Icon: Brain,
   },
   {
     id: 'act',
-    index: '03',
     name: 'Act',
-    icon: Activity,
-    tag: 'Physics Engine',
-    metric: '60 Hz MuJoCo WASM',
-    log: 'Actuating 80 joint motor torques in browser WASM. Computing ground collision & balance',
-    accent: 'border-emerald-500/40 bg-emerald-500/5 text-emerald-600',
+    sub: 'Physics Engine',
+    Icon: Activity,
   },
   {
     id: 'remember',
-    index: '04',
     name: 'Remember',
-    icon: Database,
-    tag: 'Memory Store',
-    metric: '3-Tier Parquet',
-    log: 'Writing episodic memory frame #1042. Balance rating 0.96 recorded to working memory',
-    accent: 'border-indigo-500/40 bg-indigo-500/5 text-indigo-600',
+    sub: 'Memory Store',
+    Icon: Database,
   },
 ]
 
+const CYCLE_MS = 7000
+const RADIUS = 110
+const CX = 180
+const CY = 180
+
+function nodeIndex(angleDeg: number): number {
+  const a = ((angleDeg % 360) + 360) % 360
+  if (a < 45 || a >= 315) return 0
+  if (a < 135) return 1
+  if (a < 225) return 2
+  return 3
+}
+
 export function CognitiveLoopDiagram() {
-  const [activeIdx, setActiveIdx] = useState(0)
-  const [isPlaying, setIsPlaying] = useState(true)
+  const [active, setActive] = useState(0)
+  const [angleDeg, setAngleDeg] = useState(0)
+  const start = useRef(Date.now())
+  const raf = useRef(0)
 
-  // Cycle automatically every 1.5 seconds through the 4 steps
   useEffect(() => {
-    if (!isPlaying) return
-    const interval = setInterval(() => {
-      setActiveIdx((prev) => (prev + 1) % STAGES.length)
-    }, 1500)
-    return () => clearInterval(interval)
-  }, [isPlaying])
+    const tick = () => {
+      const elapsed = Date.now() - start.current
+      const progress = (elapsed % CYCLE_MS) / CYCLE_MS
+      const deg = progress * 360
 
-  const activeStage = STAGES[activeIdx]
+      setAngleDeg(deg)
+      setActive(nodeIndex(deg))
+      raf.current = requestAnimationFrame(tick)
+    }
+    raf.current = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(raf.current)
+  }, [])
+
+  const rad = ((angleDeg - 90) * Math.PI) / 180
+  const px = CX + RADIUS * Math.cos(rad)
+  const py = CY + RADIUS * Math.sin(rad)
+
+  const cardPositions = [
+    'absolute left-1/2 top-2 -translate-x-1/2',
+    'absolute right-2 top-1/2 -translate-y-1/2',
+    'absolute bottom-2 left-1/2 -translate-x-1/2',
+    'absolute left-2 top-1/2 -translate-y-1/2',
+  ]
 
   return (
-    <div className="my-10 overflow-hidden rounded-3xl border border-ink/10 bg-surface-elevated p-5 shadow-[0_12px_40px_-10px_rgba(26,25,23,0.08)] sm:p-8">
-      {/* ── Top Bar with Status & Controls ── */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-ink/8 pb-4">
-        <div className="flex items-center gap-2.5">
-          <span className="relative flex h-2.5 w-2.5">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-teal opacity-75" />
-            <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-teal" />
-          </span>
-          <span className="font-mono text-xs font-semibold uppercase tracking-wider text-ink">
-            Live Cognitive Loop Telemetry
-          </span>
-        </div>
+    <div className="my-10 flex flex-col items-center gap-4">
+      <div className="relative h-[320px] w-[320px] sm:h-[360px] sm:w-[360px]">
+        {/* Glow behind active card */}
+        {[0, 1, 2, 3].map((i) => (
+          <div
+            key={i}
+            className={`pointer-events-none absolute h-24 w-32 rounded-2xl bg-white/80 blur-xl transition-opacity duration-300 ${cardPositions[i]}`}
+            style={{ opacity: active === i ? 1 : 0 }}
+          />
+        ))}
 
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setIsPlaying(!isPlaying)}
-            className="flex items-center gap-1.5 rounded-full border border-ink/10 bg-surface px-3 py-1 text-xs font-medium text-ink-muted transition-colors hover:border-ink/20 hover:text-ink cursor-pointer"
+        <svg
+          className="absolute inset-0 h-full w-full"
+          viewBox="0 0 360 360"
+          fill="none"
+          aria-hidden="true"
+        >
+          <circle cx={CX} cy={CY} r={RADIUS} stroke="currentColor" strokeWidth="1" className="text-ink/10" />
+          <path d="M 205 74 A 110 110 0 0 1 286 155" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" className="text-ink/30" />
+          <path d="M 286 205 A 110 110 0 0 1 205 286" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" className="text-ink/30" />
+          <path d="M 155 286 A 110 110 0 0 1 74 205" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" className="text-ink/30" />
+          <path d="M 74 155 A 110 110 0 0 1 155 74" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" className="text-ink/30" />
+
+          {/* Arrow particle — points in direction of travel (tangent = angleDeg + 90) */}
+          <g transform={`translate(${px}, ${py}) rotate(${angleDeg + 90})`}>
+            <polygon
+              points="0,-8 5,4 -5,4"
+              fill="currentColor"
+              className="text-ink/60"
+            />
+            <polygon
+              points="0,-12 7,5 -7,5"
+              fill="currentColor"
+              className="text-ink/10"
+            />
+          </g>
+        </svg>
+
+        {/* Nodes with scale + shadow on active */}
+        {stages.map((stage, i) => (
+          <div
+            key={stage.id}
+            className={`absolute transition-all duration-300 rounded-2xl ${cardPositions[i]} ${
+              active === i
+                ? 'scale-[1.06] shadow-[0_0_20px_4px_rgba(0,0,0,0.08)]'
+                : 'scale-100 shadow-none'
+            }`}
           >
-            {isPlaying ? <Pause size={12} /> : <Play size={12} />}
-            <span>{isPlaying ? 'Pause Loop' : 'Play Loop'}</span>
-          </button>
-          <span className="rounded-full bg-ink/5 px-2.5 py-0.5 font-mono text-[11px] text-ink-muted">
-            1 Hz Cycle
-          </span>
+            <Node stage={stage} />
+          </div>
+        ))}
+
+        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-center">
+          <p className="font-serif text-sm font-medium text-ink-muted sm:text-base">Cognitive</p>
+          <p className="font-serif text-sm font-medium text-ink-muted sm:text-base">Loop</p>
         </div>
       </div>
 
-      {/* ── Interactive 4-Stage Horizontal Grid ── */}
-      <div className="my-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {STAGES.map((stage, idx) => {
-          const isActive = idx === activeIdx
-          const Icon = stage.icon
-
-          return (
-            <div
-              key={stage.id}
-              onClick={() => {
-                setActiveIdx(idx)
-                setIsPlaying(false)
-              }}
-              className={`relative flex flex-col justify-between rounded-2xl border p-4 transition-all duration-300 cursor-pointer ${
-                isActive
-                  ? `${stage.accent} shadow-md scale-[1.02]`
-                  : 'border-ink/8 bg-surface/60 hover:border-ink/15 hover:bg-surface text-ink-muted'
-              }`}
-            >
-              {/* Card Header: Step & Icon */}
-              <div className="flex items-center justify-between mb-3">
-                <span className="font-mono text-xs font-bold text-ink-muted">
-                  {stage.index}
-                </span>
-                <div
-                  className={`flex h-8 w-8 items-center justify-center rounded-xl transition-colors ${
-                    isActive ? 'bg-white shadow-sm' : 'bg-ink/5'
-                  }`}
-                >
-                  <Icon size={16} />
-                </div>
-              </div>
-
-              {/* Title & Tag */}
-              <div>
-                <h4 className="font-serif text-lg font-medium text-ink">{stage.name}</h4>
-                <p className="text-xs text-ink-muted mt-0.5">{stage.tag}</p>
-              </div>
-
-              {/* Metric Badge */}
-              <div className="mt-4 pt-3 border-t border-ink/5 flex items-center justify-between text-[11px]">
-                <span className="font-mono font-medium">{stage.metric}</span>
-                {isActive && (
-                  <span className="flex h-1.5 w-1.5 rounded-full bg-teal animate-pulse" />
-                )}
-              </div>
-            </div>
-          )
-        })}
-      </div>
-
-      {/* ── Live Step Execution Log Console ── */}
-      <div className="relative overflow-hidden rounded-2xl border border-ink/8 bg-surface p-4 sm:p-5">
-        <div className="flex items-center gap-2 mb-2 font-mono text-[11px] text-ink-muted uppercase tracking-wider">
-          <span>Active Step</span>
-          <ArrowRight size={12} className="text-teal" />
-          <span className="font-bold text-ink">{activeStage.name}</span>
-        </div>
-
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={activeStage.id}
-            initial={{ opacity: 0, y: 4 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -4 }}
-            transition={{ duration: 0.2 }}
-            className="font-mono text-xs sm:text-sm text-ink leading-relaxed"
-          >
-            <span className="text-teal font-semibold">▶ </span>
-            {activeStage.log}
-          </motion.div>
-        </AnimatePresence>
-      </div>
-
-      {/* ── Footer Summary ── */}
-      <p className="mt-4 text-center text-xs text-ink-muted">
-        One loop, every second, entirely in your browser. No server GPU bills.
+      <p className="text-center text-xs text-ink-muted">
+        Simplified abstraction of the full system
       </p>
+    </div>
+  )
+}
+
+function Node({ stage }: { stage: (typeof stages)[number] }) {
+  const { Icon, name, sub } = stage
+  return (
+    <div className="flex flex-col items-center gap-1 rounded-xl border border-ink/10 bg-white px-4 py-3 shadow-sm sm:px-5 sm:py-4">
+      <Icon size={18} className="text-ink" />
+      <span className="font-serif text-sm font-medium text-ink">{name}</span>
+      <span className="text-[11px] text-ink-muted">{sub}</span>
     </div>
   )
 }

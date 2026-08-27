@@ -17,7 +17,7 @@ export const AgentStatus: React.FC = () => {
   return (
     <div className="p-3 border-b border-border flex items-center justify-between shrink-0 bg-bg-panel">
       <div className="flex items-center gap-2">
-        <Brain size={20} className="text-accent-purple" />
+        <Brain size={20} className="text-text-primary" />
         <h2 className="text-sm font-medium">{activeAgentId}</h2>
       </div>
       <Badge

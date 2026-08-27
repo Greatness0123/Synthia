@@ -1,44 +1,23 @@
 /**
  * ═══════════════════════════════════════════════════════════════════
- * Synthia Action Runner — Master Console Suite
+ * Synthia Action Runner — Master Console Suite with Embedded Recorder
  * 
  * Provides a unified namespace `window.synthiaActions` to inspect,
- * trigger, and chain all humanoid motion presets.
+ * trigger, record, and export all humanoid motion presets.
  * 
  * Usage in browser DevTools Console:
- *   synthiaActions.help()               — List all available action commands
- *   synthiaActions.walk(2.0, 0.08)       — Start continuous robotic waddle (2m at 0.08m/s)
- *   synthiaActions.walkMicro(1.0)        — Start cautious micro-shift shuffle
- *   synthiaActions.stopWalk()            — Halt walking and reset to stable stance
- *   synthiaActions.jump(6.0)             — Execute vertical jump with squat prep & soft landing
- *   synthiaActions.forwardLeap()         — Jump with forward momentum
- *   synthiaActions.bunnyHop(3)           — Series of rapid small hops
- *   synthiaActions.squat()               — Deep balanced squat
- *   synthiaActions.guard()               — Combat boxing guard stance
- *   synthiaActions.natural()             — Natural resting posture
- *   synthiaActions.reset()               — Full pose reset to upright bind pose
- *   synthiaActions.point('right')        — Point index finger forward
- *   synthiaActions.fist('both')          — Form tight closed fists
- *   synthiaActions.wave('right', 3)      — Wave hand back and forth
- *   synthiaActions.thumbsUp('right')     — Thumbs up gesture
- *   synthiaActions.peace('right')        — Victory / peace sign
- *   synthiaActions.ok('right')           — OK sign
- *   synthiaActions.ripple('right')       — Sequential finger wave / ripple
- *   synthiaActions.lookAround(3000)      — Smooth head scan
- *   synthiaActions.nod(3)                — Head nod (agreement)
- *   synthiaActions.shake(3)              — Head shake (disagreement)
- *   synthiaActions.shrug()               — Expressive shoulder shrug
- *   synthiaActions.celebrate()           — Two-handed celebration cheer
- *   synthiaActions.reach('right')        — Forward single-arm reach
- *   synthiaActions.kick('right')         — Front snap kick with balance prep
- *   synthiaActions.bow()                 — Formal forward bow
+ *   synthiaActions.help()               : List all available action commands
+ *   synthiaActions.recordAll()          : Sequentially trigger and export all Motor Codex recipes
+ *   synthiaActions.walk(2.0, 0.08)       : Start continuous robotic waddle
+ *   synthiaActions.jump(6.0)             : Vertical jump with prep
+ *   synthiaActions.guard()               : Boxing guard stance
+ *   synthiaActions.point('right')        : Point index finger
+ *   synthiaActions.nod(3)                : Head nod (yes)
  * ═══════════════════════════════════════════════════════════════════
  */
 
 (function () {
   'use strict';
-
-  const DEG = Math.PI / 180;
 
   function getBinder(agentId = 'agent_0') {
     const binders = window.__SYNTHIA_HUMANOID_BINDERS__;
@@ -53,6 +32,96 @@
   }
 
   const synthiaActions = {
+    // ── Master Codex Exporter ───────────────────────────────────────
+    recordAll: async function () {
+      console.log('%c[Motor Codex Generator] Starting automated recording of all actions...', 'color:#0ff; font-weight:bold');
+      
+      const sequence = [
+        { name: 'Natural Stance', fn: () => synthiaActions.natural() },
+        { name: 'Boxing Guard', fn: () => synthiaActions.guard() },
+        { name: 'Deep Squat', fn: () => synthiaActions.squat() },
+        { name: 'Vertical Jump', fn: () => synthiaActions.jump(6.0) },
+        { name: 'Forward Leap', fn: () => synthiaActions.forwardLeap() },
+        { name: 'Point Right', fn: () => synthiaActions.point('right') },
+        { name: 'Thumbs Up', fn: () => synthiaActions.thumbsUp('right') },
+        { name: 'Peace Sign', fn: () => synthiaActions.peace('right') },
+        { name: 'Hand Wave', fn: () => synthiaActions.wave('right', 2) },
+        { name: 'Head Nod', fn: () => synthiaActions.nod(2) },
+        { name: 'Head Shake', fn: () => synthiaActions.shake(2) },
+        { name: 'Curious Look Around', fn: () => synthiaActions.lookAround(2000) },
+        { name: 'Front Snap Kick', fn: () => synthiaActions.kick('right') },
+        { name: 'Reset Upright', fn: () => synthiaActions.reset() },
+      ];
+
+      for (const item of sequence) {
+        console.log(`%c[Recording] ${item.name}...`, 'color:#7ef');
+        try {
+          item.fn();
+        } catch (e) {
+          console.warn(`[Recording] Failed on ${item.name}:`, e);
+        }
+        await new Promise(r => setTimeout(r, 2200));
+      }
+
+      // Unified export: download all captured recipes as single JSON bundle
+      const allRecipes = (typeof window.synthiaGetRecipes === 'function')
+        ? window.synthiaGetRecipes()
+        : [];
+
+      if (allRecipes.length > 0) {
+        const jsonStr = JSON.stringify(allRecipes, null, 2);
+        try {
+          const blob = new Blob([jsonStr], { type: 'application/json' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = 'motor_codex_all_recipes.json';
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+          console.log('%c[Motor Codex Generator] Downloaded: motor_codex_all_recipes.json', 'color:#0f0; font-weight:bold');
+        } catch (err) {
+          console.warn('[Motor Codex Generator] Auto-download failed:', err);
+        }
+
+        try {
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            await navigator.clipboard.writeText(jsonStr);
+            console.log('%c[Motor Codex Generator] JSON also copied to your clipboard!', 'color:#7ef; font-weight:bold');
+          }
+        } catch (_) { /* ignore clipboard failure */ }
+      }
+
+      console.log('%c[Motor Codex Generator] Complete! All action recipes exported.', 'color:#0f0; font-weight:bold');
+    },
+
+    exportCodex: function () {
+      const allRecipes = (typeof window.synthiaGetRecipes === 'function')
+        ? window.synthiaGetRecipes()
+        : [];
+      if (!allRecipes.length) {
+        console.warn('[Motor Codex] No recipes recorded yet.');
+        return null;
+      }
+      const jsonStr = JSON.stringify(allRecipes, null, 2);
+      try {
+        const blob = new Blob([jsonStr], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'motor_codex_all_recipes.json';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        console.log('[Motor Codex] Downloaded: motor_codex_all_recipes.json');
+      } catch (e) {
+        console.error('[Motor Codex] Export failed:', e);
+      }
+      return allRecipes;
+    },
+
     // ── Locomotion ──────────────────────────────────────────────────
     walk: function (distanceM = 2.0, speedMps = 0.12, agentId = 'agent_0') {
       if (typeof window.synthiaWalk === 'function') {
@@ -293,49 +362,40 @@
 ═════════════════════════════════════════════════════════════════
   SYNTHIA ACTIONS MASTER RUNNER (window.synthiaActions)
 ═════════════════════════════════════════════════════════════════
+  Codex Recording:
+    synthiaActions.recordAll()                    : Chain and auto-export all motion recipes
+  
   Locomotion:
-    synthiaActions.walk(meters=2.0, speed=0.08)  — Continuous waddle
-    synthiaActions.walkMicro(meters=1.0)          — Cautious micro-shuffle
-    synthiaActions.stopWalk()                     — Stop and stabilize
+    synthiaActions.walk(meters=2.0, speed=0.12)   : Continuous waddle
+    synthiaActions.walkMicro(meters=1.0)          : Cautious micro-shuffle
+    synthiaActions.stopWalk()                     : Stop and stabilize
   
   Jumps & Aerial:
-    synthiaActions.jump(force=6.0)               — Squat prep + vertical jump
-    synthiaActions.forwardLeap()                 — Jump with forward momentum
-    synthiaActions.bunnyHop(count=3)             — Rapid mini hops
-    synthiaActions.squatJump()                   — Deep explosive squat jump
+    synthiaActions.jump(force=6.0)               : Squat prep + vertical jump
+    synthiaActions.forwardLeap()                 : Jump with forward momentum
+    synthiaActions.bunnyHop(count=3)             : Rapid mini hops
   
   Postures & Stances:
-    synthiaActions.reset()                       — Reset to upright bind pose
-    synthiaActions.natural()                     — Natural resting stance
-    synthiaActions.guard()                       — Combat boxing guard
-    synthiaActions.squat()                       — Deep balanced squat
-    synthiaActions.handsOnHips()                 — Akimbo posture
-    synthiaActions.armsCrossed()                 — Crossed arms posture
-    synthiaActions.tPose()                       — T-Pose diagnostic
-    synthiaActions.armsOverhead()                — High stretch
+    synthiaActions.reset()                       : Reset to upright bind pose
+    synthiaActions.natural()                     : Natural resting stance
+    synthiaActions.guard()                       : Combat boxing guard
+    synthiaActions.squat()                       : Deep balanced squat
   
   Hand & Finger Gestures:
-    synthiaActions.point('right'|'left')         — Index point forward
-    synthiaActions.fist('both'|'right'|'left')   — Closed fists
-    synthiaActions.openHand('both')              — Flat open palms
-    synthiaActions.thumbsUp('right'|'left')      — Thumbs up
-    synthiaActions.peace('right'|'left')         — Peace / victory sign
-    synthiaActions.ok('right'|'left')            — OK sign
-    synthiaActions.wave('right'|'left', 3)       — Animated hand wave
-    synthiaActions.ripple('right'|'left')        — Finger curl ripple
+    synthiaActions.point('right'|'left')         : Index point forward
+    synthiaActions.fist('both'|'right'|'left')   : Closed fists
+    synthiaActions.thumbsUp('right'|'left')      : Thumbs up
+    synthiaActions.peace('right'|'left')         : Peace / victory sign
+    synthiaActions.wave('right'|'left', 3)       : Animated hand wave
   
   Expressive Motions:
-    synthiaActions.lookAround(3000)              — Head scanning
-    synthiaActions.nod(3)                        — Head nod (yes)
-    synthiaActions.shake(3)                      — Head shake (no)
-    synthiaActions.shrug()                       — Shoulder shrug
-    synthiaActions.celebrate()                   — Arms overhead cheer
-    synthiaActions.reach('right'|'left')         — Forward arm reach
-    synthiaActions.kick('right'|'left')          — Front snap kick
-    synthiaActions.bow()                         — Polite forward bow
+    synthiaActions.lookAround(3000)              : Head scanning
+    synthiaActions.nod(3)                        : Head nod (yes)
+    synthiaActions.shake(3)                      : Head shake (no)
+    synthiaActions.kick('right'|'left')          : Front snap kick
   
   Diagnostics:
-    synthiaActions.status()                      — Print position & stability
+    synthiaActions.status()                      : Print position & stability
 ═════════════════════════════════════════════════════════════════`, 'color:#7ef; font-family:monospace');
     }
   };

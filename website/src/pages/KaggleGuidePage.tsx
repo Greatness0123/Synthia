@@ -78,9 +78,10 @@ export function KaggleGuidePage() {
   return (
     <PageLayout>
       <PageMeta
-        title="Free AI inference on Kaggle"
-        description="Step-by-step guide to run SYNTHIA inference on Kaggle free GPU. Copy the kaggle_new.py script, connect via Cloudflare tunnel, no credit card."
+        title="Free AI inference on Kaggle — step by step guide"
+        description="Step-by-step guide to run SYNTHIA's embodied AI inference on Kaggle free GPU. Copy the kaggle_new.py script, connect via Cloudflare tunnel, no credit card. Browser-based AI simulation with free GPU."
         path="/guides/kaggle"
+        keywords="free AI inference Kaggle, Kaggle free GPU AI, run AI on Kaggle, free AI GPU, Kaggle AI setup, Kaggle T4 GPU AI, Qwen2.5-VL Kaggle, AI inference free, free AI server, Kaggle notebook AI, Kaggle GPU tutorial, free GPU for AI, AI inference Kaggle guide, Kaggle AI step by step, free AI compute, AI no credit card, Kaggle AI inference server, browser AI free GPU, SYNTHIA Kaggle setup, Kaggle AI deployment, free AI hosting, Kaggle GPU T4, Kaggle GPU P100, AI model inference free, open source AI Kaggle, AI agent Kaggle, embodied AI Kaggle, physics AI Kaggle, free AI simulation, Kaggle AI tutorial, how to use Kaggle for AI, Kaggle free tier AI, AI inference without GPU, no GPU bill AI, free AI processing, Kaggle notebook setup, AI server setup Kaggle, FastAPI Kaggle AI, uvicorn AI inference, Qwen model Kaggle, vision model Kaggle, AI perception free, browser based AI inference, free AI inference guide, Kaggle AI step by step, AI inference tutorial, get started AI free, try AI free Kaggle, SYNTHIA free inference, AI inference no install"
         jsonLd={{
           '@context': 'https://schema.org',
           '@type': 'HowTo',
@@ -106,7 +107,7 @@ export function KaggleGuidePage() {
           <SectionHeader
             eyebrow="Setup guide"
             title="Free AI inference on Kaggle"
-            description="Run the SYNTHIA vision model on Kaggle's free GPU tier. No credit card. The script below removes the CLAP audio model to save VRAM and avoid overload."
+            description="Run top-tier open source vision models on SYNTHIA using Kaggle's free GPU tier. No credit card required. Copy the script, connect via tunnel, and you're live."
           />
         </FadeContent>
 

@@ -31,20 +31,34 @@ export interface InferPayload {
   perception_summary?: string;
   physical_feedback?: string | null;
   overheard_speech?: any[];
+  use_action_dictionary?: boolean;
+  motor_codex_hints?: string;
 }
 
 export interface InferResponse {
   memory_write: {
-    memory_id: 'auto' | string
-    tier: 1 | 2 | 3
-    summary: string
-    skill_mastered: string | null
-    name_this_memory: string | null
-  }
+    memory_id: 'auto' | string;
+    tier: 1 | 2 | 3;
+    summary: string;
+    skill_mastered: string | null;
+    name_this_memory: string | null;
+  };
   actions: {
-    program_sequence: string[]
-    joint_overrides: Record<string, number>
-  }
-  new_motor_program: any | null
-  flag: 'requesting_object_hint' | null
+    program_sequence: string[];
+    joint_overrides: Record<string, number | number[]>;
+  };
+  new_motor_program: any | null;
+  sequence?: Array<{
+    timeOffsetMs: number;
+    overrides: Record<string, number | number[]>;
+    durationMs?: number;
+    interpolation?: 'linear' | 'smooth' | 'step';
+    rootVelocity?: [number, number, number];
+    balanceMode?: 'auto' | 'soft' | 'dynamic_rmbs' | 'compliant' | 'off';
+    stiffnessScale?: number;
+    contactsExpected?: string[];
+  }>;
+  activeGaitPhase?: boolean;
+  gaze_target?: { yaw: number; pitch: number } | null;
+  flag: 'requesting_object_hint' | 'requesting_action_hint' | null;
 }

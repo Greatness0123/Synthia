@@ -29,7 +29,7 @@ export function TryIt() {
                 href={siteConfig.appUrl}
                 className="px-6 py-3 text-base sm:px-8 sm:py-4"
               >
-                It's Free
+                Get Started
                 <ArrowRight size={18} />
               </ShimmerButton>
               <ShimmerButton

@@ -27,7 +27,7 @@ import { STRINGS } from '../../constants/strings';
 import type { ExportFormat, ExportConfig, ExportType } from '../../types/export';
 import { synthiaToast } from '../../utils/synthiaToast';
 import { runClientSideExport } from '../../utils/clientDatasetExporter';
-import { createClient } from '@supabase/supabase-js';
+import { getSupabaseClient } from '../../utils/supabaseClient';
 import { Panel } from '../ui/Panel';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -56,6 +56,7 @@ export const ExportModal: React.FC = () => {
 
   const [availableSessions, setAvailableSessions] = useState<SessionRow[]>([]);
   const [sessionsLoading, setSessionsLoading] = useState(false);
+  const [sessionsError, setSessionsError] = useState<string | null>(null);
 
   // Scoping states
   const [exportScope, setExportScope] = useState<'single' | 'all'>('single');
@@ -88,8 +89,10 @@ export const ExportModal: React.FC = () => {
   useEffect(() => {
     if (!exportModalOpen || !supabaseUrl || !supabaseKey) return;
     setSessionsLoading(true);
+    setSessionsError(null);
 
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    const supabase = getSupabaseClient(supabaseUrl, supabaseKey);
+    if (!supabase) { setSessionsLoading(false); setSessionsError('Supabase not configured'); return; }
     const targetAgentIds = exportScope === 'single'
       ? [activeAgentId]
       : Object.keys(useAgentStore.getState().agents);
@@ -101,11 +104,15 @@ export const ExportModal: React.FC = () => {
           .in('agent_id', targetAgentIds)
           .order('started_at', { ascending: false });
 
-        if (!error && data) {
+        if (error) {
+          console.error('[ExportModal] Fetch sessions error:', error.message);
+          setSessionsError(error.message || 'Failed to fetch sessions');
+        } else if (data) {
           setAvailableSessions(data);
         }
       } catch (err) {
         console.error('[ExportModal] Fetch sessions exception:', err);
+        setSessionsError('Network error fetching sessions');
       } finally {
         setSessionsLoading(false);
       }
@@ -240,7 +247,7 @@ export const ExportModal: React.FC = () => {
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm"
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70"
       onClick={() => setExportModalOpen(false)}
     >
       <motion.div
@@ -249,11 +256,11 @@ export const ExportModal: React.FC = () => {
         onClick={(e) => e.stopPropagation()}
         className="w-[820px] max-w-[calc(100vw-2rem)] max-h-[90vh] max-h-[calc(100vh-2rem)] flex flex-col"
       >
-        <Panel className="border-border-subtle shadow-2xl overflow-hidden flex flex-col bg-bg-panel/95 backdrop-blur-md">
+        <Panel className="border-border-subtle shadow-2xl overflow-hidden flex flex-col bg-bg-panel">
           {/* Header */}
           <div className="p-4 border-b border-border flex items-center justify-between bg-bg-panel shrink-0">
             <div className="flex items-center gap-2.5">
-              <Export size={18} className="text-accent-blue" />
+              <Export size={18} className="text-text-primary" />
               <h2 className="text-sm font-bold uppercase tracking-widest text-text-secondary">{STRINGS.EXPORT.TITLE}</h2>
             </div>
             <button
@@ -270,7 +277,7 @@ export const ExportModal: React.FC = () => {
             <div className="flex-1 p-6 space-y-6 overflow-y-auto border-r border-border-subtle custom-scrollbar">
               {/* Scoping Selector - Single Agent vs All Active Agents */}
               <div className="space-y-2">
-                <label className="text-[10px] font-bold uppercase tracking-widest text-text-tertiary">Export Scoping</label>
+                <label className="text-xs font-bold uppercase tracking-widest text-text-tertiary">Export Scoping</label>
                 <div className="flex gap-2">
                   <button
                     onClick={() => {
@@ -279,7 +286,7 @@ export const ExportModal: React.FC = () => {
                     }}
                     className={`flex-1 h-9 flex items-center justify-center gap-2 border rounded-btn text-xs font-semibold transition-all ${
                       exportScope === 'single'
-                        ? "border-accent-blue bg-accent-blue/10 text-text-primary font-bold"
+                        ? "border-white/20 bg-white/10 text-text-primary font-bold"
                         : "border-border text-text-tertiary hover:border-text-secondary"
                     }`}
                   >
@@ -292,7 +299,7 @@ export const ExportModal: React.FC = () => {
                     }}
                     className={`flex-1 h-9 flex items-center justify-center gap-2 border rounded-btn text-xs font-semibold transition-all ${
                       exportScope === 'all'
-                        ? "border-accent-blue bg-accent-blue/10 text-text-primary font-bold"
+                        ? "border-white/20 bg-white/10 text-text-primary font-bold"
                         : "border-border text-text-tertiary hover:border-text-secondary"
                     }`}
                   >
@@ -316,7 +323,7 @@ export const ExportModal: React.FC = () => {
                         type="checkbox"
                         checked={zipPerAgent}
                         onChange={() => setZipPerAgent(!zipPerAgent)}
-                        className="rounded border-border accent-accent-blue cursor-pointer"
+                        className="rounded border-border text-secondary cursor-pointer"
                       />
                       <span className="text-xs text-text-secondary group-hover:text-text-primary transition-colors font-medium">
                         Separate folder per agent inside ZIP archive
@@ -328,7 +335,7 @@ export const ExportModal: React.FC = () => {
 
               {/* Export Type Selection */}
               <div className="space-y-2">
-                <label className="text-[10px] font-bold uppercase tracking-widest text-text-tertiary">{STRINGS.EXPORT.EXPORT_TYPE}</label>
+                <label className="text-xs font-bold uppercase tracking-widest text-text-tertiary">{STRINGS.EXPORT.EXPORT_TYPE}</label>
                 <div className="grid grid-cols-3 gap-2">
                   {exportTypes.map((t) => {
                     const Icon = t.icon;
@@ -338,13 +345,13 @@ export const ExportModal: React.FC = () => {
                         onClick={() => setExportType(t.id)}
                         className={`p-3 flex flex-col items-center gap-1.5 text-center border rounded-btn transition-all ${
                           exportType === t.id
-                            ? 'border-accent-blue bg-accent-blue/10 text-text-primary font-bold'
+                            ? 'border-white/20 bg-white/10 text-text-primary font-bold'
                             : 'border-border text-text-tertiary hover:border-text-secondary hover:bg-white/[0.01]'
                         }`}
                       >
                         <Icon size={18} />
-                        <span className="text-[10px] font-bold uppercase tracking-wide">{t.name}</span>
-                        <span className="text-[10px] text-text-tertiary leading-snug font-normal line-clamp-2 mt-0.5">{t.desc}</span>
+                        <span className="text-xs font-bold uppercase tracking-wide">{t.name}</span>
+                        <span className="text-xs text-text-tertiary leading-snug font-normal line-clamp-2 mt-0.5">{t.desc}</span>
                       </button>
                     );
                   })}
@@ -360,7 +367,7 @@ export const ExportModal: React.FC = () => {
                     exit={{ height: 0, opacity: 0 }}
                     className="space-y-2 overflow-hidden border-b border-border-subtle pb-3"
                   >
-                    <label className="text-[10px] font-bold uppercase tracking-widest text-text-tertiary">{STRINGS.EXPORT.SELECT_FORMAT}</label>
+                    <label className="text-xs font-bold uppercase tracking-widest text-text-tertiary">{STRINGS.EXPORT.SELECT_FORMAT}</label>
                     <div className="grid grid-cols-2 gap-2">
                       {formats.map((f) => (
                         <button
@@ -368,14 +375,14 @@ export const ExportModal: React.FC = () => {
                           onClick={() => setFormat(f.id)}
                           className={`h-10 flex items-center justify-center gap-2 border rounded-btn transition-all relative ${
                             format === f.id
-                              ? "border-accent-blue bg-accent-blue/10 text-text-primary font-bold"
+                              ? "border-white/20 bg-white/10 text-text-primary font-bold"
                               : "border-border text-text-tertiary hover:border-text-secondary"
                           }`}
                         >
                           <f.icon size={15} />
-                          <span className="text-[10px] font-bold">{f.name}</span>
+                          <span className="text-xs font-bold">{f.name}</span>
                           {f.tag && (
-                            <span className="text-[9px] bg-accent-blue/20 text-accent-blue px-1 py-0.5 rounded font-mono font-normal">
+                            <span className="text-xs bg-white/10 text-text-primary px-1 py-0.5 rounded font-mono font-normal">
                               {f.tag}
                             </span>
                           )}
@@ -395,7 +402,7 @@ export const ExportModal: React.FC = () => {
                     exit={{ height: 0, opacity: 0 }}
                     className="space-y-2 overflow-hidden border-b border-border-subtle pb-3"
                   >
-                    <label className="text-[10px] font-bold uppercase tracking-widest text-text-tertiary">Include In Archive</label>
+                    <label className="text-xs font-bold uppercase tracking-widest text-text-tertiary">Include In Archive</label>
                     <div className="grid grid-cols-3 gap-2">
                       {[
                         { label: 'Thoughts', checked: includeThoughts, onChange: () => setIncludeThoughts(!includeThoughts) },
@@ -407,9 +414,9 @@ export const ExportModal: React.FC = () => {
                             type="checkbox"
                             checked={opt.checked}
                             onChange={opt.onChange}
-                            className="rounded border-border accent-accent-blue cursor-pointer"
+                            className="rounded border-border text-secondary cursor-pointer"
                           />
-                          <span className="text-[11px] text-text-secondary group-hover:text-text-primary transition-colors">{opt.label}</span>
+                          <span className="text-xs text-text-secondary group-hover:text-text-primary transition-colors">{opt.label}</span>
                         </label>
                       ))}
                     </div>
@@ -421,11 +428,11 @@ export const ExportModal: React.FC = () => {
               {availableTasks.length > 0 && (
                 <div className="space-y-2 border-b border-border-subtle pb-3">
                   <div className="flex justify-between items-center">
-                    <label className="text-[10px] font-bold uppercase tracking-widest text-text-tertiary">Training Task Filter</label>
+                    <label className="text-xs font-bold uppercase tracking-widest text-text-tertiary">Training Task Filter</label>
                     {selectedTasks.length > 0 && (
                       <button
                         onClick={() => setSelectedTasks([])}
-                        className="text-[10px] text-accent-blue hover:underline"
+                        className="text-xs text-text-primary hover:underline"
                       >
                         Clear Task Filter
                       </button>
@@ -444,9 +451,9 @@ export const ExportModal: React.FC = () => {
                               setSelectedTasks([...selectedTasks, t]);
                             }
                           }}
-                          className={`px-2.5 py-1 rounded text-[10px] font-mono border transition-all ${
+                          className={`px-2.5 py-1 rounded text-xs font-mono border transition-all ${
                             isSelected
-                              ? 'border-accent-blue bg-accent-blue/15 text-accent-blue font-bold'
+                              ? 'border-white/20 bg-white/10 text-text-primary font-bold'
                               : 'border-border text-text-tertiary hover:border-text-secondary'
                           }`}
                         >
@@ -460,7 +467,7 @@ export const ExportModal: React.FC = () => {
 
               {/* Scope Selector */}
               <div className="space-y-2">
-                <label className="text-[10px] font-bold uppercase tracking-widest text-text-tertiary">{STRINGS.EXPORT.SCOPE_LABEL}</label>
+                <label className="text-xs font-bold uppercase tracking-widest text-text-tertiary">{STRINGS.EXPORT.SCOPE_LABEL}</label>
                 <div className="grid grid-cols-2 gap-2">
                   {scopeOptions.map((s) => (
                     <button
@@ -471,7 +478,7 @@ export const ExportModal: React.FC = () => {
                         s.disabled
                           ? 'opacity-40 cursor-not-allowed border-dashed border-border text-text-tertiary'
                           : scope === s.id
-                            ? 'border-accent-blue bg-accent-blue/10 text-text-primary font-bold'
+                            ? 'border-white/20 bg-white/10 text-text-primary font-bold'
                             : 'border-border text-text-tertiary hover:border-text-secondary'
                       }`}
                     >
@@ -492,7 +499,7 @@ export const ExportModal: React.FC = () => {
                     className="grid grid-cols-2 gap-3 overflow-hidden"
                   >
                     <div className="space-y-1.5">
-                      <label className="text-[10px] uppercase tracking-wider text-text-tertiary">From Date</label>
+                      <label className="text-xs uppercase tracking-wider text-text-tertiary">From Date</label>
                       <input
                         type="datetime-local"
                         value={dateFrom}
@@ -501,7 +508,7 @@ export const ExportModal: React.FC = () => {
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <label className="text-[10px] uppercase tracking-wider text-text-tertiary">To Date</label>
+                      <label className="text-xs uppercase tracking-wider text-text-tertiary">To Date</label>
                       <input
                         type="datetime-local"
                         value={dateTo}
@@ -521,7 +528,7 @@ export const ExportModal: React.FC = () => {
                     className="grid grid-cols-2 gap-3 overflow-hidden"
                   >
                     <div className="space-y-1.5">
-                      <label className="text-[10px] uppercase tracking-wider text-text-tertiary">Min Heartbeat</label>
+                      <label className="text-xs uppercase tracking-wider text-text-tertiary">Min Heartbeat</label>
                       <input
                         type="number"
                         min="0"
@@ -531,7 +538,7 @@ export const ExportModal: React.FC = () => {
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <label className="text-[10px] uppercase tracking-wider text-text-tertiary">Max Heartbeat</label>
+                      <label className="text-xs uppercase tracking-wider text-text-tertiary">Max Heartbeat</label>
                       <input
                         type="number"
                         min="0"
@@ -551,15 +558,17 @@ export const ExportModal: React.FC = () => {
                     exit={{ height: 0, opacity: 0 }}
                     className="space-y-2 overflow-hidden"
                   >
-                    <label className="text-[10px] font-bold uppercase tracking-widest text-text-tertiary">Select Sessions</label>
+                    <label className="text-xs font-bold uppercase tracking-widest text-text-tertiary">Select Sessions</label>
                     <div className="max-h-[140px] overflow-y-auto border border-border-subtle rounded-btn bg-black/10 divide-y divide-border-subtle custom-scrollbar">
                       {sessionsLoading ? (
                         <div className="p-3 text-center text-xs font-mono text-text-tertiary flex items-center justify-center gap-2">
-                          <ArrowsClockwise size={14} className="animate-spin text-accent-blue" />
+                          <ArrowsClockwise size={14} className="animate-spin text-text-primary" />
                           Fetching sessions...
                         </div>
+                      ) : sessionsError ? (
+                        <div className="p-3 text-center text-xs font-mono text-red-400">{sessionsError}</div>
                       ) : availableSessions.length === 0 ? (
-                        <div className="p-3 text-center text-[10px] text-text-tertiary uppercase">No database sessions found.</div>
+                        <div className="p-3 text-center text-xs text-text-tertiary uppercase">No database sessions found.</div>
                       ) : (
                         availableSessions.map((s) => {
                           const isSelected = selectedSessions.includes(s.id);
@@ -574,7 +583,7 @@ export const ExportModal: React.FC = () => {
                             <label
                               key={s.id}
                               className={`flex items-center justify-between px-3 py-2 cursor-pointer transition-colors ${
-                                isSelected ? 'bg-accent-blue/10 text-text-primary' : 'hover:bg-white/[0.02]'
+                                isSelected ? 'bg-white/10 text-text-primary' : 'hover:bg-white/[0.02]'
                               }`}
                             >
                               <div className="flex items-center gap-2.5">
@@ -582,11 +591,11 @@ export const ExportModal: React.FC = () => {
                                   type="checkbox"
                                   checked={isSelected}
                                   onChange={toggleSession}
-                                  className="rounded border-border accent-accent-blue cursor-pointer"
+                                  className="rounded border-border text-secondary cursor-pointer"
                                 />
-                                <span className="text-[11px] font-mono font-bold">{s.id.slice(0, 16)}</span>
+                                <span className="text-xs font-mono font-bold">{s.id.slice(0, 16)}</span>
                               </div>
-                              <span className="text-[10px] font-mono text-text-tertiary">
+                              <span className="text-xs font-mono text-text-tertiary">
                                 {formatBytes(s.estimated_size_bytes || 0)}
                               </span>
                             </label>
@@ -601,7 +610,7 @@ export const ExportModal: React.FC = () => {
               {/* Memory Tiers Filter */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <label className="text-[10px] font-bold uppercase tracking-widest text-text-tertiary">{STRINGS.EXPORT.TIER_LABEL}</label>
+                  <label className="text-xs font-bold uppercase tracking-widest text-text-tertiary">{STRINGS.EXPORT.TIER_LABEL}</label>
                   <button onClick={() => setTierInfoOpen(!tierInfoOpen)} className="text-text-tertiary hover:text-text-primary" aria-label="Tier info">
                     <Info size={14} />
                   </button>
@@ -613,7 +622,7 @@ export const ExportModal: React.FC = () => {
                       initial={{ height: 0, opacity: 0 }}
                       animate={{ height: 'auto', opacity: 1 }}
                       exit={{ height: 0, opacity: 0 }}
-                      className="text-[10px] text-text-tertiary bg-white/5 p-2.5 rounded border border-border-subtle leading-normal"
+                      className="text-xs text-text-tertiary bg-white/5 p-2.5 rounded border border-border-subtle leading-normal"
                     >
                       SYNTHIA saves thoughts and context to specific memory tiers: Tier 1 is Working Memory (short-term), Tier 2 is Episodic Memory (medium-term), and Tier 3 is Long-term/Archival Memory. Select which tiers are included in the export.
                     </motion.p>
@@ -633,7 +642,7 @@ export const ExportModal: React.FC = () => {
                       }}
                       className={`flex-1 h-8 flex items-center justify-center border rounded-btn text-xs font-bold transition-all ${
                         includeTiers.includes(tier)
-                          ? 'border-accent-blue bg-accent-blue/10 text-accent-blue font-bold'
+                          ? 'border-white/20 bg-white/10 text-text-primary font-bold'
                           : 'border-border text-text-tertiary hover:border-text-secondary'
                       }`}
                     >
@@ -645,7 +654,7 @@ export const ExportModal: React.FC = () => {
 
               {/* Additional Filters */}
               <div className="space-y-2">
-                <label className="text-[10px] font-bold uppercase tracking-widest text-text-tertiary">{STRINGS.EXPORT.FILTERS}</label>
+                <label className="text-xs font-bold uppercase tracking-widest text-text-tertiary">{STRINGS.EXPORT.FILTERS}</label>
                 <div className="grid grid-cols-2 gap-y-2">
                   {[
                     { label: 'Exclude Injected', checked: excludeInjected, onChange: () => setExcludeInjected(!excludeInjected) },
@@ -656,9 +665,9 @@ export const ExportModal: React.FC = () => {
                         type="checkbox"
                         checked={opt.checked}
                         onChange={opt.onChange}
-                        className="rounded border-border accent-accent-blue cursor-pointer"
+                        className="rounded border-border text-secondary cursor-pointer"
                       />
-                      <span className="text-[11px] text-text-secondary group-hover:text-text-primary transition-colors">{opt.label}</span>
+                      <span className="text-xs text-text-secondary group-hover:text-text-primary transition-colors">{opt.label}</span>
                     </label>
                   ))}
                 </div>
@@ -668,24 +677,24 @@ export const ExportModal: React.FC = () => {
             {/* RIGHT PANEL — Preview */}
             <div className="w-[300px] p-5 bg-bg-elevated/20 flex flex-col shrink-0">
               <div className="flex items-center gap-2 mb-4">
-                <Eye size={14} className="text-accent-blue" />
-                <span className="text-[10px] font-bold uppercase tracking-widest text-text-secondary">{STRINGS.EXPORT.PREVIEW_PANEL}</span>
+                <Eye size={14} className="text-text-primary" />
+                <span className="text-xs font-bold uppercase tracking-widest text-text-secondary">{STRINGS.EXPORT.PREVIEW_PANEL}</span>
               </div>
 
               <div className="flex-1 space-y-4">
                 <div className="p-4 bg-black/10 rounded-panel border border-border-subtle space-y-4 text-left text-xs">
                   {/* Target Scoping Indicator */}
                   <div className="space-y-1">
-                    <span className="text-[10px] uppercase text-text-tertiary">Target Scoping</span>
+                    <span className="text-xs uppercase text-text-tertiary">Target Scoping</span>
                     <span className="text-xs font-bold text-text-primary flex items-center gap-1.5 mt-0.5">
                       {exportScope === 'single' ? (
                         <>
-                          <User size={14} className="text-accent-blue" />
+                          <User size={14} className="text-text-primary" />
                           {activeAgentId}
                         </>
                       ) : (
                         <>
-                          <Users size={14} className="text-accent-blue" />
+                          <Users size={14} className="text-text-primary" />
                           All Active Agents ({Object.keys(useAgentStore.getState().agents).length})
                         </>
                       )}
@@ -694,7 +703,7 @@ export const ExportModal: React.FC = () => {
 
                   {/* Export Type */}
                   <div className="space-y-1">
-                    <span className="text-[10px] uppercase text-text-tertiary">Type</span>
+                    <span className="text-xs uppercase text-text-tertiary">Type</span>
                     <span className="text-xs font-bold text-text-primary block">
                       {exportTypes.find(t => t.id === exportType)?.name}
                     </span>
@@ -703,7 +712,7 @@ export const ExportModal: React.FC = () => {
                   {/* Format (dataset only) */}
                   {exportType === 'dataset' && (
                     <div className="space-y-1">
-                      <span className="text-[10px] uppercase text-text-tertiary">Format</span>
+                      <span className="text-xs uppercase text-text-tertiary">Format</span>
                       <span className="text-xs font-bold text-text-primary block">{format}</span>
                     </div>
                   )}
@@ -711,8 +720,8 @@ export const ExportModal: React.FC = () => {
                   {/* Task Filter indicator if active */}
                   {selectedTasks.length > 0 && (
                     <div className="space-y-1">
-                      <span className="text-[10px] uppercase text-text-tertiary">Tasks Filtered</span>
-                      <span className="text-[11px] font-mono text-accent-blue font-bold block">
+                      <span className="text-xs uppercase text-text-tertiary">Tasks Filtered</span>
+                      <span className="text-xs font-mono text-text-primary font-bold block">
                         {selectedTasks.length} task(s) selected
                       </span>
                     </div>
@@ -720,13 +729,13 @@ export const ExportModal: React.FC = () => {
 
                   {/* Scope */}
                   <div className="space-y-1">
-                    <span className="text-[10px] uppercase text-text-tertiary">Scope</span>
+                    <span className="text-xs uppercase text-text-tertiary">Scope</span>
                     <span className="text-xs font-bold text-text-primary capitalize block">{scope.replace('_', ' ')}</span>
                   </div>
 
                   {/* Breakdown */}
                   <div className="space-y-1">
-                    <span className="text-[10px] uppercase text-text-tertiary">Memories Match</span>
+                    <span className="text-xs uppercase text-text-tertiary">Memories Match</span>
                     <span className="text-xs font-mono font-bold text-text-primary block">
                       {totalMemoryCount.toLocaleString()} rows
                     </span>
@@ -736,7 +745,7 @@ export const ExportModal: React.FC = () => {
 
                   {/* Size Estimate */}
                   <div className="space-y-1">
-                    <span className="text-[10px] uppercase text-text-tertiary">{STRINGS.EXPORT.ESTIMATED_SIZE}</span>
+                    <span className="text-xs uppercase text-text-tertiary">{STRINGS.EXPORT.ESTIMATED_SIZE}</span>
                     <span className="text-sm font-bold text-text-primary block">
                       {estimatedSize}
                     </span>
@@ -748,12 +757,12 @@ export const ExportModal: React.FC = () => {
               <div className="mt-auto pt-4 space-y-3 shrink-0">
                 {isExporting && (
                   <div className="space-y-1 text-left">
-                    <div className="flex justify-between text-[10px] font-mono">
+                    <div className="flex justify-between text-xs font-mono">
                       <span className="text-text-secondary uppercase">Progress</span>
-                      <span className="text-accent-blue font-bold">{exportProgress}%</span>
+                      <span className="text-text-primary font-bold">{exportProgress}%</span>
                     </div>
                     <div className="w-full h-1 bg-bg-elevated rounded-full overflow-hidden">
-                      <div className="h-full bg-accent-blue transition-all duration-300" style={{ width: `${exportProgress}%` }} />
+                      <div className="h-full bg-white/10 transition-all duration-300" style={{ width: `${exportProgress}%` }} />
                     </div>
                   </div>
                 )}
@@ -761,12 +770,12 @@ export const ExportModal: React.FC = () => {
                 <button
                   onClick={handleExport}
                   disabled={isExporting || totalMemoryCount === 0}
-                  className={`w-full h-10 rounded-btn text-[10px] font-bold uppercase tracking-widest flex items-center justify-center gap-2 transition-all cursor-pointer
+                  className={`w-full h-10 rounded-btn text-xs font-bold uppercase tracking-widest flex items-center justify-center gap-2 transition-all cursor-pointer
                     ${isExporting
-                      ? 'bg-accent-blue/10 border border-accent-blue/30 text-accent-blue cursor-not-allowed'
+                      ? 'bg-white/10 border border-white/20 text-text-primary cursor-not-allowed'
                       : totalMemoryCount === 0
                         ? 'bg-border text-text-tertiary border-transparent cursor-not-allowed opacity-50'
-                        : 'bg-accent-blue hover:bg-accent-blue-hover text-white border-transparent shadow-md'
+                        : 'bg-white/10 hover:bg-white/10-hover text-white border-transparent shadow-md'
                     }`}
                 >
                   {isExporting ? (

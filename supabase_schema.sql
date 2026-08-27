@@ -1,4 +1,6 @@
 -- Run this in Supabase SQL Editor
+-- For new installations: run this file, then run supabase_migrations/v2_additive.sql
+-- For existing v1 databases: run only supabase_migrations/v2_additive.sql
 
 CREATE EXTENSION IF NOT EXISTS vector;
 

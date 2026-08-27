@@ -41,9 +41,10 @@ export function DataPage() {
   return (
     <PageLayout>
       <PageMeta
-        title="Turn what your AI does into datasets you own"
-        description="Export structured embodied AI training data from SYNTHIA with one click. Parquet & JSON formats, 100% self-hosted dataset ownership."
+        title="Sell AI training data — export what your AI learns"
+        description="Turn your AI's experiences into sellable datasets. Export structured embodied AI training data with one click — vision, proprioception, motor torques, inner thoughts. Parquet format, 100% self-hosted. The AI dataset marketplace starts here."
         path="/data"
+        keywords="sell AI training data, make money selling AI data, AI dataset marketplace, sell AI data, export AI training data, AI training data for sale, generate AI training data, sell data to AI companies, how to sell AI training data, can you sell data to AI companies, new ways to make money with AI, AI data side hustle, sell agent data, embodied AI data, AI behavior data, multimodal AI dataset, synthetic agent data, make money with AI data, AI training data market, how to export AI agent data, sell data online, how much is AI training data worth, who buys AI training data, how to start selling AI data, AI data buyers, dataset export CSV JSONL, AI training data generation, structured AI data, Parquet AI data, one click data export, self-hosted dataset, AI data ownership, sell embodied data, AI telemetry data, agent data export, vision data AI, proprioception data, motor torque data, AI reasoning data, thought stream data, AI session data, export AI dataset, AI data file, training data format, AI data marketplace 2026, make AI data for sale, AI data income, passive income AI data, AI side income"
         jsonLd={{
           '@context': 'https://schema.org',
           '@type': 'FAQPage',

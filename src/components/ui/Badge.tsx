@@ -16,14 +16,14 @@ export const Badge: React.FC<BadgeProps> = ({
   const variants = {
     default: "bg-bg-elevated text-text-secondary border-transparent",
     outline: "bg-transparent border-border text-text-secondary",
-    accent: "bg-accent-blue/10 border-accent-blue/20 text-accent-blue",
+    accent: "bg-white/10 border-white/20 text-text-primary",
     tertiary: "bg-transparent text-text-tertiary border-transparent",
   };
 
   return (
     <span
       className={cn(
-        "inline-flex items-center px-1.5 py-0.5 rounded-badge text-[10px] font-mono border uppercase tracking-wider",
+        "inline-flex items-center px-1.5 py-0.5 rounded-badge text-xs font-mono border",
         variants[variant],
         className
       )}

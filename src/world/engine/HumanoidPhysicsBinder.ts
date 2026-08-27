@@ -266,6 +266,18 @@ export class HumanoidPhysicsBinder {
   public agentId: string;
   public prefix: string;
 
+  // ── Floor geom ID (cached at model load, used for ground detection) ──
+  private _floorGeomId: number = -1;
+
+  // ── Cached per-frame objects (avoid per-frame allocation churn) ────────
+  private _syncCapsulePos = new THREE.Vector3();
+  private _syncCapsuleQuat = new THREE.Quaternion();
+  private _syncOffsetLocal = new THREE.Vector3();
+  private _syncOffsetWorld = new THREE.Vector3();
+  private _syncBonesMap = new Map<string, { bone: THREE.Bone; worldPosition: THREE.Vector3 }>();
+  private _syncProxiesMap = new Map<string, BodyProxy>();
+  private _syncWorldPos = new THREE.Vector3();
+
   constructor(physicsEngine: PhysicsEngine, scene: THREE.Scene, agentId: string = '') {
     this.physicsEngine = physicsEngine;
     this.scene = scene;
@@ -938,47 +950,45 @@ export class HumanoidPhysicsBinder {
     if (capsuleBodyId === null || capsuleBodyId < 0) return;
 
     // 1. Position and orient the Three.js model root using MuJoCo capsule body
-    const capsuleProxy = new BodyProxy(capsuleBodyId, model, data, module);
-    const t = capsuleProxy.translation();
-    const r = capsuleProxy.rotation();
+    // Read directly from WASM arrays instead of creating a BodyProxy per frame
+    const capsulePosX = data.xpos[capsuleBodyId * 3];
+    const capsulePosY = data.xpos[capsuleBodyId * 3 + 1];
+    const capsulePosZ = data.xpos[capsuleBodyId * 3 + 2];
+    const capsuleQuatW = data.xquat[capsuleBodyId * 4];
+    const capsuleQuatX = data.xquat[capsuleBodyId * 4 + 1];
+    const capsuleQuatY = data.xquat[capsuleBodyId * 4 + 2];
+    const capsuleQuatZ = data.xquat[capsuleBodyId * 4 + 3];
 
-    const capsulePosition = new THREE.Vector3(t.x, t.y, t.z);
-    const capsuleQuaternion = new THREE.Quaternion(r.x, r.y, r.z, r.w);
+    // Convert MuJoCo coordinates to Three.js and update cached vectors in-place
+    this._syncCapsulePos.set(capsulePosX, capsulePosZ, -capsulePosY);
+    this._syncCapsuleQuat.set(capsuleQuatX, capsuleQuatZ, -capsuleQuatY, capsuleQuatW);
 
-    const offsetLocal = new THREE.Vector3(0, this.capsuleCenterY, 0);
-    const offsetWorld = offsetLocal.clone().applyQuaternion(capsuleQuaternion);
+    this._syncOffsetLocal.set(0, this.capsuleCenterY, 0);
+    this._syncOffsetWorld.copy(this._syncOffsetLocal).applyQuaternion(this._syncCapsuleQuat);
 
-    this.modelRoot.position.copy(capsulePosition).sub(offsetWorld);
-    this.modelRoot.quaternion.copy(capsuleQuaternion);
+    this.modelRoot.position.copy(this._syncCapsulePos).sub(this._syncOffsetWorld);
+    this.modelRoot.quaternion.copy(this._syncCapsuleQuat);
 
-    // 2. Perform downward ground raycasting using mj_ray (as verified in Step 1)
-    const capsulePosMj = [
-      data.xpos[capsuleBodyId * 3],
-      data.xpos[capsuleBodyId * 3 + 1],
-      data.xpos[capsuleBodyId * 3 + 2]
-    ];
-    const downDirMj = [0, 0, -1];
-    const geomgroup = [1, 1, 1, 1, 1, 1];
-    const geomIdBuffer = new module.IntBuffer(1);
-
-    // Call mj_ray (exclude capsule geom)
-    const capsuleGeomId = this.bodyManager.getBoneColliderHandle('root_capsule') ?? -1;
-    const dist = module.mj_ray(model, data, capsulePosMj, downDirMj, geomgroup, true, capsuleGeomId, geomIdBuffer, null);
-
-    if (dist >= 0) {
-      // In Three.js world, Y is vertical:
-      this.groundSurfaceY = t.y - dist;
+    // 2. Determine ground surface height from floor geom position (no mj_ray — eliminates WASM heap fragmentation)
+    // Lazy-init: cache floor geom ID on first call after model is ready
+    if (this._floorGeomId < 0 && module) {
+      this._floorGeomId = module.mj_name2id(model, module.mjtObj.mjOBJ_GEOM.value, 'floor');
+    }
+    if (this._floorGeomId >= 0 && data.geom_xpos) {
+      // mj_ray dist = capsulePosZ - floorZ (ray goes straight down along Z in MuJoCo).
+      // groundSurfaceY = capsulePosY - dist = capsulePosY - capsulePosZ + floorZ.
+      const floorZ = data.geom_xpos[this._floorGeomId * 3 + 2];
+      this.groundSurfaceY = capsulePosY - capsulePosZ + floorZ;
     } else {
       this.groundSurfaceY = 0.0;
     }
-    geomIdBuffer.delete();
 
     // Spawn alignment: set targetSpawnGrounded to true to mark grounding initialized
     if (!this.targetSpawnGrounded) {
       this.targetSpawnGrounded = true;
     }
 
-    const capsuleBottomY = t.y - this.capsuleCenterY;
+    const capsuleBottomY = capsulePosY - this.capsuleCenterY;
     this._isGrounded = capsuleBottomY <= (this.groundSurfaceY + this.GROUND_SNAP_THRESHOLD);
 
     // Static friction enforcement: kill residual horizontal micro-drift when grounded and idle.
@@ -1016,23 +1026,25 @@ export class HumanoidPhysicsBinder {
 
     // 3. Synchronize visual bones with proxies!
     if (this.mbActive) {
-      const bonesSyncMap = new Map<string, { bone: THREE.Bone; worldPosition: THREE.Vector3 }>();
+      // Reuse cached maps instead of creating new ones per frame
+      this._syncBonesMap.clear();
+      this._syncProxiesMap.clear();
+
       for (const [canonical] of this.bodyManager.getRigidBodiesMap()) {
         if (canonical === 'root_capsule') continue;
         const boneInfo = this.boneInfoMap.get(canonical);
         if (!boneInfo) continue;
-        const worldPos = new THREE.Vector3();
-        boneInfo.bone.getWorldPosition(worldPos);
-        bonesSyncMap.set(canonical, { bone: boneInfo.bone, worldPosition: worldPos });
+        this._syncWorldPos.set(0, 0, 0);
+        boneInfo.bone.getWorldPosition(this._syncWorldPos);
+        this._syncBonesMap.set(canonical, { bone: boneInfo.bone, worldPosition: this._syncWorldPos.clone() });
       }
 
-      const proxiesMap = new Map<string, BodyProxy>();
       for (const [canonical, bodyId] of this.bodyManager.getRigidBodiesMap()) {
         if (canonical === 'root_capsule') continue;
-        proxiesMap.set(canonical, new BodyProxy(bodyId, model, data, module, this.prefix));
+        this._syncProxiesMap.set(canonical, new BodyProxy(bodyId, model, data, module, this.prefix));
       }
 
-      this.avatarSynchronizer.synchronize(bonesSyncMap, proxiesMap as any);
+      this.avatarSynchronizer.synchronize(this._syncBonesMap, this._syncProxiesMap as any);
     }
 
     this.modelRoot.updateMatrixWorld(true);
@@ -1041,9 +1053,9 @@ export class HumanoidPhysicsBinder {
       this.boneInfoMap.forEach((boneInfo, boneName) => {
         const debugSphere = this.debugSpheres.get(boneName);
         if (debugSphere) {
-          const worldPos = new THREE.Vector3();
-          boneInfo.bone.getWorldPosition(worldPos);
-          debugSphere.position.copy(worldPos);
+          this._syncWorldPos.set(0, 0, 0);
+          boneInfo.bone.getWorldPosition(this._syncWorldPos);
+          debugSphere.position.copy(this._syncWorldPos);
         }
       });
     }
@@ -2561,13 +2573,20 @@ export class HumanoidPhysicsBinder {
     for (const program of programs) {
       const name = program.toLowerCase().replace(/[_\s]/g, '');
 
-      if (name.includes('stand') || name.includes('upright') || name.includes('recover') || name.includes('reorient')) {
-        this.setCapsulePosition(0, 0.05, 0);
-        this.resetToBindPose();
+      if (name.includes('stand') || name.includes('upright') || name.includes('recover') || name.includes('reorient') || name.includes('reset')) {
+        const capsuleBody = this.getCapsuleBody();
+        let x = 0;
+        let z = 0;
+        if (capsuleBody && capsuleBody.isValid()) {
+          const t = capsuleBody.translation();
+          x = t.x;
+          z = t.z;
+        }
+        this.resetPose({ x, y: 0, z });
       } else if (name.includes('jump')) {
         this.executeJump(6.0);
       } else {
-        Logger.warn(`HumanoidPhysicsBinder: Unknown program sequence "${program}" ignored. Use joint_overrides or sequence timeline for movement, or "stand"/"jump" for special actions.`);
+        Logger.warn(`HumanoidPhysicsBinder: Unknown program sequence "${program}" ignored. Use joint_overrides or sequence timeline for movement, or "stand"/"reset_pose"/"jump" for special actions.`);
       }
     }
   }
@@ -2742,6 +2761,9 @@ export class HumanoidPhysicsBinder {
     this.bodyManager.deactivate();
     this.observationBuilder.clear();
     this.avatarSynchronizer.clear();
+
+    // Reset floor geom cache
+    this._floorGeomId = -1;
 
     if (this.modelRoot) {
       this.scene.remove(this.modelRoot);

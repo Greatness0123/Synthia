@@ -17,6 +17,12 @@
   --text-secondary: #888888;
   --text-tertiary: #9ca3af;
 
+  /* Neutral emphasis tokens (replace accent-*) */
+  --emphasis: #ffffff;
+  --emphasis-muted: rgba(255,255,255,0.5);
+  --surface-active: rgba(255,255,255,0.08);
+
+  /* Deprecated accent tokens - kept for world data pickers only */
   --accent-blue: #4a9eff;
   --accent-amber: #f59e0b;
   --accent-green: #22c55e;
@@ -36,6 +42,12 @@
   --text-secondary: #555555;
   --text-tertiary: #6b7280;
 
+  /* Neutral emphasis tokens (light mode) */
+  --emphasis: #000000;
+  --emphasis-muted: rgba(0,0,0,0.45);
+  --surface-active: rgba(0,0,0,0.06);
+
+  /* Deprecated accent tokens - kept for world data pickers only */
   --accent-blue: #2563eb;
   --accent-amber: #d97706;
   --accent-green: #16a34a;
@@ -92,10 +104,8 @@
   }
 
   .glassmorphism {
-    @apply backdrop-blur-xl border border-white/10 shadow-lg shadow-black/20;
+    @apply backdrop-blur-md border border-white/10 shadow-lg shadow-black/20;
     background: rgba(17, 17, 17, 0.8);
     transform: translateZ(0);
-    contain: layout style;
-    isolation: isolate;
   }
 }

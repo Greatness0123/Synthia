@@ -26,9 +26,10 @@ export function CloudflareTunnelPage() {
   return (
     <PageLayout>
       <PageMeta
-        title="Connect SYNTHIA with Cloudflare Tunnel"
-        description="Expose your Kaggle inference server to SYNTHIA using Cloudflare quick tunnels or named tunnels. Step-by-step, free tier explained."
+        title="Connect SYNTHIA with Cloudflare Tunnel — free inference proxy"
+        description="Expose your Kaggle free GPU inference server to SYNTHIA using Cloudflare quick tunnels or named tunnels. Free tier, step-by-step setup for browser-based AI simulation with no install."
         path="/guides/cloudflare-tunnel"
+        keywords="Cloudflare tunnel AI, Kaggle tunnel setup, expose AI server, Cloudflare quick tunnel, named tunnel AI, free AI tunnel, Kaggle inference proxy, AI server public URL, Cloudflare free tier tunnel, tunnel for AI inference, SYNTHIA Cloudflare setup, browser AI tunnel, AI inference exposure, free tunnel for notebook, Kaggle notebook tunnel, Cloudflare zero trust tunnel, AI server tunnel guide, how to expose AI server, Kaggle GPU tunnel, free AI proxy, AI server public access, Cloudflare tunnel tutorial, tunnel Kaggle to browser, AI inference tunnel setup, Cloudflare Workers AI, free AI exposure, notebook tunnel guide, Kaggle Cloudflare setup, AI server URL tunnel, public AI inference, browser AI connection, SYNTHIA inference connection, AI server proxy free, tunnel guide step by step, Cloudflare tunnel free AI, expose Kaggle server, AI inference access guide, Cloudflare quick tunnel guide, named tunnel tutorial, AI server public URL free, Kaggle GPU public, free AI server tunnel, browser based AI tunnel, AI inference proxy guide, connect AI to browser, SYNTHIA Cloudflare guide, tunnel for free GPU, Cloudflare tunnel notebook, AI server tunnel free, Kaggle inference access"
       />
 
       <Section className="pt-32">

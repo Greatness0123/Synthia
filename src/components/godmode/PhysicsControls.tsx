@@ -3,7 +3,8 @@
  */
 
 import { useWorldStore } from '../../store/worldStore';
-import { Slider } from '../ui/Slider';
+import { Toggle } from '../ui/Toggle';
+import { ValueInput } from '../ui/ValueInput';
 import { Panel } from '../ui/Panel';
 import { STRINGS } from '../../constants/strings';
 import { Sliders, Globe } from '../ui/icons';
@@ -20,36 +21,39 @@ export const PhysicsControls: React.FC = () => {
 
   return (
     <Panel className="p-4 border-none bg-transparent">
-      <h3 className="text-[10px] font-bold text-text-tertiary uppercase tracking-widest mb-4 flex items-center gap-1.5">
+      <h3 className="text-xs font-medium text-text-tertiary mb-4 flex items-center gap-1.5">
         <Sliders size={12} />
         {STRINGS.GOD_MODE.PHYSICS}
       </h3>
       <div className="space-y-6">
-        <Slider
+        <ValueInput
           label={STRINGS.GOD_MODE.GRAVITY}
-          min={-20}
-          max={0}
-          step={0.1}
           value={gravity}
-          onChange={(e) => setGravity(parseFloat(e.target.value))}
+          onChange={setGravity}
+          min={-20}
+          max={20}
+          step={0.1}
+          unit="m/s²"
+          defaultValue={-9.81}
         />
-        <Slider
+        <ValueInput
           label={STRINGS.GOD_MODE.FRICTION}
+          value={globalFriction}
+          onChange={setGlobalFriction}
           min={0}
           max={1}
           step={0.01}
-          value={globalFriction}
-          onChange={(e) => setGlobalFriction(parseFloat(e.target.value))}
+          defaultValue={0.5}
         />
       </div>
 
-      <h3 className="text-[10px] font-bold text-text-tertiary uppercase tracking-widest mb-4 mt-8 flex items-center gap-1.5">
+      <h3 className="text-xs font-medium text-text-tertiary mb-4 mt-8 flex items-center gap-1.5">
         <Globe size={12} />
         Environment
       </h3>
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <label className="text-[10px] uppercase tracking-wider text-text-tertiary">Sky Color</label>
+          <label className="text-xs text-text-tertiary">Sky Color</label>
           <input
             type="color"
             value={skyColor}
@@ -58,18 +62,15 @@ export const PhysicsControls: React.FC = () => {
           />
         </div>
         
-        <div className="flex items-center justify-between">
-          <label className="text-[10px] uppercase tracking-wider text-text-tertiary">Show Floor</label>
-          <button
-            onClick={() => setShowFloor(!showFloor)}
-            className={`w-8 h-4 rounded-full transition-colors relative ${showFloor ? 'bg-accent-blue' : 'bg-bg-elevated'}`}
-          >
-            <div className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all ${showFloor ? 'left-[18px]' : 'left-0.5'}`} />
-          </button>
-        </div>
+        <Toggle
+          label="Show Floor"
+          ariaLabel="Show Floor"
+          enabled={showFloor}
+          onChange={setShowFloor}
+        />
         {showFloor && (
           <div className="flex items-center justify-between">
-            <label className="text-[10px] uppercase tracking-wider text-text-tertiary">Floor Color</label>
+            <label className="text-xs text-text-tertiary">Floor Color</label>
             <input 
               type="color" 
               value={floorColor} 
@@ -78,15 +79,12 @@ export const PhysicsControls: React.FC = () => {
             />
           </div>
         )}
-        <div className="flex items-center justify-between">
-          <label className="text-[10px] uppercase tracking-wider text-text-tertiary">Show Grid</label>
-          <button
-            onClick={() => setShowGrid(!showGrid)}
-            className={`w-8 h-4 rounded-full transition-colors relative ${showGrid ? 'bg-accent-blue' : 'bg-bg-elevated'}`}
-          >
-            <div className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all ${showGrid ? 'left-[18px]' : 'left-0.5'}`} />
-          </button>
-        </div>
+        <Toggle
+          label="Show Grid"
+          ariaLabel="Show Grid"
+          enabled={showGrid}
+          onChange={setShowGrid}
+        />
       </div>
     </Panel>
   );

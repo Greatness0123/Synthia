@@ -6,8 +6,9 @@ import React from 'react';
 import { useWorldStore } from '../../store/worldStore';
 import { BODY_TYPE_CONFIGS } from '../../constants/bodyTypes';
 import { Slider } from '../ui/Slider';
+import { Toggle } from '../ui/Toggle';
 import { STRINGS } from '../../constants/strings';
-import { Bot, Camera, Monitor } from '../ui/icons';
+import { Bot } from '../ui/icons';
 import type { BodyType } from '../../types/world';
 
 export const BodyControls: React.FC = () => {
@@ -20,13 +21,17 @@ export const BodyControls: React.FC = () => {
     setShowAIPiP,
     movementSmoothing,
     setMovementSmoothing,
+    reactionMassEnabled,
+    setReactionMassEnabled,
+    capsuleBalanceEnabled,
+    setCapsuleBalanceEnabled,
   } = useWorldStore();
 
   return (
     <div className="p-4 border-t border-border">
-      <h3 className="text-[10px] font-bold text-text-tertiary uppercase tracking-widest mb-4 flex items-center gap-1.5">
+      <h3 className="text-xs font-medium text-text-tertiary mb-4 flex items-center gap-1.5">
         <Bot size={12} />
-        {STRINGS.GOD_MODE.BODY} (GLOBAL DEBUG)
+        {STRINGS.GOD_MODE.BODY}
       </h3>
 
       <div className="space-y-4">
@@ -41,7 +46,7 @@ export const BodyControls: React.FC = () => {
                 onClick={() => setBodyType(config.id as BodyType)}
                 className={`text-left px-3 py-2 rounded-btn text-xs border transition-all ${
                   bodyType === config.id
-                    ? "border-accent-blue bg-accent-blue/5 text-text-primary"
+                    ? "border-white/20 bg-white/5 text-text-primary"
                     : isDisabled
                       ? "border-border text-text-tertiary/40 cursor-not-allowed"
                       : "border-border text-text-tertiary hover:border-text-tertiary"
@@ -53,25 +58,33 @@ export const BodyControls: React.FC = () => {
           })}
         </div>
 
-        <div className="flex items-center justify-between py-1">
-          <label className="text-[10px] uppercase tracking-wider text-text-tertiary flex items-center gap-1.5"><Camera size={10} /> Show All Cameras</label>
-          <button
-            onClick={() => setShowAICameraHelper(!showAICameraHelper)}
-            className={`w-8 h-4 rounded-full transition-colors relative ${showAICameraHelper ? 'bg-accent-blue' : 'bg-bg-elevated'}`}
-          >
-            <div className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all ${showAICameraHelper ? 'left-[18px]' : 'left-0.5'}`} />
-          </button>
-        </div>
+        <Toggle
+          label="Show All Cameras"
+          ariaLabel="Show All Cameras"
+          enabled={showAICameraHelper}
+          onChange={setShowAICameraHelper}
+        />
 
-        <div className="flex items-center justify-between py-1">
-          <label className="text-[10px] uppercase tracking-wider text-text-tertiary flex items-center gap-1.5"><Monitor size={10} /> AI PiP View</label>
-          <button
-            onClick={() => setShowAIPiP(!showAIPiP)}
-            className={`w-8 h-4 rounded-full transition-colors relative ${showAIPiP ? 'bg-accent-blue' : 'bg-bg-elevated'}`}
-          >
-            <div className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all ${showAIPiP ? 'left-[18px]' : 'left-0.5'}`} />
-          </button>
-        </div>
+        <Toggle
+          label="AI PiP View"
+          ariaLabel="AI PiP View"
+          enabled={showAIPiP}
+          onChange={setShowAIPiP}
+        />
+
+        <Toggle
+          label="Capsule Balance"
+          ariaLabel="Toggle capsule balance (Road-2 root corrector)"
+          enabled={capsuleBalanceEnabled}
+          onChange={setCapsuleBalanceEnabled}
+        />
+
+        <Toggle
+          label="Reaction-Mass (RMBS)"
+          ariaLabel="Toggle reaction-mass balance system"
+          enabled={reactionMassEnabled}
+          onChange={setReactionMassEnabled}
+        />
 
         <Slider
           label={STRINGS.GOD_MODE.MOVEMENT_SMOOTHING}

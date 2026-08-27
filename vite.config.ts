@@ -5,6 +5,7 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   optimizeDeps: {
-    exclude: ['@mujoco/mujoco']
+    exclude: ['@mujoco/mujoco'],
+    include: ['@material-symbols-svg/react']
   }
 })

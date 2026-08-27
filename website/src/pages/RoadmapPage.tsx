@@ -4,6 +4,7 @@ import { FadeContent } from '@/components/react-bits/FadeContent'
 import { Breadcrumbs } from '@/components/ui/Breadcrumbs'
 import { PageLayout } from '@/components/layout/PageLayout'
 import { ShimmerButton } from '@/components/ui/ShimmerButton'
+import { CalcomButton } from '@/components/calendly/CalcomButton'
 import { siteConfig } from '@/config/site'
 
 const milestones = [
@@ -66,9 +67,10 @@ export function RoadmapPage() {
   return (
     <PageLayout>
       <PageMeta
-        title="Where SYNTHIA is going"
-        description="SYNTHIA roadmap: V1 client-side simulation, V1.5 custom rigged 3D models, Persistence cloud plan for 24/7 tabless runs, and V2 shared world."
+        title="Where SYNTHIA is going — roadmap for embodied AI"
+        description="SYNTHIA roadmap: V1 client-side embodied AI simulation with browser physics, V1.5 custom rigged 3D models, Persistence cloud plan for 24/7 always-on AI, and V2 shared world where AI minds with bodies live together."
         path="/roadmap"
+        keywords="SYNTHIA roadmap, embodied AI future, AI world simulation roadmap, browser AI future, AI persistence cloud, always-on AI, 24/7 AI agent, shared AI world, multi-agent AI future, AI character roadmap, custom 3D AI model, rigged avatar AI, AI cloud execution, headless AI simulation, AI remote dashboard, AI dataset sync, AI checkpoint export, V2 shared world, AI minds living together, different AI models interact, open source AI roadmap, MIT AI project, AI physics engine future, AI embodiment evolution, AI agent platform, AI sandbox future, AI training persistence, cloud AI agent, AI world building future, AI environment expansion, AI multi-agent world, AI social behavior, emergent AI behavior, AI benchmark platform, AI research tool, AI education tool, future of embodied AI, AI simulation roadmap 2026, browser based AI future, client side AI evolution, open source agent platform, AI mind with body roadmap, next generation AI agent, AI that lives in world roadmap, where SYNTHIA is going"
       />
       <div className="section-padding mx-auto max-w-4xl pt-24 sm:pt-28">
         <Breadcrumbs items={[{ label: 'Roadmap' }]} />
@@ -113,6 +115,9 @@ export function RoadmapPage() {
             about the roadmap is what makes an early adopter want to be on the road.
           </p>
           <ShimmerButton href={siteConfig.appUrl}>Try V1 today</ShimmerButton>
+          <div className="mt-4">
+            <CalcomButton />
+          </div>
         </FadeContent>
 
         <div className="mt-12">

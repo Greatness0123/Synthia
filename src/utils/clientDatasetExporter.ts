@@ -1,8 +1,11 @@
-import { createClient } from '@supabase/supabase-js';
 import JSZip from 'jszip';
+import { getSupabaseClient } from './supabaseClient';
 import { ExportConfig } from '../types/export';
 import { useAgentStore } from '../store/agentStore';
 import { writeParquet } from './parquetWriter';
+
+const PAGE_SIZE = 500;
+const MAX_ROWS = 50_000;
 
 // Simple function to trigger browser download of a Blob
 function triggerDownload(blob: Blob, filename: string) {
@@ -28,34 +31,74 @@ export async function runClientSideExport(
   // 1. Gather memories from Supabase if configured, otherwise fallback to local store
   if (supabaseUrl && supabaseKey) {
     try {
-      const supabase = createClient(supabaseUrl, supabaseKey);
-      let query = supabase.from('memories').select('*').in('agent_id', config.agentIds);
+      const supabase = getSupabaseClient(supabaseUrl, supabaseKey);
+      if (!supabase) throw new Error('Supabase not configured');
+
+      // Build the base query with filters
+      let baseQuery = supabase.from('memories').select('*', { count: 'exact' }).in('agent_id', config.agentIds);
 
       if (config.scope === 'date_range') {
-        if (config.dateFrom) query = query.gte('created_at', config.dateFrom);
-        if (config.dateTo) query = query.lte('created_at', config.dateTo);
+        if (config.dateFrom) baseQuery = baseQuery.gte('created_at', config.dateFrom);
+        if (config.dateTo) baseQuery = baseQuery.lte('created_at', config.dateTo);
       } else if (config.scope === 'session') {
         if (config.sessionIds && config.sessionIds.length > 0) {
-          query = query.in('session_id', config.sessionIds);
+          baseQuery = baseQuery.in('session_id', config.sessionIds);
         }
       } else if (config.scope === 'heartbeat_range') {
-        if (config.heartbeatFrom !== undefined) query = query.gte('heartbeat', config.heartbeatFrom);
-        if (config.heartbeatTo !== undefined) query = query.lte('heartbeat', config.heartbeatTo);
+        if (config.heartbeatFrom !== undefined) baseQuery = baseQuery.gte('heartbeat', config.heartbeatFrom);
+        if (config.heartbeatTo !== undefined) baseQuery = baseQuery.lte('heartbeat', config.heartbeatTo);
       }
 
       if (config.includeTiers && config.includeTiers.length > 0) {
-        query = query.in('tier', config.includeTiers);
+        baseQuery = baseQuery.in('tier', config.includeTiers);
       }
       if (config.excludeInjected) {
-        query = query.not('injected', 'eq', true);
+        baseQuery = baseQuery.not('injected', 'eq', true);
       }
       if (config.successfulOnly) {
-        query = query.neq('outcome', 'failure');
+        baseQuery = baseQuery.neq('outcome', 'failure');
       }
 
-      const { data, error } = await query.order('created_at', { ascending: true });
-      if (!error && data && data.length > 0) {
-        memories = data;
+      // Paginated fetch: 500 rows per page, max 50k rows
+      let offset = 0;
+      let totalFetched = 0;
+      let hitCap = false;
+
+      while (!hitCap) {
+        const remaining = MAX_ROWS - totalFetched;
+        const limit = Math.min(PAGE_SIZE, remaining);
+        if (limit <= 0) { hitCap = true; break; }
+
+        const { data, error, count } = await baseQuery
+          .order('created_at', { ascending: true })
+          .range(offset, offset + limit - 1);
+
+        if (error) {
+          console.error('[ClientExport] Paginated query error:', error.message);
+          break;
+        }
+
+        if (data && data.length > 0) {
+          memories = memories.concat(data);
+          totalFetched += data.length;
+          offset += data.length;
+
+          // Update progress (5% to 40% during fetch)
+          const estimatedTotal = count || totalFetched;
+          const fetchPct = Math.min(40, 5 + Math.round((totalFetched / estimatedTotal) * 35));
+          onProgress(fetchPct);
+
+          // Stop if we got fewer rows than requested (end of data)
+          if (data.length < limit) break;
+        } else {
+          break;
+        }
+
+        // Safety: stop if we hit the cap
+        if (totalFetched >= MAX_ROWS) {
+          hitCap = true;
+          console.warn(`[ClientExport] Export capped at ${MAX_ROWS} rows`);
+        }
       }
     } catch (err) {
       console.warn('[ClientExport] Supabase query failed, falling back to local memory store:', err);
@@ -110,7 +153,8 @@ export async function runClientSideExport(
   let skillsMeta: any[] = [];
   if (config.exportType === 'session_full' && supabaseUrl && supabaseKey) {
     try {
-      const supabase = createClient(supabaseUrl, supabaseKey);
+      const supabase = getSupabaseClient(supabaseUrl, supabaseKey);
+      if (!supabase) throw new Error('Supabase not configured');
       const sessionIds = [...new Set(memories.map((m) => m.session_id))].filter(Boolean);
       if (sessionIds.length > 0) {
         const { data: sessions } = await supabase.from('sessions').select('*').in('id', sessionIds);

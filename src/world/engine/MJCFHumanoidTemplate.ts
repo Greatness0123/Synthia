@@ -485,7 +485,8 @@ ${pianoGeoms.join('\n')}
   const xml = `
 <mujoco model="synthia_humanoid">
   <compiler angle="radian" coordinate="local" inertiafromgeom="false"/>
-  <option gravity="0 0 -9.81" timestep="0.002" iterations="200" integrator="implicitfast"/>
+  <size nconmax="50" njmax="50"/>
+  <option gravity="0 0 -9.81" timestep="0.002" iterations="100" integrator="implicitfast"/>
   <default>
     <geom friction="2.0 0.5 0.1"/>
   </default>

@@ -5,6 +5,7 @@
 
 import { MemoryManager } from './memoryManager';
 import { embeddingEngine } from './embeddingEngine';
+import { MotorCodexService } from './motorCodexService';
 
 function degradeSpeech(text: string, lossPercentage: number): string {
   const words = text.split(' ');
@@ -172,36 +173,11 @@ ${overheardSection}
 OBJECTS WITHIN 5 METRES:
 ${objectLines}
 
-CONTACT FORCES (these are FLOOR contacts, not ceiling):
+CONTACT FORCES:
 ${contactText}
 
-LOCOMOTION PHYSICS — HOW TO MOVE:
-• YOU control every joint directly through joint_overrides or sequence timeline frames.
-• All joint angle values are IN DEGREES. The system converts to radians automatically.
-• Your capsule body moves through the world when foot-to-ground contact produces forces.
-  The more contact your feet/toes have with the ground while moving, the more your capsule will translate.
-
-MOVEMENT IS ACHIEVED ENTIRELY THROUGH JOINT ANGLES:
-  To walk forward: alternate lifting each leg (negative hip X = foot lifts forward, knee bends negative)
-  then pushing backward (positive hip X = leg extends back, knee straightens). Swing arms for balance.
-  To turn: use asymmetric leg strokes — push one leg harder than the other, creating capsule rotation.
-  To look around: rotate your head (mixamorighead) using [pitch, yaw, roll] in degrees.
-  To reach for an object: move your arm with mixamorigrightarm or mixamorigleftarm.
-
-PROGRAM SEQUENCE COMMANDS (use sparingly):
-  program_sequence: ["stand"] → resets body to upright standing pose at origin
-  program_sequence: ["jump"] → applies upward impulse (must be grounded)
-  For ALL other movement, use joint_overrides or sequence timeline — NOT program_sequence.
-
-TIMELINE SEQUENCE (for smooth continuous motion):
-  Output a "sequence" array of timed frames. Each frame has a timeOffsetMs and overrides map.
-  Frame times are relative to sequence start. Use small timesteps (30–100ms) for fluid motion.
-  Always end sequences by returning to a neutral pose.
-  Both joint_overrides and sequence overrides use IDENTICAL format — degrees, canonical joint keys.
-
-NOTE: The image above shows my current first-person view.
-If the view appears blank or shows only one surface, I am likely facing a wall or the floor. My joint rotation data above tells me where I am even when my visual field is empty.
-IMPORTANT: contacts=1 means ONE surface (the floor) is touching me. This is NORMAL for standing or lying down. It does NOT mean I am trapped against a ceiling.`;
+NOTE: The image above shows your current first-person view.
+If the view appears blank or shows only one surface, you are likely facing a wall or the floor. Use your joint rotation and contact data above to understand your position.`;
   }
 
   public getHeartbeat(): number {
@@ -210,8 +186,7 @@ IMPORTANT: contacts=1 means ONE surface (the floor) is touching me. This is NORM
 
   async build(worldState: any, agentId: string, options: any): Promise<any> {
     const contextString = `${worldState.currentGoal || ''} ${(worldState.objects || []).map((o: any) => o.name).join(', ')}`;
-    const isRealSupabase = !!(this.memoryManager as any).supabase;
-    const embedding = await embeddingEngine.embed(contextString, isRealSupabase);
+    const embedding = await embeddingEngine.embed(contextString);
 
     const relevantMemories = await this.memoryManager.retrieveRelevant(embedding, agentId, 5);
     const recentWorkingMemories = await this.memoryManager.retrieveRecent(agentId, 3);
@@ -294,6 +269,17 @@ but this is a subtle eye movement within the head, not turning your head.`;
       ).join(' ');
     } else {
       payload.physical_feedback = null;
+    }
+
+    const useActionDictionary = options.useActionDictionary !== false;
+    payload.use_action_dictionary = useActionDictionary;
+
+    if (useActionDictionary) {
+      const queryContext = `${payload.current_goal || ''} ${payload.pending_injection || ''} ${payload.directive_mode || ''}`;
+      const relevantRecipes = MotorCodexService.findRelevant(queryContext, 2);
+      if (relevantRecipes.length > 0) {
+        payload.motor_codex_hints = MotorCodexService.formatForPrompt(relevantRecipes);
+      }
     }
 
     return payload;

@@ -19,7 +19,9 @@ export default {
     '**/src/world/engine/__tests__/motorControllerPerStep.test.ts',
     '**/src/world/engine/__tests__/road4ComReflex.test.ts',
     '**/src/world/engine/__tests__/reactionMassController.test.ts',
-    '**/src/world/agent/__tests__/identityManager.test.ts'
+    '**/src/world/agent/__tests__/identityManager.test.ts',
+    '**/src/world/agent/__tests__/PromptAssembler.test.ts',
+    '**/src/world/agent/__tests__/motorCodex.test.ts'
   ],
   transform: {
     '^.+\\.tsx?$': ['ts-jest', { useESM: true, tsconfig: { module: 'esnext', moduleResolution: 'bundler', esModuleInterop: true, skipLibCheck: true, checkJs: false, allowJs: true, target: 'ES2022', lib: ['ES2022', 'DOM'], types: ['node', 'jest'] } }],

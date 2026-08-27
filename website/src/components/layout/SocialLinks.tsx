@@ -11,10 +11,10 @@ interface SocialLinksProps {
 /** Placeholder URLs live here, in code. Swap when the real handles exist. */
 const PLACEHOLDER_URLS: Record<SocialKey, string> = {
   github: 'https://github.com/Greatness0123/synthia1.5.1',
-  x: 'https://x.com/synthia_app',
-  telegram: 'https://t.me/+placeholder',
-  discord: 'https://discord.gg/placeholder',
-  youtube: 'https://youtube.com/@synthia',
+  x: 'https://x.com/Gruco_okorie',
+  telegram: 'https://t.me/+IHNi6lg3PWNhNjVk',
+  discord: 'https://discord.gg/bgw9fXHRTs',
+  youtube: 'https://www.youtube.com/@Synthia.online',
 }
 
 const SOCIAL_LINKS: Array<{ key: SocialKey; label: string }> = [

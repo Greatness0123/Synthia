@@ -3,10 +3,10 @@ import { useLogStore, type LogLevel } from '../../store/logStore';
 import { CheckCircle, WarningCircle as Warning, XCircle, Info, Trash, ArrowDown } from '../ui/icons';
 
 const LEVEL_CONFIG: Record<LogLevel, { Icon: React.FC<any>; color: string; bg: string }> = {
-  success: { Icon: CheckCircle, color: 'text-accent-green', bg: 'bg-accent-green/10' },
-  error:   { Icon: XCircle,   color: 'text-accent-red',   bg: 'bg-accent-red/10' },
-  warning: { Icon: Warning,   color: 'text-accent-amber', bg: 'bg-accent-amber/10' },
-  info:    { Icon: Info,      color: 'text-accent-blue',  bg: 'bg-accent-blue/10' },
+  success: { Icon: CheckCircle, color: 'text-text-primary', bg: 'bg-white/10' },
+  error:   { Icon: XCircle,   color: 'text-text-primary',   bg: 'bg-white/10' },
+  warning: { Icon: Warning,   color: 'text-text-primary', bg: 'bg-white/10' },
+  info:    { Icon: Info,      color: 'text-text-primary',  bg: 'bg-white/10' },
 };
 
 const formatTime = (ts: number) => {
@@ -53,12 +53,12 @@ export const LogViewer: React.FC = () => {
   return (
     <div className="flex flex-col h-full relative">
       <div className="flex items-center justify-between px-4 py-2 border-b border-border">
-        <span className="text-[10px] font-bold uppercase tracking-wider text-text-tertiary">
+        <span className="text-xs font-bold uppercase tracking-wider text-text-tertiary">
           {entries.length} entries
         </span>
         <button
           onClick={handleClearLogs}
-          className="text-text-tertiary hover:text-accent-red transition-colors p-1 rounded"
+          className="text-text-tertiary hover:text-text-primary transition-colors p-1 rounded"
           aria-label="Clear logs"
           title="Clear logs"
         >
@@ -73,7 +73,7 @@ export const LogViewer: React.FC = () => {
       >
         {entries.length === 0 && (
           <div className="h-full flex items-center justify-center text-center opacity-20">
-            <p className="text-[10px] uppercase tracking-widest text-text-tertiary">No log entries yet</p>
+            <p className="text-xs uppercase tracking-widest text-text-tertiary">No log entries yet</p>
           </div>
         )}
         {[...entries].reverse().map((entry) => {
@@ -81,10 +81,10 @@ export const LogViewer: React.FC = () => {
           return (
             <div
               key={entry.id}
-              className={`flex items-start gap-2 px-2 py-1.5 rounded text-[11px] leading-snug ${bg}`}
+              className={`flex items-start gap-2 px-2 py-1.5 rounded text-xs leading-snug ${bg}`}
             >
               <Icon size={13} className={`${color} shrink-0 mt-0.5`} />
-              <span className="text-text-tertiary font-mono text-[10px] shrink-0 mt-px">
+              <span className="text-text-tertiary font-mono text-xs shrink-0 mt-px">
                 {formatTime(entry.timestamp)}
               </span>
               <span className="text-text-secondary break-all">{entry.message}</span>
@@ -103,7 +103,7 @@ export const LogViewer: React.FC = () => {
           transform: showJump ? 'translateY(0) scale(1)' : 'translateY(6px) scale(0.9)',
           transition: 'opacity 0.2s ease, transform 0.2s ease',
         }}
-        className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-bg-elevated border border-border shadow-lg text-[11px] font-medium text-text-secondary hover:text-text-primary hover:border-accent-blue/60 hover:bg-bg-elevated/90"
+        className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-bg-elevated border border-border shadow-lg text-xs font-medium text-text-secondary hover:text-text-primary hover:border-white/20 hover:bg-bg-elevated/90"
       >
         <ArrowDown size={12} />
         Latest

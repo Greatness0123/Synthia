@@ -1,4 +1,6 @@
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import type { SupabaseClient } from '@supabase/supabase-js';
+import { getSupabaseClient } from '../../utils/supabaseClient';
+import { SUPABASE_BUCKETS } from '../../constants/supabase';
 import { embeddingEngine } from './embeddingEngine';
 
 export interface MemoryEntry {
@@ -25,16 +27,45 @@ export class MemoryManager {
   private supabase: SupabaseClient | null = null;
   private mockStore: any[] = [];
   private ensuredSessions: Set<string> = new Set();
+  private frameBucketMissing = false;
+  private schemaVersion: string | null = null;
 
-  private static readonly MEMORY_TEXT_BYTES = 2048; // ~2KB per memory (thought + metadata)
+  private static readonly MOCK_STORE_LIMIT = 1000;
 
   constructor(supabaseUrl: string, supabaseKey: string) {
-    if (supabaseUrl && supabaseKey) {
-      this.supabase = createClient(supabaseUrl, supabaseKey);
-      console.log('[MemoryManager] Supabase client created on client-side');
+    this.supabase = getSupabaseClient(supabaseUrl, supabaseKey);
+    if (this.supabase) {
+      console.log('[MemoryManager] Supabase client created (shared singleton)');
+      this.detectSchemaVersion();
     } else {
       console.warn('[MemoryManager] Supabase not configured — using client-side in-memory mock store. Memories will not persist.');
     }
+  }
+
+  /**
+   * Detect schema version from schema_meta table.
+   * null = v1 (no schema_meta), '2.0.0' = v2+
+   */
+  private async detectSchemaVersion(): Promise<void> {
+    if (!this.supabase) return;
+    try {
+      const { data } = await this.supabase
+        .from('schema_meta')
+        .select('value')
+        .eq('key', 'schema_version')
+        .single();
+      this.schemaVersion = data?.value || null;
+      if (this.schemaVersion) {
+        console.log(`[MemoryManager] Schema version: ${this.schemaVersion}`);
+      }
+    } catch {
+      this.schemaVersion = null; // v1 database
+    }
+  }
+
+  /** Whether the v2+ schema is deployed (triggers, HNSW index, etc.) */
+  get isV2Schema(): boolean {
+    return !!this.schemaVersion && this.schemaVersion >= '2.0.0';
   }
 
   private async ensureSession(sessionId: string, agentId: string, bodyType: string = 'humanoid'): Promise<void> {
@@ -52,17 +83,20 @@ export class MemoryManager {
         console.error(`[MemoryManager] Failed to ensure session '${sessionId}':`, error.message);
       } else {
         this.ensuredSessions.add(sessionId);
-        console.log(`[MemoryManager] Session ensured: ${sessionId}`);
       }
     } catch (err) {
       console.error('[MemoryManager] ensureSession exception:', err);
     }
   }
 
-  async updateSessionStats(sessionId: string, heartbeats: number, bodyType: string = 'humanoid'): Promise<void> {
-    if (!this.supabase) return;
+  /**
+   * Legacy session stat update for v1 databases.
+   * On v2, the trg_memory_insert_session_stats trigger handles this automatically.
+   */
+  async updateSessionStats(sessionId: string, agentId: string, heartbeats: number, bodyType: string = 'humanoid'): Promise<void> {
+    if (!this.supabase || this.isV2Schema) return; // skip on v2 (trigger handles it)
     try {
-      await this.ensureSession(sessionId, 'agent_0', bodyType);
+      await this.ensureSession(sessionId, agentId, bodyType);
       await this.supabase
         .from('sessions')
         .update({ total_heartbeats: heartbeats })
@@ -79,7 +113,6 @@ export class MemoryManager {
         .from('sessions')
         .update({ ended_at: new Date().toISOString() })
         .eq('id', sessionId);
-      console.log(`[MemoryManager] Session ended: ${sessionId}`);
     } catch (err) {
       console.error('[MemoryManager] endSession exception:', err);
     }
@@ -87,17 +120,20 @@ export class MemoryManager {
 
   async write(entry: MemoryEntry, agentId: string): Promise<boolean> {
     try {
-      const isRealSupabase = !!this.supabase;
-      const embedding = await embeddingEngine.embed(entry.thought, isRealSupabase);
-
       if (!this.supabase) {
+        const embedding = await embeddingEngine.embed(entry.thought);
         this.mockStore.push({ ...entry, agent_id: agentId, embedding: Array.from(embedding) });
-        console.log('[MemoryManager] Written to mock store:', entry.memory_id);
+        // FIFO eviction to prevent unbounded growth
+        if (this.mockStore.length > MemoryManager.MOCK_STORE_LIMIT) {
+          this.mockStore.splice(0, this.mockStore.length - MemoryManager.MOCK_STORE_LIMIT);
+        }
         return true;
       }
 
-      // Ensure the session row exists before inserting the memory
       await this.ensureSession(entry.session_id, agentId);
+
+      // Pre-compute frame storage path before insert
+      const framePath = `${agentId}/${entry.session_id}/hb_${entry.heartbeat}.webp`;
 
       const { data, error } = await this.supabase
         .from('memories')
@@ -119,7 +155,8 @@ export class MemoryManager {
           reward_signal: entry.reward_signal,
           goal_at_time: entry.goal_at_time,
           injected: entry.injected,
-          embedding: Array.from(embedding),
+          embedding: null,
+          frame_storage_path: framePath,
         })
         .select()
         .single();
@@ -129,39 +166,14 @@ export class MemoryManager {
         return false;
       }
 
-      console.log(`[MemoryManager] Memory written: ${entry.memory_id} (tier ${entry.tier})`);
-
-      // Increment session memory_count and estimated_size_bytes
-      if (entry.session_id) {
-        try {
-          const { data: session } = await this.supabase
-            .from('sessions')
-            .select('memory_count, estimated_size_bytes')
-            .eq('id', entry.session_id)
-            .single();
-          if (session) {
-            const textBytes = entry.thought ? entry.thought.length * 2 : 0;
-            const metaBytes = (entry.visual_description?.length || 0) * 2
-              + (entry.joint_state_summary?.length || 0) * 2
-              + (entry.action_taken ? JSON.stringify(entry.action_taken).length * 2 : 0);
-            const memorySize = Math.max(MemoryManager.MEMORY_TEXT_BYTES, textBytes + metaBytes);
-            const frameSize = entry.frame_buffer ? entry.frame_buffer.length : 0;
-
-            await this.supabase
-              .from('sessions')
-              .update({
-                memory_count: (session.memory_count || 0) + 1,
-                estimated_size_bytes: (session.estimated_size_bytes || 0) + memorySize + frameSize,
-              })
-              .eq('id', entry.session_id);
-          }
-        } catch (e) {
-          console.error('[MemoryManager] Failed to update session memory_count:', e);
-        }
+      // Fire-and-forget: compute embedding async
+      if (data?.id) {
+        this.backfillEmbedding(data.id, entry.thought);
       }
 
-      if (entry.frame_buffer) {
-        this.uploadFrame(data!.id, entry.frame_buffer, agentId, entry.session_id, entry.heartbeat);
+      // Fire-and-forget: upload frame to pre-computed path (no post-upload UPDATE needed)
+      if (entry.frame_buffer && data?.id) {
+        this.uploadFrame(entry.frame_buffer, agentId, entry.session_id, entry.heartbeat);
       }
       return true;
     } catch (err) {
@@ -170,33 +182,94 @@ export class MemoryManager {
     }
   }
 
-  private async uploadFrame(memoryId: string, buffer: Uint8Array, agentId: string, sessionId: string, heartbeat: number) {
-    if (!this.supabase) return;
+  /**
+   * Write with retry for transient errors (network, 5xx, timeout).
+   * Schema/key/RLS errors are not retried.
+   */
+  async writeWithRetry(entry: MemoryEntry, agentId: string, maxAttempts = 3): Promise<boolean> {
+    const delays = [500, 1000, 2000];
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      try {
+        return await this.write(entry, agentId);
+      } catch (err) {
+        const msg = String(err);
+        const isRetryable = msg.includes('timeout') ||
+          msg.includes('network') ||
+          msg.includes('fetch') ||
+          /5\d\d/.test(msg);
+        if (!isRetryable || attempt === maxAttempts - 1) {
+          return false;
+        }
+        await new Promise(r => setTimeout(r, delays[attempt]));
+      }
+    }
+    return false;
+  }
+
+  /**
+   * Compute embedding async and update the memory row.
+   * Does not block the cognitive cycle.
+   */
+  private backfillEmbedding(memoryId: string, thought: string): void {
+    embeddingEngine.embed(thought).then(async (embedding) => {
+      if (!this.supabase) return;
+      const { error } = await this.supabase
+        .from('memories')
+        .update({ embedding: Array.from(embedding) })
+        .eq('id', memoryId);
+      if (error) {
+        console.warn('[MemoryManager] Embedding backfill failed:', error.message);
+      }
+    }).catch((err) => {
+      console.warn('[MemoryManager] Embedding backfill exception:', err);
+    });
+  }
+
+  /**
+   * Upload frame to the pre-computed storage path.
+   * No post-upload UPDATE needed since frame_storage_path was set on insert.
+   */
+  private async uploadFrame(buffer: Uint8Array, agentId: string, sessionId: string, heartbeat: number): Promise<void> {
+    if (!this.supabase || this.frameBucketMissing) return;
     try {
       const path = `${agentId}/${sessionId}/hb_${heartbeat}.webp`;
       const { error: uploadError } = await this.supabase.storage
-        .from('Synthia-frames')
+        .from(SUPABASE_BUCKETS.FRAMES)
         .upload(path, buffer, { contentType: 'image/webp', upsert: true });
 
       if (uploadError) {
-        console.error('[MemoryManager] Frame upload error:', uploadError.message);
-        return;
-      }
-
-      const { data: { publicUrl } } = this.supabase.storage
-        .from('Synthia-frames')
-        .getPublicUrl(path);
-
-      const { error: updateError } = await this.supabase
-        .from('memories')
-        .update({ frame_url: publicUrl })
-        .eq('id', memoryId);
-
-      if (updateError) {
-        console.error('[MemoryManager] Frame URL update error:', updateError.message);
+        const msg = uploadError.message || '';
+        if (msg.includes('not found') || msg.includes('The resource was not found')) {
+          if (!this.frameBucketMissing) {
+            this.frameBucketMissing = true;
+            console.warn('[MemoryManager] Storage bucket not found. Create "synthia-frames" in Storage -> New Bucket (private). Frame uploads paused.');
+          }
+        } else {
+          console.error('[MemoryManager] Frame upload error:', msg);
+        }
       }
     } catch (err) {
       console.error('[MemoryManager] uploadFrame exception:', err);
+    }
+  }
+
+  /**
+   * Generate a signed URL for a stored frame.
+   * Call at display time, not upload time. URL expires in 1 hour.
+   */
+  async getFrameSignedUrl(frameStoragePath: string): Promise<string | null> {
+    if (!this.supabase || !frameStoragePath) return null;
+    try {
+      const { data, error } = await this.supabase.storage
+        .from(SUPABASE_BUCKETS.FRAMES)
+        .createSignedUrl(frameStoragePath, 3600);
+      if (error) {
+        console.warn('[MemoryManager] Signed URL error:', error.message);
+        return null;
+      }
+      return data?.signedUrl || null;
+    } catch {
+      return null;
     }
   }
 
@@ -242,8 +315,27 @@ export class MemoryManager {
     return data || [];
   }
 
-  async pruneOld(): Promise<void> {
+  /**
+   * Prune old memories. On v2, uses server-side RPC (agent-scoped).
+   * On v1, falls back to client-side fetch-and-delete.
+   */
+  async pruneOld(agentId?: string): Promise<void> {
     if (!this.supabase) return;
+
+    // v2: server-side RPC (agent-scoped, returns counts)
+    if (this.isV2Schema && agentId) {
+      try {
+        const { error } = await this.supabase.rpc('prune_old_memories', {
+          p_agent_id: agentId,
+        });
+        if (error) console.warn('[MemoryManager] Server prune error:', error.message);
+      } catch (err) {
+        console.error('[MemoryManager] Server prune exception:', err);
+      }
+      return;
+    }
+
+    // v1 fallback: client-side fetch-all-and-delete (legacy)
     try {
       const { data: sessions, error: sessionError } = await this.supabase
         .from('sessions')
@@ -273,7 +365,7 @@ export class MemoryManager {
           .in('session_id', oldSessionsT2);
       }
     } catch (err) {
-      console.error('[MemoryManager] pruneOld error:', err);
+      console.error('[MemoryManager] pruneOld fallback error:', err);
     }
   }
 

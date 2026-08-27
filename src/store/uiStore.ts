@@ -12,6 +12,7 @@ interface UIState {
   settingsModalOpen: boolean;
   objectSpawnerOpen: boolean;
   rehydrationModalOpen: boolean;
+  motorCodexModalOpen: boolean;
   exportProgress: number;
   selectedEntityId: string | null;
   spawning: boolean;
@@ -25,6 +26,7 @@ interface UIState {
   setSettingsModalOpen: (open: boolean) => void;
   setObjectSpawnerOpen: (open: boolean) => void;
   setRehydrationModalOpen: (open: boolean) => void;
+  setMotorCodexModalOpen: (open: boolean) => void;
   setExportProgress: (progress: number) => void;
   setSpawning: (spawning: boolean) => void;
 }
@@ -37,6 +39,7 @@ export const useUIStore = create<UIState>((set) => ({
   settingsModalOpen: false,
   objectSpawnerOpen: false,
   rehydrationModalOpen: false,
+  motorCodexModalOpen: false,
   exportProgress: 0,
   selectedEntityId: null,
   spawning: false,
@@ -49,6 +52,7 @@ export const useUIStore = create<UIState>((set) => ({
   setSettingsModalOpen: (settingsModalOpen) => set({ settingsModalOpen }),
   setObjectSpawnerOpen: (objectSpawnerOpen) => set({ objectSpawnerOpen }),
   setRehydrationModalOpen: (rehydrationModalOpen) => set({ rehydrationModalOpen }),
+  setMotorCodexModalOpen: (motorCodexModalOpen) => set({ motorCodexModalOpen }),
   setExportProgress: (exportProgress) => set({ exportProgress }),
   setSpawning: (spawning) => set({ spawning }),
 }));

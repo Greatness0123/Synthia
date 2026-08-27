@@ -113,7 +113,7 @@ export const Dropdown: React.FC<DropdownProps> = ({
         onKeyDown={handleKeyDown}
         onMouseDown={(e) => e.stopPropagation()}
         className={cn(
-          'w-full h-8 pl-2.5 pr-8 bg-bg-elevated border border-border rounded-btn text-xs text-text-primary cursor-pointer focus:outline-none focus:ring-1 focus:ring-accent-blue disabled:opacity-50 disabled:cursor-not-allowed text-left',
+          'w-full h-8 pl-2.5 pr-8 bg-bg-elevated border border-border rounded-btn text-xs text-text-primary cursor-pointer focus:outline-none focus:ring-1 focus:ring-white/20 disabled:opacity-50 disabled:cursor-not-allowed text-left',
           triggerClassName
         )}
       >
@@ -142,7 +142,7 @@ export const Dropdown: React.FC<DropdownProps> = ({
                 }}
                 onKeyDown={handleKeyDown}
                 placeholder="Search…"
-                className="w-full h-7 px-2 bg-bg-panel border border-border rounded-btn text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-accent-blue"
+                className="w-full h-7 px-2 bg-bg-panel border border-border rounded-btn text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-white/20"
                 autoFocus
               />
             </div>
@@ -162,7 +162,7 @@ export const Dropdown: React.FC<DropdownProps> = ({
                 className={cn(
                   'w-full px-2.5 py-1.5 text-left text-xs transition-colors',
                   item.disabled && 'opacity-40 cursor-not-allowed',
-                  item.value === value && 'bg-accent-blue/10 text-accent-blue font-medium',
+                  item.value === value && 'bg-white/10 text-text-primary font-medium',
                   item.value !== value && index === highlightIndex && 'bg-bg-hover text-text-primary',
                   item.value !== value && index !== highlightIndex && 'text-text-secondary hover:bg-bg-hover'
                 )}

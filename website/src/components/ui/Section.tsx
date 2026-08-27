@@ -17,6 +17,7 @@ export function Section({ id, children, className, dark }: SectionProps) {
         dark ? 'bg-surface-dark text-white' : 'bg-surface',
         className,
       )}
+      {...(dark ? { 'data-cursor-dark': '' } : {})}
     >
       <div className="mx-auto max-w-5xl">{children}</div>
     </section>
@@ -29,6 +30,7 @@ interface SectionHeaderProps {
   description?: string
   align?: 'left' | 'center'
   light?: boolean
+  as?: 'h1' | 'h2'
 }
 
 export function SectionHeader({
@@ -37,6 +39,7 @@ export function SectionHeader({
   description,
   align = 'center',
   light,
+  as: Tag = 'h2',
 }: SectionHeaderProps) {
   return (
     <div
@@ -55,14 +58,14 @@ export function SectionHeader({
           {eyebrow}
         </p>
       )}
-      <h2
+      <Tag
         className={cn(
           'font-serif text-balance text-3xl leading-[1.1] tracking-tight md:text-4xl lg:text-5xl',
           light ? 'text-white' : 'text-ink',
         )}
       >
         {title}
-      </h2>
+      </Tag>
       {description && (
         <p
           className={cn(

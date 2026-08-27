@@ -20,12 +20,13 @@ export interface AgentRuntimeConfig {
   cycleMs: number;
   supabaseUrl: string;
   supabaseKey: string;
+  useActionDictionary?: boolean;
 }
 
 export type AgentRuntimeConfigKey = keyof AgentRuntimeConfig;
 
 /** Runtime state of an agent's cognitive loop. */
-export type AgentLoopState = 'not_started' | 'running' | 'stopped' | 'paused' | 'error';
+export type AgentLoopState = 'not_started' | 'running' | 'stopped' | 'paused' | 'retrying' | 'error';
 
 const OVERRIDABLE_KEYS: AgentRuntimeConfigKey[] = [
   'provider',

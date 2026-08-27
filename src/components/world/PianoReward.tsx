@@ -21,7 +21,7 @@ export const PianoReward: React.FC<PianoRewardProps> = ({ reward, x, y }) => {
       exit={{ opacity: 0 }}
       transition={{ duration: 0.8, ease: "easeOut" }}
       className={`absolute pointer-events-none text-sm font-mono font-bold ${
-        isPositive ? 'text-accent-green' : 'text-accent-red'
+        isPositive ? 'text-text-primary' : 'text-text-primary'
       }`}
       style={{ left: x, top: y }}
     >

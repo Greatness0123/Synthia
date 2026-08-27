@@ -6,6 +6,7 @@ import { AudioEngine } from './AudioEngine';
 import { StateRehydrator } from './StateRehydrator';
 import { NUM_ENV_SLOTS, injectAssetsAndBodies } from './MJCFHumanoidTemplate';
 import { logger as Logger } from '../../utils/logger';
+import { canSpawnObject } from './memoryMonitor';
 
 export interface WorldObject {
   id: string;
@@ -33,8 +34,37 @@ export class ObjectManager {
   // Primitive slot pool tracking
   private slotClaimed: boolean[] = new Array(NUM_ENV_SLOTS).fill(false);
   private slotToObjectId: Map<number, string> = new Map();
+  // Track which preset is active in each slot — used to bake correct sizes
+  // into the MJCF XML at compile time (runtime model mutations are invisible
+  // to the MuJoCo WASM collision pipeline).
+  private slotPresetMap: Map<number, ObjectPreset> = new Map();
+
+  // Pristine (unpatched) base XML used as the starting point for
+  // patchSlotGeomsInXml. Without this, reloadStateAndRehydrate would use
+  // getLastLoadedXml() which returns previously-patched XML, leaving stale
+  // contype/conaffinity on deactivated slots.
+  private pristineBaseXml: string = '';
 
   private eventCallback: ((type: string, data: any) => void) | null = null;
+
+  // ── Model reload batching (Phase 1.3) ─────────────────────────────────
+  // Instead of reloading the MJCF model on every spawn/delete, we defer
+  // and coalesce multiple operations into a single reload per frame.
+  private _physicsReloadScheduled = false;
+  private _pendingReloadCount = 0;
+
+  // ── Shared button materials (Phase 2.1) ───────────────────────────────
+  // Reuse instead of creating new MeshStandardMaterial per button press
+  private static readonly _buttonNormalMat = new THREE.MeshStandardMaterial({
+    color: 0xffffff,
+    roughness: 0.4,
+    metalness: 0.1,
+  });
+  private static readonly _buttonPressedMat = new THREE.MeshStandardMaterial({
+    color: 0xcc0000,
+    roughness: 0.4,
+    metalness: 0.1,
+  });
 
   // Cache for custom mesh structures currently added to the scene to allow reloads
   public customMeshesSpec: Array<{
@@ -58,6 +88,27 @@ export class ObjectManager {
     this.physicsEngine = physicsEngine;
     this.scene = scene;
     this.audioEngine = audioEngine;
+  }
+
+  /**
+   * Schedule a deferred physics model reload. Multiple spawn/delete calls
+   * within the same frame will be coalesced into a single reload, drastically
+   * reducing WASM heap fragmentation from repeated model recompilations.
+   */
+  private scheduleReload(): void {
+    this._pendingReloadCount++;
+    if (this._physicsReloadScheduled) return;
+    this._physicsReloadScheduled = true;
+
+    // Use queueMicrotask so all spawn/delete operations in the current
+    // synchronous block complete before the reload fires.
+    queueMicrotask(() => {
+      this._physicsReloadScheduled = false;
+      if (this._pendingReloadCount > 0) {
+        this._pendingReloadCount = 0;
+        this.reloadStateAndRehydrate();
+      }
+    });
   }
 
   public setEventCallback(cb: (type: string, data: any) => void) {
@@ -122,6 +173,41 @@ export class ObjectManager {
   }
 
   /**
+   * Patch the MJCF XML string to bake correct geom sizes, contype,
+   * conaffinity, and friction for each active primitive slot. MuJoCo WASM
+   * does NOT pick up runtime mutations of model-level properties, so the
+   * correct values must be present in the XML at compilation time.
+   */
+  private patchSlotGeomsInXml(xml: string): string {
+    let result = xml;
+
+    for (let i = 0; i < NUM_ENV_SLOTS; i++) {
+      const preset = this.slotPresetMap.get(i);
+      if (!preset) continue;
+
+      const adapterGeom = CollisionAdapter.objectPresetToMJCFGeom(preset);
+      const sizeValues = adapterGeom.size.split(' ');
+
+      const geomType = adapterGeom.geomType;
+      const activeGeomName = `env_slot_${i}_${geomType}`;
+      const sizeAttr = sizeValues.join(' ');
+      const friction = preset.friction;
+
+      // Replace the specific geom line: size="0.001..." → size="<actual>",
+      // contype="0" conaffinity="0" → contype="2" conaffinity="3", and
+      // add/replace friction attribute so it's baked into the compiled model.
+      // The regex also consumes an optional trailing friction="..." to avoid
+      // duplicate attributes when re-patching already-patched XML.
+      const sizeRegex = new RegExp(
+        `(geom\\s+name="${activeGeomName}"\\s+type="${geomType}"\\s+)size="[^"]*"\\s+contype="[^"]*"\\s+conaffinity="[^"]*"(?:\\s+friction="[^"]*")?`,
+      );
+      result = result.replace(sizeRegex, `$1size="${sizeAttr}" contype="2" conaffinity="1" friction="${friction}"`);
+    }
+
+    return result;
+  }
+
+  /**
    * Helper to perform scene state-capture, compilation, reload, and hydration
    */
   public reloadStateAndRehydrate() {
@@ -150,7 +236,13 @@ export class ObjectManager {
           const mbm = skeletonBinder.getMultiBodyManager();
           baseXml = mbm.getPristineBaseMjcfXml();
         } else {
-          baseXml = this.physicsEngine.getLastLoadedXml();
+          // Cache the pristine (unpatched) base XML on first call so
+          // deactivated slots correctly revert to contype=0/conaffinity=0.
+          // Without this, we'd re-patch from previously-patched XML.
+          if (!this.pristineBaseXml) {
+            this.pristineBaseXml = this.physicsEngine.getLastLoadedXml();
+          }
+          baseXml = this.pristineBaseXml;
         }
       }
 
@@ -224,6 +316,11 @@ export class ObjectManager {
         combinedXml = injectAssetsAndBodies(baseXml, customAssets, customBodies);
       }
 
+      // 3.5 Patch active slot geom sizes into the XML so collision works at
+      //     compile time (runtime model mutations are invisible to the WASM
+      //     collision pipeline).
+      combinedXml = this.patchSlotGeomsInXml(combinedXml);
+
       // 4. Load compiled XML into the physics engine
       this.physicsEngine.loadMJCFModel(combinedXml);
       if (typeof window !== 'undefined' && typeof (window as any).__SYNTHIA_GENERATE_COMBINED_MJCF__ !== 'function' && skeletonBinder) {
@@ -234,7 +331,29 @@ export class ObjectManager {
       const newWorld = this.physicsEngine.getWorld();
       const newModel = newWorld.model;
 
-      // 5. State rehydration into the new mjData heap view
+      // 5a. Run mj_setConst FIRST — it resets qpos to XML defaults.
+      //     We must do this before restore() so that restore() overwrites
+      //     the defaults with the saved positions.
+      const setConstModule = PhysicsEngine.getModule();
+      if (setConstModule) {
+        setConstModule.mj_setConst(newModel, newWorld.data);
+      }
+
+      // 5b. Pre-resolve bodyIds against the NEW model so that
+      //     StateRehydrator.restore() writes positions to the correct bodies.
+      this.objects.forEach((obj) => {
+        if (obj.isCustom) {
+          if (obj.preset.id.startsWith('custom_') && obj.mesh.userData.physics?.skipCollision) {
+            obj.bodyId = -1;
+            return;
+          }
+          obj.bodyId = module.mj_name2id(newModel, module.mjtObj.mjOBJ_BODY.value, `custom_${obj.id}`);
+        } else if (obj.slotIndex !== undefined) {
+          obj.bodyId = module.mj_name2id(newModel, module.mjtObj.mjOBJ_BODY.value, `env_slot_${obj.slotIndex}`);
+        }
+      });
+
+      // 5c. State rehydration — overwrites qpos with saved positions
       StateRehydrator.restore(this.physicsEngine, capturedState, Array.from(this.objects.values()));
 
       // Re-map IDs on all active binders if multi-agent is running
@@ -245,15 +364,13 @@ export class ObjectManager {
         });
       }
 
-      // Rehydrate pre-allocated slot bodies and custom models
+      // Rehydrate pre-allocated slot bodies and custom models — resolve
+      // body/geom IDs and colliders against the freshly-loaded model.
       this.objects.forEach((obj) => {
-        if (obj.preset.id === 'piano') return; // Piano uses fixed/predefined logic, handled differently
 
-        // Look up new body ID after reload
         let bodyId = -1;
         if (obj.isCustom) {
           if (obj.preset.id.startsWith('custom_') && obj.mesh.userData.physics?.skipCollision) {
-            // Unsimulated/skipCollision body doesn't exist in MuJoCo
             obj.bodyId = -1;
             obj.colliders = [];
             return;
@@ -266,7 +383,6 @@ export class ObjectManager {
         if (bodyId >= 0) {
           obj.bodyId = bodyId;
 
-          // Re-populate mapped geom colliders IDs
           obj.colliders = [];
           if (obj.isCustom) {
             const geomId = module.mj_name2id(newModel, module.mjtObj.mjOBJ_GEOM.value, `custom_geom_${obj.id}`);
@@ -285,27 +401,11 @@ export class ObjectManager {
               }
             }
           } else if (obj.slotIndex !== undefined) {
-            // Re-claim sibling geom ID (mapping cube, wedge, slope, ramp to box)
-            const actualPresetShapeId = ['cube', 'wedge', 'slope', 'ramp'].includes(obj.preset.id) ? 'box' : obj.preset.id;
+            const actualPresetShapeId = obj.preset.id === 'wedge' ? 'box' : obj.preset.id;
             const activeGeomName = `env_slot_${obj.slotIndex}_${actualPresetShapeId}`;
             const geomId = module.mj_name2id(newModel, module.mjtObj.mjOBJ_GEOM.value, activeGeomName);
             if (geomId >= 0) {
               obj.colliders.push(geomId);
-
-              // RE-APPLY EFFECTIVE SPAWN PROPERTIES FOR THE SLOT GEOM
-              const adapterGeom = CollisionAdapter.objectPresetToMJCFGeom(obj.preset);
-              const sizeValues = adapterGeom.size.split(' ').map(Number);
-              const sizeOffset = geomId * 3;
-              newModel.geom_size[sizeOffset] = sizeValues[0] || 0;
-              newModel.geom_size[sizeOffset + 1] = sizeValues[1] || 0;
-              newModel.geom_size[sizeOffset + 2] = sizeValues[2] || 0;
-
-              newModel.geom_contype[geomId] = 2;
-              newModel.geom_conaffinity[geomId] = 3;
-
-              newModel.geom_friction[geomId * 3] = obj.preset.friction;
-              newModel.geom_solref[geomId * 2] = 0.02; // default solref kp
-              newModel.geom_solimp[geomId * 3 + 2] = obj.preset.restitution; // default solimp damp
             }
           }
         }
@@ -388,8 +488,8 @@ export class ObjectManager {
       processed: options.processed
     });
 
-    // Call XML compilation reload and rehydration (now with zero arguments, reading this.customMeshesSpec)
-    this.reloadStateAndRehydrate();
+    // Schedule batched reload (multiple spawns coalesce into one)
+    this.scheduleReload();
 
     return worldObject;
   }
@@ -401,9 +501,10 @@ export class ObjectManager {
       return null;
     }
 
-    if (presetId === 'piano') {
-      const id = Math.random().toString(36).substring(2, 9);
-      return this.spawnPiano(id, { id: 'piano', name: 'Piano', category: 'Interactive', icon: 'MusicNotes', mass: 50, friction: 0.5, restitution: 0.1 }, position);
+    // Throttle spawns when WASM memory is critical
+    if (!canSpawnObject()) {
+      Logger.warn('ObjectManager.spawnObject: WASM memory critical — spawn refused');
+      return null;
     }
 
     const preset = OBJECT_PRESETS.find((p: any) => p.id === presetId);
@@ -434,9 +535,7 @@ export class ObjectManager {
       case 'cylinder':
         geometry = new THREE.CylinderGeometry(0.5, 0.5, 1);
         break;
-      case 'wedge':
-      case 'slope':
-      case 'ramp': {
+      case 'wedge': {
         geometry = new THREE.BufferGeometry();
         const vertices = new Float32Array([
           -0.5, -0.5,  0.5,
@@ -447,11 +546,11 @@ export class ObjectManager {
            0.5,  0.5, -0.5
         ]);
         const indices = [
-          0, 1, 3, 0, 3, 2,
+          0, 3, 1, 0, 2, 3,
           0, 1, 5, 0, 5, 4,
-          2, 3, 5, 2, 5, 4,
+          2, 5, 3, 2, 4, 5,
           0, 4, 2,
-          1, 5, 3
+          1, 3, 5
         ];
         geometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
         geometry.setIndex(indices);
@@ -472,66 +571,87 @@ export class ObjectManager {
     mesh.userData.objectId = id;
     this.scene.add(mesh);
 
-    // 4. Activate MuJoCo sibling geom (sphere, box, cylinder, capsule) in the claiming slot body
+    const bodyName = `env_slot_${slotIdx}`;
+
+    // 4. Record the preset so patchSlotGeomsInXml bakes correct sizes into XML
+    this.slotPresetMap.set(slotIdx, preset);
+
+    // 5. Schedule batched reload so the collision pipeline sees the correct
+    //    geom sizes. Multiple spawns in the same frame coalesce into one reload.
+    this.scheduleReload();
+
+    // 6. Now that the model is reloaded with correct geometry, resolve the
+    //    body and geom IDs from the fresh model and set qpos/qvel.
     const world = this.physicsEngine.getWorld();
     const model = world.model;
     const data = world.data;
 
-    const bodyName = `env_slot_${slotIdx}`;
     const bodyId = module.mj_name2id(model, module.mjtObj.mjOBJ_BODY.value, bodyName);
     if (bodyId < 0) {
-      Logger.error(`ObjectManager.spawnObject: MuJoCo body '${bodyName}' not found`);
+      Logger.error(`ObjectManager.spawnObject: MuJoCo body '${bodyName}' not found after reload`);
+      this.objects.delete(id);
+      this.slotClaimed[slotIdx] = false;
+      this.slotToObjectId.delete(slotIdx);
+      this.slotPresetMap.delete(slotIdx);
+      this.scene.remove(mesh);
+      mesh.geometry.dispose();
+      (mesh.material as THREE.Material).dispose();
       return null;
     }
 
-    // Activate the corresponding sibling geom size and collision bits
-    // We map cube, wedge, slope, ramp to oriented dynamic box geoms as confirmed by the user
-    const actualPresetShapeId = ['cube', 'wedge', 'slope', 'ramp'].includes(preset.id) ? 'box' : preset.id;
+    // Resolve colliders from fresh model
+    const actualPresetShapeId = ['cube', 'wedge'].includes(preset.id) ? 'box' : preset.id;
     const activeGeomName = `env_slot_${slotIdx}_${actualPresetShapeId}`;
     const geomId = module.mj_name2id(model, module.mjtObj.mjOBJ_GEOM.value, activeGeomName);
-
-    if (geomId >= 0) {
-      // Set correct size dimensions
-      const adapterGeom = CollisionAdapter.objectPresetToMJCFGeom(preset);
-      const sizeValues = adapterGeom.size.split(' ').map(Number);
-
-      // Update sizes in MjModel directly (size size stride)
-      const sizeOffset = geomId * 3;
-      model.geom_size[sizeOffset] = sizeValues[0] || 0;
-      model.geom_size[sizeOffset + 1] = sizeValues[1] || 0;
-      model.geom_size[sizeOffset + 2] = sizeValues[2] || 0;
-
-      // Enable collision parameters (ENVIRONMENT_CONTYPE = 2, ENVIRONMENT_CONAFFINITY = 3)
-      model.geom_contype[geomId] = 2;
-      model.geom_conaffinity[geomId] = 3;
-
-      // Set global friction & restitution in model
-      model.geom_friction[geomId * 3] = preset.friction;
-      model.geom_solref[geomId * 2] = 0.02; // default solref kp
-      model.geom_solimp[geomId * 3 + 2] = preset.restitution; // default solimp damp
-    } else {
-      Logger.warn(`ObjectManager.spawnObject: MuJoCo geom '${activeGeomName}' not found — object will have no collision`);
+    if (geomId < 0) {
+      Logger.error(`ObjectManager.spawnObject: MuJoCo geom '${activeGeomName}' not found after reload`);
+      this.objects.delete(id);
+      this.slotClaimed[slotIdx] = false;
+      this.slotToObjectId.delete(slotIdx);
+      this.slotPresetMap.delete(slotIdx);
+      this.scene.remove(mesh);
+      mesh.geometry.dispose();
+      (mesh.material as THREE.Material).dispose();
+      return null;
     }
 
-    // Move pre-allocated body slot position to spawn coordinates in qpos (freejoint has 7 coordinates: x,y,z, w,x,y,z)
-    const qposAdr = model.jnt_qposadr[model.body_jntadr[bodyId]];
-    const posMj = PhysicsEngine.worldToMuJoCo(position);
-    data.qpos[qposAdr] = posMj[0];
-    data.qpos[qposAdr + 1] = posMj[1];
-    data.qpos[qposAdr + 2] = posMj[2];
-
+    // 7. Register the object with resolved IDs
     const worldObject: WorldObject = {
       id,
       name: preset.name,
       preset,
       mesh,
-      colliders: geomId >= 0 ? [geomId] : [],
+      colliders: [geomId],
       bodyName,
       bodyId,
       slotIndex: slotIdx,
     };
-
     this.objects.set(id, worldObject);
+
+    // 8. Set spawn position and zero velocities
+    const qposAdr = model.jnt_qposadr[model.body_jntadr[bodyId]];
+    const posMj = PhysicsEngine.worldToMuJoCo(position);
+    data.qpos[qposAdr] = posMj[0];
+    data.qpos[qposAdr + 1] = posMj[1];
+    data.qpos[qposAdr + 2] = posMj[2];
+    data.qpos[qposAdr + 3] = 1;
+    data.qpos[qposAdr + 4] = 0;
+    data.qpos[qposAdr + 5] = 0;
+    data.qpos[qposAdr + 6] = 0;
+
+    const dofAdr = model.body_dofadr[bodyId];
+    if (dofAdr >= 0) {
+      data.qvel[dofAdr] = 0;
+      data.qvel[dofAdr + 1] = 0;
+      data.qvel[dofAdr + 2] = 0;
+      data.qvel[dofAdr + 3] = 0;
+      data.qvel[dofAdr + 4] = 0;
+      data.qvel[dofAdr + 5] = 0;
+    }
+
+    // 9. Recompute spatial transforms so broadphase uses the correct position
+    this.physicsEngine.forward();
+
     return worldObject;
   }
 
@@ -581,6 +701,20 @@ export class ObjectManager {
         data.qpos[qposAdr] = posMj[0];
         data.qpos[qposAdr + 1] = posMj[1];
         data.qpos[qposAdr + 2] = posMj[2];
+        data.qpos[qposAdr + 3] = 1;
+        data.qpos[qposAdr + 4] = 0;
+        data.qpos[qposAdr + 5] = 0;
+        data.qpos[qposAdr + 6] = 0;
+
+        const dofAdr = model.body_dofadr[pianoBodyId];
+        if (dofAdr >= 0) {
+          data.qvel[dofAdr] = 0;
+          data.qvel[dofAdr + 1] = 0;
+          data.qvel[dofAdr + 2] = 0;
+          data.qvel[dofAdr + 3] = 0;
+          data.qvel[dofAdr + 4] = 0;
+          data.qvel[dofAdr + 5] = 0;
+        }
 
         // Enable collision masks (contype/conaffinity) for all 88 keys
         const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
@@ -593,11 +727,12 @@ export class ObjectManager {
           const geomId = module.mj_name2id(model, module.mjtObj.mjOBJ_GEOM.value, `piano_${noteName}`);
           if (geomId >= 0) {
             colliders.push(geomId);
-            // Sensor key: ENVIRONMENT_CONTYPE=2, ENVIRONMENT_CONAFFINITY=3 (can be triggered as sensor note)
             model.geom_contype[geomId] = 2;
             model.geom_conaffinity[geomId] = 3;
           }
         }
+
+        this.physicsEngine.forward();
       }
     }
 
@@ -643,7 +778,7 @@ export class ObjectManager {
         model.geom_friction[geomId * 3] = updates.friction;
       }
       if (updates.restitution !== undefined) {
-        model.geom_solimp[geomId * 3 + 2] = updates.restitution;
+        model.geom_solimp[geomId * 5 + 2] = 0.001;
       }
     });
 
@@ -726,39 +861,36 @@ export class ObjectManager {
     if (obj.slotIndex !== undefined) {
       this.slotClaimed[obj.slotIndex] = false;
       this.slotToObjectId.delete(obj.slotIndex);
+      this.slotPresetMap.delete(obj.slotIndex);
 
-      obj.colliders.forEach((geomId) => {
-        // Zero size and disable collision bits
-        const sizeOffset = geomId * 3;
-        model.geom_size[sizeOffset] = 0.001;
-        model.geom_size[sizeOffset + 1] = 0.001;
-        model.geom_size[sizeOffset + 2] = 0.001;
-
-        model.geom_contype[geomId] = 0;
-        model.geom_conaffinity[geomId] = 0;
-      });
-
-      // Move body far below scene to hide it from step constraints
+      // Move body far below scene so StateRehydrator does not restore it
       if (obj.bodyId !== undefined && obj.bodyId >= 0) {
         const qposAdr = model.jnt_qposadr[model.body_jntadr[obj.bodyId]];
         data.qpos[qposAdr] = 0;
         data.qpos[qposAdr + 1] = 0;
-        data.qpos[qposAdr + 2] = -10; // underground
+        data.qpos[qposAdr + 2] = -10;
+
+        const dofAdr = model.body_dofadr[obj.bodyId];
+        if (dofAdr >= 0) {
+          data.qvel[dofAdr] = 0;
+          data.qvel[dofAdr + 1] = 0;
+          data.qvel[dofAdr + 2] = 0;
+          data.qvel[dofAdr + 3] = 0;
+          data.qvel[dofAdr + 4] = 0;
+          data.qvel[dofAdr + 5] = 0;
+        }
       }
-    } else if (obj.preset.id === 'piano' && obj.bodyId !== undefined && obj.bodyId >= 0) {
-      // Deactivate pre-allocated piano body
-      obj.colliders.forEach((geomId) => {
-        model.geom_contype[geomId] = 0;
-        model.geom_conaffinity[geomId] = 0;
-      });
-      const qposAdr = model.jnt_qposadr[model.body_jntadr[obj.bodyId]];
-      data.qpos[qposAdr] = 0;
-      data.qpos[qposAdr + 1] = 0;
-      data.qpos[qposAdr + 2] = -30; // deep underground
+
+      // Remove from objects map BEFORE reload so StateRehydrator skips it
+      this.objects.delete(id);
+
+      // Schedule batched reload so the slot geom reverts to size=0.001 / contype=0
+      this.scheduleReload();
+      return;
     } else if (obj.isCustom) {
-      // Custom uploaded dynamic meshes: remove spec and reload state to fully strip from the XML memory compilation
+      // Custom uploaded dynamic meshes: remove spec and schedule batched reload
       this.customMeshesSpec = this.customMeshesSpec.filter(spec => spec.id !== id);
-      this.reloadStateAndRehydrate();
+      this.scheduleReload();
     }
 
     this.objects.delete(id);
@@ -846,10 +978,10 @@ export class ObjectManager {
             if (this.eventCallback) this.eventCallback('button_press', { id: obj.id, agentId: extractAgentIdFromPair(pair) });
 
             if (obj.mesh instanceof THREE.Mesh) {
-              obj.mesh.material = new THREE.MeshStandardMaterial({ color: 0xffffff });
+              obj.mesh.material = ObjectManager._buttonPressedMat;
               setTimeout(() => {
                 if (obj.mesh && obj.mesh instanceof THREE.Mesh) {
-                  obj.mesh.material = new THREE.MeshStandardMaterial({ color: 0xcc0000 });
+                  obj.mesh.material = ObjectManager._buttonNormalMat;
                 }
               }, 200);
             }

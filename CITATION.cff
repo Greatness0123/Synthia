@@ -1,0 +1,18 @@
+cff-version: 1.2.0
+message: "If you use SYNTHIA in your research, please cite it as follows."
+title: "SYNTHIA: A Browser-Based Embodied AI Platform"
+type: software
+authors:
+  - family-names: Okorie
+    given-names: Greatness
+    orcid: ""
+repository-code: "https://github.com/Greatness0123/synthia"
+license: MIT
+keywords:
+  - embodied-ai
+  - mujoco
+  - threejs
+  - llm-agent
+  - webgl
+  - simulation
+date-released: 2026-08-26

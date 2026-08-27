@@ -1,133 +1,126 @@
 /**
- * Central icon re-exports using lucide-react.
- * All icons are tree-shaken at build time.
+ * Central icon re-exports using @material-symbols-svg/react (Outlined variant).
+ * All icons are tree-shaken at build time via Vite optimizeDeps.
  * Usage: import { Brain, Trash, Eye } from '../ui/icons';
  */
 import type { ComponentType } from 'react';
-export type { LucideProps as IconProps } from 'lucide-react';
+import type { IconProps as MaterialIconProps } from '@material-symbols-svg/react';
+
+export type IconProps = MaterialIconProps;
 
 export {
   // Core UI
-  X,
-  Eye,
+  Close as X,
+  Visibility as Eye,
   Info,
   Search,
   Search as MagnifyingGlass,
   Settings,
-  Settings2 as GearSix,
+  Settings as GearSix,
   Settings as Gear,
-  SlidersHorizontal,
+  Tune as SlidersHorizontal,
 
   // Navigation / Actions
-  ArrowRight,
-  ArrowDown,
-  ArrowUp,
-  ArrowUpFromLine as ArrowFatLinesUp,
-  RotateCw as ArrowsClockwise,
+  ArrowForward as ArrowRight,
+  ArrowDownward as ArrowDown,
+  ArrowUpward as ArrowUp,
+  Upload as ArrowFatLinesUp,
+  Refresh as ArrowsClockwise,
   Download as DownloadSimple,
   Upload as UploadSimple,
-  ArrowDownToLine as Export,
+  Download as Export,
 
   // Status / Feedback
-  CheckCircle2 as CheckCircle,
+  Check,
+  CheckCircle,
   CheckCircle as CheckCircleFilled,
-  AlertTriangle as WarningCircle,
-  AlertTriangle as WarningFilled,
-  XCircle,
+  Warning as WarningCircle,
+  Warning as WarningFilled,
+  Cancel as XCircle,
   Info as InfoFilled,
-  Loader2 as Spinner,
+  ProgressActivity as Spinner,
   Wifi as WifiHigh,
-  Plug2 as PlugsConnected,
+  ElectricalServices as PlugsConnected,
 
   // Agent / AI
-  Brain,
-  Bot as Robot,
-  Cpu,
-  Bone,
-  Syringe,
-  Dna,
+  Psychology as Brain,
+  SmartToy as Robot,
+  Memory as Cpu,
+  Orthopedics as Bone,
+  Vaccines as Syringe,
+  Biotech as Dna,
 
   // Media / Sensors
-  Camera,
-  Video as VideoCamera,
+  PhotoCamera as Camera,
+  Videocam as VideoCamera,
   Monitor,
-  Sun,
-  Moon,
-  Volume2 as SpeakerHigh,
-  VolumeX as SpeakerSlash,
+  LightMode as Sun,
+  DarkMode as Moon,
+  VolumeUp as SpeakerHigh,
+  VolumeOff as SpeakerSlash,
   Mic as Microphone,
-  Music2 as MusicNotes,
-  Music as MusicNote,
+  Stop as StopSquare,
+  MusicNote as MusicNotes,
+  MusicNote as MusicNote,
 
   // Data / Files
   Database,
   Archive,
-  FileCode,
-  FileText as FileCsv,
-  FileText as Document,
-  BookOpen as Notebook,
+  Code as FileCode,
+  TableChart as FileCsv,
+  Description as Document,
+  MenuBook as Notebook,
   Bookmark,
-  Package as FileCloud,
+  CloudUpload as FileCloud,
 
   // 3D / World
-  Box as Cube,
+  DeployedCode as Cube,
   Circle,
-  Triangle,
-  Cylinder,
-  Layers as DotsNine,
-  Grid3x3 as Grid,
+  ChangeHistory as Triangle,
+  DataObject as Cylinder,
+  GridView as DotsNine,
+  GridOn as Grid,
 
   // People / Social
-  User,
-  Users as People,
+  Person as User,
+  Group as People,
 
   // Section / Misc
-  Globe,
-  Sliders,
-  Bot,
-  Zap,
-  RefreshCw,
+  Public as Globe,
+  Tune as Sliders,
+  SmartToy as Bot,
+  Bolt as Zap,
+  Sync as RefreshCw,
   Flag,
-  Target,
-  ChevronDown as CaretDown,
-  ChevronUp as CaretUp,
-  List as ListChecks,
-  Network as TreeStructure,
+  MyLocation as Target,
+  KeyboardArrowDown as CaretDown,
+  KeyboardArrowUp as CaretUp,
+  Checklist as ListChecks,
+  AccountTree as TreeStructure,
   TrendingUp as TrendUp,
-  TrendingUp as ArrowTrendingLines,
-  Footprints as Steps,
-  Move,
-  Trash2 as Trash,
-  Play,
+  ShowChart as ArrowTrendingLines,
+  DirectionsWalk as Steps,
+  OpenWith as Move,
+  Delete as Trash,
+  PlayArrow as Play,
   Pause,
+  Save,
 
-} from 'lucide-react';
+} from '@material-symbols-svg/react';
 
 // PRESET_ICONS registry for ObjectSpawner dynamic lookup
 import {
-  Box,
+  DeployedCode,
   Circle as CircleIcon,
-  Triangle as TriangleIcon,
-  Cylinder as CylinderIcon,
-  ArrowUpFromLine,
-  Footprints,
-  TrendingUp,
-  Music2,
-  Grid3x3,
-  RotateCw,
-} from 'lucide-react';
+  ChangeHistory as TriangleIcon,
+  DataObject as CylinderIcon,
+} from '@material-symbols-svg/react';
 
-export type IconComponent = ComponentType<{ size?: number | string; className?: string; strokeWidth?: number | string }>;
+export type IconComponent = ComponentType<{ size?: number | string; className?: string }>;
 
 export const PRESET_ICONS: Record<string, IconComponent> = {
-  Cube: Box,
+  Cube: DeployedCode,
   Circle: CircleIcon,
   Cylinder: CylinderIcon,
   Triangle: TriangleIcon,
-  ArrowFatLinesUp: ArrowUpFromLine,
-  Steps: Footprints,
-  TrendUp: TrendingUp,
-  MusicNotes: Music2,
-  DotsNine: Grid3x3,
-  ArrowsClockwise: RotateCw,
 };

@@ -9,9 +9,17 @@ const getUiMessage = (msg: string) => {
   return parts[0];
 };
 
+const COOLDOWN_MS = 3 * 60 * 1000; // 3 minutes
+const lastShown = new Map<string, number>();
+
 const notify = (type: 'success' | 'warning' | 'error' | 'info', msg: string) => {
   const uiMsg = getUiMessage(msg);
   useLogStore.getState().addEntry(uiMsg, type);
+
+  const now = Date.now();
+  const last = lastShown.get(uiMsg);
+  if (last && now - last < COOLDOWN_MS) return;
+  lastShown.set(uiMsg, now);
 
   switch (type) {
     case 'success':

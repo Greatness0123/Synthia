@@ -20,11 +20,9 @@ import { decomposeMesh } from '../../utils/vhacdDecomposer';
 import { X, FileCloud, UploadSimple, Spinner, PRESET_ICONS, Cube } from '../ui/icons';
 
 type Preset = typeof OBJECT_PRESETS[0];
-type Category = 'Primitives' | 'Terrain' | 'Interactive' | 'Custom';
 
 export const ObjectSpawner: React.FC = () => {
   const { objectSpawnerOpen, setObjectSpawnerOpen } = useUIStore();
-  const [activeCategory, setActiveCategory] = useState<Category>('Primitives');
   const [previewScene, setPreviewScene] = useState<THREE.Object3D | null>(null);
   const [previewDimensions, setPreviewDimensions] = useState<string | null>(null);
   const [pendingModel, setPendingModel] = useState<{
@@ -82,9 +80,6 @@ export const ObjectSpawner: React.FC = () => {
     return () => window.removeEventListener('synthia:spawnCustomComplete', handleCustomComplete as EventListener);
   }, []);
 
-  const categories: Category[] = ['Primitives', 'Terrain', 'Interactive', 'Custom'];
-  const filteredPresets = OBJECT_PRESETS.filter((p) => p.category === activeCategory);
-
   const handleSpawn = (preset: Preset) => {
     window.dispatchEvent(new CustomEvent('synthia:spawn', { detail: { presetId: preset.id } }));
   };
@@ -95,7 +90,7 @@ export const ObjectSpawner: React.FC = () => {
     const maxDim = Math.max(size.x, size.y, size.z);
     const minDim = Math.min(size.x, size.y, size.z);
     if (maxDim > 20 || minDim < 0.01) {
-      synthiaToast.warning('This model is very large/small — you may want to adjust its scale after spawning');
+      synthiaToast.warning('This model is very large/small - you may want to adjust its scale after spawning');
     }
   };
 
@@ -353,7 +348,7 @@ export const ObjectSpawner: React.FC = () => {
           dragElastic={0}
           dragConstraints={{ top: -400, left: -600, right: 600, bottom: 400 }}
           style={{ isolation: 'isolate' }}
-          className="fixed right-[8vw] top-[18vh] w-[520px] max-w-[calc(100vw-2rem)] max-h-[80vh] flex flex-col glassmorphism rounded-modal z-[60] overflow-hidden cursor-grab active:cursor-grabbing shadow-2xl"
+          className="fixed right-[8vw] top-[18vh] w-[520px] max-w-[calc(100vw-2rem)] max-h-[80vh] flex flex-col bg-bg-panel border border-white/10 rounded-modal z-[60] overflow-hidden cursor-grab active:cursor-grabbing shadow-2xl"
         >
           {/* Header */}
           <div className="p-4 border-b border-border flex items-center justify-between bg-bg-panel shrink-0 cursor-grab">
@@ -369,41 +364,47 @@ export const ObjectSpawner: React.FC = () => {
             </button>
           </div>
 
-          <div className="flex px-4 border-b border-border bg-bg-elevated/20 shrink-0">
-            {categories.map((cat) => (
-              <button
-                key={cat}
-                onClick={() => setActiveCategory(cat)}
-                className={`px-4 py-3 text-[10px] font-bold uppercase tracking-wider border-b-2 transition-all ${
-                  activeCategory === cat
-                    ? 'border-accent-blue text-text-primary'
-                    : 'border-transparent text-text-tertiary hover:text-text-secondary'
-                }`}
-              >
-                {cat}
-              </button>
-            ))}
-          </div>
+          <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
+            {/* Preset grid */}
+            <div className="grid grid-cols-3 gap-3">
+              {OBJECT_PRESETS.map((preset) => {
+                const IconComponent = PRESET_ICONS[preset.icon] || Cube;
+                return (
+                  <button
+                    key={preset.id}
+                    onClick={() => handleSpawn(preset)}
+                    className="group flex flex-col items-center justify-center p-4 border border-border bg-bg-panel rounded-btn hover:border-white/20 hover:bg-bg-hover transition-all"
+                  >
+                    <IconComponent size={32} className="text-text-tertiary group-hover:text-text-primary mb-2 transition-colors" />
+                    <span className="text-xs font-medium text-text-secondary group-hover:text-text-primary">{preset.name}</span>
+                  </button>
+                );
+              })}
+            </div>
 
-          {activeCategory === 'Custom' ? (
-            <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
-              <label className="flex flex-col items-center justify-center gap-2 p-6 border border-dashed border-border rounded-btn cursor-pointer hover:border-accent-blue transition-colors">
+            {/* Divider */}
+            <div className="border-t border-border" />
+
+            {/* Custom upload section */}
+            <div className="space-y-3">
+              <div className="text-xs font-bold uppercase text-text-tertiary">Custom Model</div>
+              <label className="flex flex-col items-center justify-center gap-2 p-6 border border-dashed border-border rounded-btn cursor-pointer hover:border-white/20 transition-colors">
                 <UploadSimple size={28} className="text-text-tertiary" />
-                <span className="text-[10px] font-bold uppercase text-text-secondary">Upload Model (.glb / .gltf)</span>
+                <span className="text-xs font-bold uppercase text-text-secondary">Upload Model (.glb / .gltf)</span>
                 <input type="file" accept=".glb,.gltf" onChange={handleFileUpload} className="hidden" />
               </label>
 
               {isDecomposing && (
                 <div className="space-y-3 p-4 border border-border rounded-btn bg-bg-elevated/20 flex flex-col items-center justify-center">
-                  <Spinner size={32} className="text-accent-blue animate-spin" />
-                  <div className="text-[10px] font-bold uppercase text-text-secondary">Generating collision mesh...</div>
+                  <Spinner size={32} className="text-text-primary animate-spin" />
+                  <div className="text-xs font-bold uppercase text-text-secondary">Generating collision mesh...</div>
                   <button
                     onClick={() => {
                       abortControllerRef.current?.abort();
                       setIsDecomposing(false);
                       synthiaToast.info('Decomposition cancelled');
                     }}
-                    className="px-3 py-1.5 text-[9px] font-bold uppercase border border-border rounded-btn text-text-secondary hover:text-text-primary hover:border-text-secondary"
+                    className="px-3 py-1.5 text-xs font-bold uppercase border border-border rounded-btn text-text-secondary hover:text-text-primary hover:border-text-secondary"
                   >
                     Cancel
                   </button>
@@ -412,26 +413,26 @@ export const ObjectSpawner: React.FC = () => {
 
               {pendingModel && (
                 <div className="space-y-3 p-3 border border-border rounded-btn bg-bg-elevated/20">
-                  <div className="text-[10px] font-bold uppercase text-text-secondary">{pendingModel.name}</div>
+                  <div className="text-xs font-bold uppercase text-text-secondary">{pendingModel.name}</div>
                   <ModelPreview
                     scene={previewScene}
                     showCollision={showCollision}
                     hulls={pendingModel.processed?.hulls}
                   />
                   {previewDimensions && (
-                    <div className="text-[9px] font-mono text-text-tertiary">Dimensions: {previewDimensions}</div>
+                    <div className="text-xs font-mono text-text-tertiary">Dimensions: {previewDimensions}</div>
                   )}
                   <div className="flex flex-col gap-2">
-                    <label className="flex items-center gap-2 text-[10px] text-text-secondary cursor-pointer">
+                    <label className="flex items-center gap-2 text-xs text-text-secondary cursor-pointer">
                       <input
                         type="checkbox"
                         checked={showCollision}
                         onChange={(e) => setShowCollision(e.target.checked)}
-                        className="accent-accent-blue cursor-pointer"
+                        className="text-secondary cursor-pointer"
                       />
                       Show collision mesh {pendingModel.processed ? `(${pendingModel.processed.hullCount} hulls)` : '(auto convex hull)'}
                     </label>
-                    <label className="flex items-center gap-2 text-[10px] text-text-secondary cursor-pointer">
+                    <label className="flex items-center gap-2 text-xs text-text-secondary cursor-pointer">
                       <input
                         type="checkbox"
                         checked={isTerrain}
@@ -439,37 +440,37 @@ export const ObjectSpawner: React.FC = () => {
                           setIsTerrain(e.target.checked);
                           setPendingModel((prev) => (prev ? { ...prev, isTerrain: e.target.checked } : null));
                         }}
-                        className="accent-accent-blue cursor-pointer"
+                        className="text-secondary cursor-pointer"
                       />
                       This is world terrain
                     </label>
-                    <label className="flex items-center gap-2 text-[10px] text-text-secondary cursor-pointer">
+                    <label className="flex items-center gap-2 text-xs text-text-secondary cursor-pointer">
                       <input
                         type="checkbox"
                         checked={skipCollision}
                         onChange={(e) => {
                           setSkipCollision(e.target.checked);
                         }}
-                        className="accent-accent-blue cursor-pointer"
+                        className="text-secondary cursor-pointer"
                       />
                       Skip collision (purely visual)
                     </label>
                     {skipCollision && (
-                      <div className="text-[9px] text-accent-yellow bg-accent-yellow/10 p-2 rounded border border-accent-yellow/20 leading-relaxed font-medium">
-                        This object won't have physical collision — the AI won't be able to touch, push, or interact with it, and it will pass through agents and other objects.
+                      <div className="text-xs text-text-secondary bg-white/5 p-2 rounded border border-white/10 leading-relaxed">
+                        This object won't have physical collision - the AI won't be able to touch, push, or interact with it, and it will pass through agents and other objects.
                       </div>
                     )}
                   </div>
                   <div className="flex gap-2">
                     <button
                       onClick={() => spawnPending(false)}
-                      className="flex-1 py-2 text-[10px] font-bold uppercase border border-accent-blue rounded-btn text-accent-blue hover:bg-accent-blue/10"
+                      className="flex-1 py-2 text-xs font-bold uppercase border border-white/20 rounded-btn text-text-primary hover:bg-white/10"
                     >
                       Spawn Now
                     </button>
                     <button
                       onClick={() => spawnPending(true)}
-                      className="flex-1 py-2 text-[10px] font-bold uppercase bg-accent-blue rounded-btn text-white hover:bg-accent-blue/90"
+                      className="flex-1 py-2 text-xs font-bold uppercase bg-white/10 rounded-btn text-white hover:bg-white/10"
                     >
                       Save & Spawn
                     </button>
@@ -479,17 +480,17 @@ export const ObjectSpawner: React.FC = () => {
 
               {savedModels.length > 0 && (
                 <div className="space-y-2">
-                  <div className="text-[10px] font-bold uppercase text-text-tertiary">My Uploaded Models</div>
+                  <div className="text-xs font-bold uppercase text-text-tertiary">My Uploaded Models</div>
                   {savedModels.map((model) => (
                     <button
                       key={model.id}
                       onClick={() => spawnSavedModel(model)}
-                      className="w-full flex items-center gap-3 p-2 border border-border rounded-btn hover:border-accent-blue text-left transition-colors"
+                      className="w-full flex items-center gap-3 p-2 border border-border rounded-btn hover:border-white/20 text-left transition-colors"
                     >
                       <FileCloud size={20} className="text-text-tertiary shrink-0" />
                       <div className="flex flex-col min-w-0">
-                        <span className="text-[10px] text-text-primary truncate">{model.name}</span>
-                        <span className="text-[9px] text-text-tertiary">
+                        <span className="text-xs text-text-primary truncate">{model.name}</span>
+                        <span className="text-xs text-text-tertiary">
                           {model.isTerrain ? 'Terrain' : 'Object'} · {new Date(model.uploadedAt).toLocaleDateString()}
                         </span>
                       </div>
@@ -498,23 +499,7 @@ export const ObjectSpawner: React.FC = () => {
                 </div>
               )}
             </div>
-          ) : (
-            <div className="flex-1 overflow-y-auto p-4 grid grid-cols-3 gap-3 custom-scrollbar">
-              {filteredPresets.map((preset) => {
-                const IconComponent = PRESET_ICONS[preset.icon] || Cube;
-                return (
-                  <button
-                    key={preset.id}
-                    onClick={() => handleSpawn(preset)}
-                    className="group flex flex-col items-center justify-center p-4 border border-border bg-bg-panel rounded-btn hover:border-accent-blue hover:bg-bg-hover transition-all"
-                  >
-                    <IconComponent size={32} className="text-text-tertiary group-hover:text-accent-blue mb-2 transition-colors" />
-                    <span className="text-[10px] font-medium text-text-secondary group-hover:text-text-primary">{preset.name}</span>
-                  </button>
-                );
-              })}
-            </div>
-          )}
+          </div>
         </motion.div>
       )}
     </AnimatePresence>
