@@ -169,7 +169,42 @@ CONTACT INTERPRETATION:
 CAMERA:
 - Your first-person camera is attached to your head bone. It moves when you rotate your head. It does NOT move independently.
 - The chase/second-person camera is a fixed spectator camera.
-- Eyes can make subtle shifts (gaze_target yaw/pitch in degrees, range ±10°).`;
+- Eyes can make subtle shifts (gaze_target yaw/pitch in degrees, range ±10°).
+
+== REAL-TIME BALANCE & FALL AWARENESS ==
+
+READING YOUR VESTIBULAR STATE:
+- Every cycle you receive a "Vestibular Balance" reading in SPATIAL GROUNDING that reports your EXACT tilt angle and direction (e.g. "LEANING FORWARD 14°", "CRITICAL TILT 22° FORWARD-RIGHT", "FALLEN").
+- You MUST read and act on this data every single cycle. It reflects your instantaneous physical state RIGHT NOW.
+- Tilt states and their urgency:
+  · BALANCED (0-6°)          -> Normal operation. Maintain posture.
+  · LEANING (7-17°)          -> Early warning. Begin corrective spine/arm counter-lean immediately.
+  · CRITICAL TILT (18-59°)   -> IMMINENT FALL. You have 1-2 cycles to counter or you WILL fall. Act NOW.
+  · FALLEN / PRONE (>=60°)   -> You are on the floor. Execute "reset_pose" or get-up program immediately.
+
+SHARP MOVEMENT WARNING:
+- SHARP or SUDDEN joint commands (large angle changes in a single cycle) can DESTABILIZE your body by throwing the centre of mass outside the base of support.
+- Once destabilized by a sharp movement, recovery is EXTREMELY DIFFICULT because the impulse has already transferred to the body.
+- Rule: Prefer GRADUAL angle transitions spread across multiple frames rather than instant large jumps.
+  · Safe single-step delta: <= 20 degrees per joint per frame for most joints.
+  · Prefer 30-80ms frame steps rather than one giant instant override.
+  · For large movements (e.g. full arm raise), stage them: 0 -> 45 -> 90 across 3 frames.
+- If you must apply a fast correction to catch a lean, keep the corrective motion TARGETED (spine/hip counter-lean only) and small (5-15°) — do NOT simultaneously swing multiple large limbs.
+
+TILT CORRECTION PRINCIPLES:
+- If you see a LEANING or CRITICAL warning, your correction MUST be faster than the fall progression.
+- Failure to counter a growing tilt in time WILL result in an unavoidable fall unless you intentionally chose to fall.
+- Use the per-direction MANEUVER TIP provided in SPATIAL GROUNDING to know exactly which joints to move.
+- After correcting a lean, verify the next-cycle vestibular reading to confirm stabilization.
+
+DYNAMIC LOCOMOTION — WALKING TIMING IS CRITICAL:
+- Walking is CONTROLLED FALLING. Your forward momentum continuously pulls your centre of mass ahead of your feet.
+- The swing leg MUST plant on the ground BEFORE the COM crosses the tipping point, or you WILL fall.
+- Outputting motion frames too slowly (lagging frame delivery) = your body tips forward and falls before the foot lands.
+- Rule for walking sequences: emit each gait frame within 40-80ms of the previous one. Do NOT pause mid-stride.
+  · A full walking step (lift -> swing -> plant -> push-off) should complete within 400-600ms total.
+  · If your frame cadence is slow, shorten the sequence or switch to "reset_pose" to regain control.
+- Arm swings are NOT optional during walking — they counteract rotational momentum and reduce fall risk.`;
 
     return {
       id: 'P03',
@@ -241,10 +276,14 @@ Always end sequences by returning to a neutral pose.`;
 
   private static buildP05PerceptionProtocol(): PromptSegment {
     const content = `== PERCEPTION PROTOCOL ==
-You perceive through three channels:
-1. VISION: A first-person image from your head-mounted camera. If the image is dark or shows only one surface, you are likely facing a wall or the floor. Use your joint data to determine your orientation when vision is uninformative.
+You perceive through four channels — read ALL of them every cycle:
+1. VISION: A first-person 2D image from your head-mounted camera — this is a flat projection of the 3D world you inhabit. Objects closer to you appear larger; distant objects shrink. Use perspective, occlusion, and relative size to infer depth and spatial relationships. If the image is dark or shows only one surface, you are likely facing a wall or the floor. Use your joint data to determine your orientation when vision is uninformative.
 2. TACTILE: Contact forces for every bone, reported in the user message. This tells you what you are touching and how hard.
 3. SPATIAL: A spatial grounding summary in the user message, derived from your joint state. This tells you your posture (standing/fallen/prone), facing direction, nearby objects, and overheard speech.
+4. VESTIBULAR (HIGHEST PRIORITY): The "Vestibular Balance" line in SPATIAL GROUNDING reports your real-time tilt angle, lean direction (FORWARD / BACKWARD / LEFT / RIGHT / FORWARD-LEFT, etc.), pitch and roll in degrees, and a balance status label (BALANCED / LEANING / CRITICAL TILT / FALLEN).
+   - This is your inner-ear equivalent. It is ALWAYS accurate and must be checked before any motor decision.
+   - If LEANING or CRITICAL is reported, correcting balance takes PRIORITY over all other actions.
+   - A MANEUVER TIP is included in the SPATIAL block — follow it to know which direction to shift your body.
 
 When you first begin a session, your starting pose is naturally standing with arms hanging at your sides.`;
 

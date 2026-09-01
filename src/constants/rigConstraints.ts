@@ -22,14 +22,15 @@ export const SYNTHIA_RIG_CONSTRAINTS: Record<string, JointLimit> = (() => {
   // FIX 7: Tighten arm X-axis adduction limits to prevent chest clipping.
   // Left arm: bring hand to right shoulder (60° adduction) but not beyond midline.
   // Right arm: mirror.
-  map['mixamorigleftarm']  = { dof: 3, x: [-2.356, 2.356], y: [-1.57, 1.57], z: [-1.57, 1.57], allowance: { scapulohumeralRatio: 2.0 } };
-  map['mixamorigrightarm'] = { dof: 3, x: [-2.356, 2.356], y: [-1.57, 1.57], z: [-1.57, 1.57], allowance: { scapulohumeralRatio: 2.0 } };
+  map['mixamorigleftarm']  = { dof: 3, x: [-3.14159, 3.14159], y: [-3.14159, 3.14159], z: [-3.14159, 3.14159], allowance: { scapulohumeralRatio: 2.0 } };
+  map['mixamorigrightarm'] = { dof: 3, x: [-3.14159, 3.14159], y: [-3.14159, 3.14159], z: [-3.14159, 3.14159], allowance: { scapulohumeralRatio: 2.0 } };
   map['mixamorigleftforearm']  = { dof: 1, x: [0.0, 2.531], y: [0.0, 0.0], z: [0.0, 0.0] };
   map['mixamorigrightforearm'] = { dof: 1, x: [0.0, 2.531], y: [0.0, 0.0], z: [0.0, 0.0] };
 
   // ZONE 3: WRISTS AND DIGITS
-  map['mixamoriglefthand'] = { dof: 2, x: [-1.396, 1.396], y: [0.0, 0.0], z: [-0.349, 0.349], allowance: { dartThrowingOblique: true } };
-  map['mixamorigrighthand'] = { dof: 2, x: [-1.396, 1.396], y: [0.0, 0.0], z: [-0.349, 0.349], allowance: { dartThrowingOblique: true } };
+  // Wrist: full 3-DOF rotational freedom (pitch ±90°, yaw ±90°, roll ±90°) so hands can face forward, wave, etc.
+  map['mixamoriglefthand'] = { dof: 3, x: [-1.571, 1.571], y: [-1.571, 1.571], z: [-1.571, 1.571], allowance: { dartThrowingOblique: true } };
+  map['mixamorigrighthand'] = { dof: 3, x: [-1.571, 1.571], y: [-1.571, 1.571], z: [-1.571, 1.571], allowance: { dartThrowingOblique: true } };
 
   // Fingers & Thumbs base pattern
   // NOTE: Mixamo models name finger bones with a "Hand" segment in the path,
@@ -51,15 +52,16 @@ export const SYNTHIA_RIG_CONSTRAINTS: Record<string, JointLimit> = (() => {
       }
     }
 
-    // Thumb segments
+    // Thumb segments: dof 3 — X flexion (curl), Y opposition (sideways),
+    // Z tuck (pull toward palm). Anatomical opposition requires Z-axis freedom.
     for (let seg = 1; seg <= 3; seg++) {
       const name = `mixamorig${side}handthumb${seg}`;
       const isTerminalSynergy = seg === 2 || seg === 3;
       map[name] = {
-        dof: 1,
+        dof: 3,
         x: [0.0, 1.745],
-        y: [0.0, 0.0],
-        z: [0.0, 0.0],
+        y: [-0.524, 0.524],
+        z: [-0.524, 0.524],
         allowance: isTerminalSynergy ? { tendonSynergyLink: true } : undefined,
       } as JointLimit;
     }

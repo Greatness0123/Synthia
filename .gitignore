@@ -22,9 +22,10 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+.gitignore
 
-walkdiag1
+_pycache_
 discards
 .claude
 .cursor
-updates
+

@@ -3,6 +3,7 @@ import { getSupabaseClient } from './supabaseClient';
 import { ExportConfig } from '../types/export';
 import { useAgentStore } from '../store/agentStore';
 import { writeParquet } from './parquetWriter';
+import { formatMemoriesToHDF5 } from './hdf5Writer';
 
 const PAGE_SIZE = 500;
 const MAX_ROWS = 50_000;
@@ -194,6 +195,8 @@ export async function runClientSideExport(
           zip.file(`${agentId}/lerobot_dataset.jsonl`, formatLeRobot(agentMemories));
         } else if (format === 'Parquet') {
           zip.file(`${agentId}/data.parquet`, formatParquet(agentMemories));
+        } else if (format === 'HDF5') {
+          zip.file(`${agentId}/dataset.hdf5`, formatMemoriesToHDF5(agentMemories));
         } else {
           zip.file(`${agentId}/data.jsonl`, formatJSONL(agentMemories));
         }
@@ -215,6 +218,10 @@ export async function runClientSideExport(
         const parquetBytes = formatParquet(memories);
         const blob = new Blob([parquetBytes.buffer as ArrayBuffer], { type: 'application/octet-stream' });
         triggerDownload(blob, `${baseFilename}.parquet`);
+      } else if (format === 'HDF5') {
+        const hdf5Bytes = formatMemoriesToHDF5(memories);
+        const blob = new Blob([hdf5Bytes.buffer as ArrayBuffer], { type: 'application/x-hdf5' });
+        triggerDownload(blob, `${baseFilename}.hdf5`);
       } else {
         const jsonlContent = formatJSONL(memories);
         const blob = new Blob([jsonlContent], { type: 'application/x-jsonlines;charset=utf-8;' });

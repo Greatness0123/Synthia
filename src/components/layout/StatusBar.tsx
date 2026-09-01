@@ -37,7 +37,7 @@ export const StatusBar: React.FC = () => {
   const usedBytes = snapshot?.jsHeapUsedBytes;
   const limitBytes = snapshot?.jsHeapLimitBytes;
   const memMB = usedBytes != null ? usedBytes / (1024 * 1024) : null;
-  const memPct = memMB != null && limitBytes ? (usedBytes / limitBytes) * 100 : null;
+  const memPct = usedBytes != null && limitBytes ? (usedBytes / limitBytes) * 100 : null;
 
   const memColor = memPct == null ? 'text-text-secondary'
     : memPct >= 85 ? 'text-red-400'

@@ -1,0 +1,40 @@
+# Git and editor files
+.git
+.github
+.gitignore
+.gitattributes
+.claude
+.cursor
+.vscode
+.idea
+
+# Dependencies and caches
+node_modules
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+__pycache__
+*.pyc
+
+# Build outputs
+dist
+build
+.system_generated
+
+# Development and test artifacts
+coverage
+.nyc_output
+tests
+discards
+synthia cleanup
+
+# Local environment variables
+.env
+.env.local
+.env.*.local
+
+# Documentation and markdown drafts (keep README and LICENSE)
+docs
+launch-research-updated
+website

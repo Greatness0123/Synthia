@@ -10,7 +10,7 @@ Product Hunt's audience is product-builders, designers, investors, and early ado
 
 **The one risk to manage — and how this strategy manages it.** Product Hunt commenters are sharp about hype. If the launch copy overclaims, the top comment becomes a takedown and the launch nets negative. The answer is not to be defensive or self-flagellating — it is to be *specific*. Real capabilities, a real demo, a real repo, and a maker who shows up and says plainly "here is what works today and here is where it is going." Specificity is the thing that makes a PH commenter respect you. Vagueness is the thing that makes them bury you. Every decision below is built to make the launch so concrete that the sharpest commenter has nothing to grab and everything to verify.
 
-**Timing precondition — do not launch until:** (a) the repo cleanup from `01-open-source-analysis.md` is done (the personal tunnel config removed, any third-party assets handled, dead directories cleared, the README rewritten to say what SYNTHIA actually is); (b) the live demo at synthia.online loads in a few seconds on a mid-range laptop and does not crash — the WebGL app *is* the demo, and if it dies on load, the launch dies; (c) a short, real screen recording exists (see §5); (d) the V2 story is clean and consistent everywhere it appears (V1 = client-side personal, V2 = cloud, persistent, study how AIs behave together — planning documents, not built yet).
+**Timing precondition — do not launch until:** (a) the repo cleanup from `01-open-source-analysis.md` is done (the personal tunnel config removed, any third-party assets handled, dead directories cleared, the README rewritten to say what SYNTHIA actually is); (b) the live demo at runsynthia.online loads in a few seconds on a mid-range laptop and does not crash — the WebGL app *is* the demo, and if it dies on load, the launch dies; (c) a short, real screen recording exists (see §5); (d) the V2 story is clean and consistent everywhere it appears (V1 = client-side personal, V2 = cloud, persistent, study how AIs behave together — planning documents, not built yet).
 
 ---
 
@@ -71,7 +71,7 @@ Product Hunt visitors watch the first 5–10 seconds of the video and decide whe
 - **Open on the live character in the lit 3D world within the first 2 seconds** — no logo intro, no "hi I'm…", no title card. The wow must hit immediately.
 - **Show the character attempting something from the skill ladder** — ideally the early struggle: wobbling, falling, pulling itself back up, finally taking a step. The visible effort is more compelling than a polished success. A character that is *trying* to walk reads as alive; a character that glides reads as scripted.
 - **Show one "that's different" moment:** the character speaking out loud in its own voice, or two characters in the same world turning to face each other and talking, or the one-click dataset export (the money beat — show the file appearing).
-- **End on the synthia.online URL and "open source."**
+- **End on the runsynthia.online URL and "open source."**
 - **Audio:** either the character's real voice and the real collision sounds, or silence with captions. No corporate promo music bed. The diegetic audio of an AI talking in a browser is itself the wow.
 - **No voiceover making grand claims.** If there is narration, it is one or two plain sentences: "You give an AI a body. It lives in a world. Everything it learns, you can export and sell." That is the whole pitch in three beats.
 

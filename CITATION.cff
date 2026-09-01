@@ -7,7 +7,7 @@ authors:
     given-names: Greatness
     orcid: ""
 repository-code: "https://github.com/Greatness0123/synthia"
-license: MIT
+license: Apache-2.0
 keywords:
   - embodied-ai
   - mujoco

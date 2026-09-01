@@ -44,50 +44,398 @@ import { SUPABASE_SCHEMA_FULL } from '../../constants/supabaseSchema';
 import { testSupabaseConnection } from '../../utils/supabaseConnection';
 
 const PROVIDER_INFO: Record<ProviderType, { label: string; defaultEndpoint: string; defaultModel: string; needsKey: boolean; models?: string[] }> = {
-  kaggle:     { label: 'Kaggle / Cloudflare', defaultEndpoint: 'http://localhost:8000/infer', defaultModel: 'Qwen2.5-VL-3B-Instruct', needsKey: false },
-  gemini:     { label: 'Google Gemini', defaultEndpoint: 'https://generativelanguage.googleapis.com/v1beta/openai', defaultModel: 'gemini-2.0-flash', needsKey: true,
-    models: ['gemini-2.0-flash', 'gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-1.5-flash', 'gemini-1.5-pro'] },
-  groq:       { label: 'Groq', defaultEndpoint: 'https://api.groq.com/openai/v1', defaultModel: 'llama-3.2-90b-vision-preview', needsKey: true,
-    models: ['llama-3.2-90b-vision-preview', 'llama-3.2-11b-vision-preview', 'llama-3.1-8b-instant', 'mixtral-8x7b-32768'] },
-  openrouter: { label: 'OpenRouter', defaultEndpoint: 'https://openrouter.ai/api/v1', defaultModel: 'meta-llama/llama-3.2-90b-vision-instruct', needsKey: true,
-    models: ['meta-llama/llama-3.2-90b-vision-instruct', 'qwen/qwen-2-vl-72b-instruct', 'google/gemini-2.0-flash-exp:free', 'anthropic/claude-3.5-sonnet', 'meta-llama/llama-3.1-8b-instruct'] },
-  nim:        { label: 'NVIDIA NIM', defaultEndpoint: 'https://integrate.api.nvidia.com/v1', defaultModel: 'meta/llama-3.2-90b-vision-instruct', needsKey: true,
-    models: ['meta/llama-3.2-90b-vision-instruct', 'meta/llama-3.2-11b-vision-instruct', 'nvidia/llama-3.1-nemotron-nano-vl-8b-v1', 'meta/llama-4-scout-17b-16e-instruct', 'qwen/qwen3.5-397b-a17b'] },
-  qwen:       { label: 'Qwen (DashScope)', defaultEndpoint: 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1', defaultModel: 'qwen3-vl-plus', needsKey: true,
-    models: ['qwen3-vl-plus', 'qwen3-vl-flash', 'qwen-vl-max', 'qwen-vl-plus', 'qwen2.5-vl-72b-instruct', 'qwen2.5-vl-32b-instruct', 'qwen3-omni-flash'] },
-  cerebras:   { label: 'Cerebras', defaultEndpoint: 'https://api.cerebras.ai/v1', defaultModel: 'gemma-4-31b', needsKey: true,
-    models: ['gemma-4-31b'] },
-  minimax:    { label: 'MiniMax', defaultEndpoint: 'https://api.minimax.io/v1', defaultModel: 'MiniMax-M3', needsKey: true,
-    models: ['MiniMax-M3', 'MiniMax-M2.7', 'MiniMax-M2.5'] },
-  moonshot:   { label: 'Moonshot AI (Kimi)', defaultEndpoint: 'https://api.moonshot.ai/v1', defaultModel: 'kimi-k2.6', needsKey: true,
-    models: ['kimi-k2.6', 'kimi-k3', 'moonshot-v1-8k-vision-preview'] },
-  mistral:    { label: 'Mistral', defaultEndpoint: 'https://api.mistral.ai/v1', defaultModel: 'mistral-large-latest', needsKey: true,
-    models: ['mistral-large-latest', 'mistral-medium-latest', 'mistral-small-latest', 'pixtral-large-latest', 'ministral-14b-latest', 'ministral-8b-latest'] },
-  nvidia:     { label: 'NVIDIA', defaultEndpoint: 'https://integrate.api.nvidia.com/v1', defaultModel: 'meta/llama-3.2-90b-vision-instruct', needsKey: true,
-    models: ['meta/llama-3.2-90b-vision-instruct', 'meta/llama-3.2-11b-vision-instruct', 'nvidia/llama-3.1-nemotron-nano-vl-8b-v1', 'meta/llama-4-scout-17b-16e-instruct', 'meta/llama-4-maverick-17b-128e-instruct'] },
-  xai:        { label: 'xAI (Grok)', defaultEndpoint: 'https://api.x.ai/v1', defaultModel: 'grok-4.5', needsKey: true,
-    models: ['grok-4.5', 'grok-4.3', 'grok-4.20'] },
-  zai:        { label: 'Z AI (Zhipu)', defaultEndpoint: 'https://api.z.ai/api/paas/v4', defaultModel: 'glm-5v-turbo', needsKey: true,
-    models: ['glm-5v-turbo', 'glm-5.2', 'glm-5.1', 'glm-4.7', 'glm-4.6v', 'glm-4.6v-flash'] },
-  anthropic:  { label: 'Anthropic', defaultEndpoint: 'https://api.anthropic.com/v1', defaultModel: 'claude-sonnet-4-20250514', needsKey: true,
-    models: ['claude-sonnet-4-20250514', 'claude-3-5-sonnet-20241022', 'claude-3-5-haiku-20241022'] },
-  openai:     { label: 'OpenAI', defaultEndpoint: 'https://api.openai.com/v1', defaultModel: 'gpt-4o', needsKey: true,
-    models: ['gpt-4o', 'gpt-4o-mini', 'o1-mini', 'o1-preview'] },
-  deepseek:   { label: 'DeepSeek', defaultEndpoint: 'https://api.deepseek.com/v1', defaultModel: 'deepseek-chat', needsKey: true,
-    models: ['deepseek-chat', 'deepseek-reasoner'] },
-  together:   { label: 'Together AI', defaultEndpoint: 'https://api.together.xyz/v1', defaultModel: 'Qwen/Qwen2.5-VL-72B-Instruct-Turbo', needsKey: true,
-    models: ['Qwen/Qwen2.5-VL-72B-Instruct-Turbo', 'meta-llama/Llama-Vision-Free', 'meta-llama/Llama-3.2-11B-Vision-Instruct-Turbo'] },
-  fireworks:  { label: 'Fireworks AI', defaultEndpoint: 'https://api.fireworks.ai/inference/v1', defaultModel: 'accounts/fireworks/models/llama-v3p2-90b-vision-instruct', needsKey: true,
-    models: ['accounts/fireworks/models/llama-v3p2-90b-vision-instruct', 'accounts/fireworks/models/qwen-vl-72b-instruct'] },
-  huggingface:{ label: 'Hugging Face', defaultEndpoint: 'https://api-inference.huggingface.co/v1', defaultModel: 'Qwen/Qwen2.5-VL-72B-Instruct', needsKey: true,
-    models: ['Qwen/Qwen2.5-VL-72B-Instruct', 'meta-llama/Llama-3.2-11B-Vision-Instruct', 'mistralai/Mistral-Small-3.1-24B-Instruct-2503'] },
-  ollama:     { label: 'Ollama (Local)', defaultEndpoint: 'http://localhost:11434/v1', defaultModel: 'llava', needsKey: false,
-    models: ['llava', 'llama3.2-vision', 'moondream', 'minicpm-v'] },
-  lmstudio:   { label: 'LM Studio', defaultEndpoint: 'http://localhost:1234/v1', defaultModel: '', needsKey: false },
-  custom:     { label: 'Custom (OpenAI-compat)', defaultEndpoint: '', defaultModel: '', needsKey: true },
-};
+  kaggle: {
+    label: 'Kaggle / Cloudflare',
+    defaultEndpoint: 'http://localhost:8000/infer',
+    defaultModel: 'Qwen2.5-VL-7B-Instruct',
+    needsKey: false,
+    models: [
+      'Qwen2.5-VL-7B-Instruct',
+      'Qwen2.5-VL-3B-Instruct',
+      'Qwen2.5-VL-32B-Instruct',
+      'Qwen2.5-VL-72B-Instruct',
+      'meta-llama/Llama-3.2-11B-Vision-Instruct',
+      'mistralai/Mistral-Small-24B-Instruct-2501'
+    ]
+  },
 
-import { MOTOR_CODEX, MOTOR_CODEX_DISCLAIMER } from '../../constants/motorCodex';
+  gemini: {
+    label: 'Google Gemini',
+    defaultEndpoint: 'https://generativelanguage.googleapis.com/v1beta/openai',
+    defaultModel: 'gemini-3.7-flash',
+    needsKey: true,
+    models: [
+      'gemini-3.7-flash',
+      'gemini-3.6-flash',
+      'gemini-3.5-flash',
+      'gemini-3.5-flash-lite',
+      'gemini-3.1-flash-lite',
+      'gemini-3.1-pro-preview',
+      'gemini-3-pro',
+      'gemini-2.5-pro',
+      'gemini-2.5-flash'
+    ]
+  },
+
+  groq: {
+    label: 'Groq',
+    defaultEndpoint: 'https://api.groq.com/openai/v1',
+    defaultModel: 'llama-4-scout-17b-16e-instruct',
+    needsKey: true,
+    models: [
+      'llama-4-scout-17b-16e-instruct',
+      'llama-4-maverick-17b-128e-instruct',
+      'llama-3.3-70b-versatile',
+      'llama-3.3-70b-specdec',
+      'llama-3.2-90b-vision-preview',
+      'llama-3.2-11b-vision-preview',
+      'llama-3.1-8b-instant',
+      'deepseek-r1-distill-llama-70b',
+      'qwen-2.5-coder-32b',
+      'gemma2-9b-it'
+    ]
+  },
+
+  openrouter: {
+    label: 'OpenRouter',
+    defaultEndpoint: 'https://openrouter.ai/api/v1',
+    defaultModel: 'anthropic/claude-opus-5',
+    needsKey: true,
+    models: [
+      'anthropic/claude-opus-5',
+      'anthropic/claude-fable-5',
+      'anthropic/claude-sonnet-5',
+      'openai/gpt-5.6-sol',
+      'openai/gpt-5.5',
+      'google/gemini-3.7-flash',
+      'google/gemini-3.1-pro-preview',
+      'deepseek/deepseek-v4-pro',
+      'qwen/qwen3.8-max',
+      'moonshotai/kimi-k3',
+      'meta-llama/llama-4-maverick-17b-128e-instruct',
+      'mistralai/mistral-large-3'
+    ]
+  },
+
+  nim: {
+    label: 'NVIDIA NIM',
+    defaultEndpoint: 'https://integrate.api.nvidia.com/v1',
+    defaultModel: 'meta/llama-4-maverick-17b-128e-instruct',
+    needsKey: true,
+    models: [
+      'meta/llama-4-maverick-17b-128e-instruct',
+      'meta/llama-4-scout-17b-16e-instruct',
+      'meta/llama-3.3-70b-instruct',
+      'meta/llama-3.2-90b-vision-instruct',
+      'meta/llama-3.2-11b-vision-instruct',
+      'nvidia/llama-3.1-nemotron-70b-instruct',
+      'nvidia/nemotron-3-ultra',
+      'nvidia/nemotron-ocr-v2',
+      'qwen/qwen3.8-max',
+      'deepseek-ai/deepseek-v4-pro'
+    ]
+  },
+
+  qwen: {
+    label: 'Qwen (DashScope)',
+    defaultEndpoint: 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1',
+    defaultModel: 'qwen3.8-max',
+    needsKey: true,
+    models: [
+      'qwen3.8-max',
+      'qwen3.8-2.4T-A95B',
+      'qwen3.8-27B',
+      'qwen3.7-max',
+      'qwen3.7-plus',
+      'qwen3-max',
+      'qwen3-coder-plus',
+      'qwen3-coder-flash',
+      'qwen-vl-max-latest',
+      'qwen-vl-plus-latest'
+    ]
+  },
+
+  cerebras: {
+    label: 'Cerebras',
+    defaultEndpoint: 'https://api.cerebras.ai/v1',
+    defaultModel: 'gpt-5.6-sol',
+    needsKey: true,
+    models: [
+      'gpt-5.6-sol',
+      'gpt-5.3-codex-spark',
+      'gemma-4-31b',
+      'llama3.3-70b',
+      'llama3.1-8b',
+      'llama3.1-70b',
+      'glm-4.7',
+      'kimi-k2.6',
+      'qwen-3.8-32b',
+      'qwen-2.5-coder-32b'
+    ]
+  },
+
+  minimax: {
+    label: 'MiniMax',
+    defaultEndpoint: 'https://api.minimax.io/v1',
+    defaultModel: 'MiniMax-M3',
+    needsKey: true,
+    models: [
+      'MiniMax-M3',
+      'MiniMax-H3',
+      'MiniMax-M2.7',
+      'MiniMax-M2.5',
+      'MiniMax-M2',
+      'minimax-vl-01',
+      'abab7-chat',
+      'abab6.5s-chat',
+      'abab6.5t-chat'
+    ]
+  },
+
+  moonshot: {
+    label: 'Moonshot AI (Kimi)',
+    defaultEndpoint: 'https://api.moonshot.ai/v1',
+    defaultModel: 'kimi-k3',
+    needsKey: true,
+    models: [
+      'kimi-k3',
+      'kimi-k2.7-code',
+      'kimi-k2.6',
+      'kimi-k2.5',
+      'kimi-latest',
+      'moonshot-v1-auto',
+      'moonshot-v1-128k',
+      'moonshot-v1-32k'
+    ]
+  },
+
+  mistral: {
+    label: 'Mistral',
+    defaultEndpoint: 'https://api.mistral.ai/v1',
+    defaultModel: 'mistral-large-3',
+    needsKey: true,
+    models: [
+      'mistral-large-3',
+      'mistral-small-4',
+      'pixtral-large-latest',
+      'pixtral-12b-2409',
+      'ministral-8b-latest',
+      'ministral-3b-latest',
+      'codestral-latest',
+      'open-mistral-nemo',
+      'voxtral-mini-latest'
+    ]
+  },
+
+  nvidia: {
+    label: 'NVIDIA',
+    defaultEndpoint: 'https://integrate.api.nvidia.com/v1',
+    defaultModel: 'meta/llama-4-maverick-17b-128e-instruct',
+    needsKey: true,
+    models: [
+      'meta/llama-4-maverick-17b-128e-instruct',
+      'meta/llama-3.3-70b-instruct',
+      'meta/llama-3.2-90b-vision-instruct',
+      'meta/llama-3.2-11b-vision-instruct',
+      'nvidia/llama-3.1-nemotron-70b-instruct',
+      'nvidia/nemotron-3-ultra',
+      'nvidia/nemotron-ocr-v2',
+      'qwen/qwen3.8-max',
+      'deepseek-ai/deepseek-v4-pro',
+      'deepseek-ai/deepseek-v3'
+    ]
+  },
+
+  xai: {
+    label: 'xAI (Grok)',
+    defaultEndpoint: 'https://api.x.ai/v1',
+    defaultModel: 'grok-4.6',
+    needsKey: true,
+    models: [
+      'grok-4.6',
+      'grok-4.5',
+      'grok-4',
+      'grok-4-fast',
+      'grok-4-code-fast-1',
+      'grok-3',
+      'grok-3-mini',
+      'grok-2-vision-1212',
+      'grok-voice-latest'
+    ]
+  },
+
+  zai: {
+    label: 'Z AI (Zhipu)',
+    defaultEndpoint: 'https://api.z.ai/api/paas/v4',
+    defaultModel: 'glm-5.3',
+    needsKey: true,
+    models: [
+      'glm-5.3',
+      'glm-5.3-flash',
+      'glm-5.2',
+      'glm-5.1',
+      'glm-5',
+      'glm-4.7',
+      'glm-4.6',
+      'glm-4.5',
+      'glm-4v-plus',
+      'glm-4v-flash'
+    ]
+  },
+
+  anthropic: {
+    label: 'Anthropic',
+    defaultEndpoint: 'https://api.anthropic.com/v1',
+    defaultModel: 'claude-opus-5',
+    needsKey: true,
+    models: [
+      'claude-opus-5',
+      'claude-fable-5',
+      'claude-sonnet-5',
+      'claude-opus-4.8',
+      'claude-opus-4.7',
+      'claude-opus-4.6',
+      'claude-sonnet-4.6',
+      'claude-haiku-4.5',
+      'claude-opus-4-5'
+    ]
+  },
+
+  openai: {
+    label: 'OpenAI',
+    defaultEndpoint: 'https://api.openai.com/v1',
+    defaultModel: 'gpt-5.6-sol',
+    needsKey: true,
+    models: [
+      'gpt-5.6-sol',
+      'gpt-5.6-terra',
+      'gpt-5.6-luna',
+      'gpt-5.5',
+      'gpt-5.5-pro',
+      'gpt-5.4',
+      'gpt-5.4-pro',
+      'gpt-5.3-codex',
+      'gpt-5.2',
+      'gpt-oss-120b'
+    ]
+  },
+
+  deepseek: {
+    label: 'DeepSeek',
+    defaultEndpoint: 'https://api.deepseek.com/v1',
+    defaultModel: 'deepseek-v4-pro',
+    needsKey: true,
+    models: [
+      'deepseek-v4-pro',
+      'deepseek-v4-flash',
+      'deepseek-v4-preview',
+      'deepseek-v3.2',
+      'deepseek-r1',
+      'deepseek-reasoner',
+      'deepseek-chat',
+      'deepseek-coder'
+    ]
+  },
+
+  together: {
+    label: 'Together AI',
+    defaultEndpoint: 'https://api.together.xyz/v1',
+    defaultModel: 'meta-llama/Llama-4-Maverick-17B-128E-Instruct',
+    needsKey: true,
+    models: [
+      'meta-llama/Llama-4-Maverick-17B-128E-Instruct',
+      'meta-llama/Llama-4-Scout-17B-16E-Instruct',
+      'meta-llama/Llama-3.3-70B-Instruct-Turbo',
+      'meta-llama/Meta-Llama-3.1-405B-Instruct-Turbo',
+      'meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo',
+      'Qwen/Qwen3.8-Max',
+      'MiniMax/M3',
+      'THUDM/GLM-5.2',
+      'deepseek-ai/DeepSeek-V4-Pro',
+      'nvidia/Nemotron-3-Ultra'
+    ]
+  },
+
+  fireworks: {
+    label: 'Fireworks AI',
+    defaultEndpoint: 'https://api.fireworks.ai/inference/v1',
+    defaultModel: 'accounts/fireworks/models/llama-v4-maverick-17b-128e-instruct',
+    needsKey: true,
+    models: [
+      'accounts/fireworks/models/llama-v4-maverick-17b-128e-instruct',
+      'accounts/fireworks/models/llama-v3p3-70b-instruct',
+      'accounts/fireworks/models/qwen3p8-max',
+      'accounts/fireworks/models/minimax-m3',
+      'accounts/fireworks/models/kimi-k3',
+      'accounts/fireworks/models/deepseek-v4-pro',
+      'accounts/fireworks/models/nemotron-3-ultra',
+      'accounts/fireworks/models/glm-5p2',
+      'accounts/fireworks/models/mistral-small-4'
+    ]
+  },
+
+  huggingface: {
+    label: 'Hugging Face',
+    defaultEndpoint: 'https://api-inference.huggingface.co/v1',
+    defaultModel: 'meta-llama/Llama-4-Maverick-17B-128E-Instruct',
+    needsKey: true,
+    models: [
+      'meta-llama/Llama-4-Maverick-17B-128E-Instruct',
+      'meta-llama/Llama-4-Scout-17B-16E-Instruct',
+      'meta-llama/Llama-3.3-70B-Instruct',
+      'Qwen/Qwen3.8-Max',
+      'Qwen/Qwen2.5-VL-72B-Instruct',
+      'google/gemma-4-31b-it',
+      'mistralai/Mistral-Small-4',
+      'deepseek-ai/DeepSeek-V4-Pro',
+      'deepseek-ai/DeepSeek-R1'
+    ]
+  },
+
+  ollama: {
+    label: 'Ollama (Local)',
+    defaultEndpoint: 'http://localhost:11434/v1',
+    defaultModel: 'qwen3.8-max',
+    needsKey: false,
+    models: [
+      'qwen3.8-max',
+      'llama4-maverick',
+      'llama4-scout',
+      'deepseek-r1',
+      'deepseek-v4',
+      'gemma4',
+      'phi4',
+      'mistral-small-4',
+      'qwen2.5-vl',
+      'llama3.3'
+    ]
+  },
+
+  lmstudio: {
+    label: 'LM Studio',
+    defaultEndpoint: 'http://localhost:1234/v1',
+    defaultModel: 'qwen3.8-27b-instruct',
+    needsKey: false,
+    models: [
+      'qwen3.8-27b-instruct',
+      'llama-4-scout-17b-16e-instruct',
+      'llama-4-maverick-17b-128e-instruct',
+      'deepseek-r1-distill-qwen-7b',
+      'phi-4',
+      'mistral-small-4',
+      'gemma-4-31b-it',
+      'qwen2.5-vl-7b-instruct',
+      'llama-3.3-70b-instruct'
+    ]
+  },
+
+  custom: {
+    label: 'Custom (OpenAI-compat)',
+    defaultEndpoint: '',
+    defaultModel: '',
+    needsKey: true
+  },
+};
 
 const VISION_SIZES = [224, 336, 448, 672, 896];
 
@@ -144,11 +492,11 @@ export const AgentSettingsModal: React.FC = () => {
   };
 
   const [activeTab, setActiveTab] = useState<'infra' | 'memory' | 'voice' | 'vision' | 'identity' | 'codex'>('infra');
-  const [codexCategory, setCodexCategory] = useState<string>('all');
-  const [expandedRecipeId, setExpandedRecipeId] = useState<string | null>(null);
 
   // Speech configurations
   const {
+    globalTtsEnabled,
+    setGlobalTtsEnabled,
     agentVoiceURIs,
     agentTtsEnabled,
     availableVoices,
@@ -885,21 +1233,44 @@ export const AgentSettingsModal: React.FC = () => {
                     </p>
                   </div>
 
-                  {/* Enable/Disable Agent TTS */}
+                  {/* Master Global Speech Toggle */}
                   <div className="flex items-center justify-between p-4 rounded-btn border border-border bg-white/[0.01]">
                     <div className="space-y-0.5">
-                      <label className="text-xs font-bold text-text-primary uppercase tracking-wider">Enable Voice Playback</label>
+                      <label className="text-xs font-bold text-text-primary uppercase tracking-wider">Global Speech Synthesis</label>
+                      <p className="text-xs text-text-tertiary leading-normal">
+                        Master toggle for speech audio. When enabled, spoken agent thoughts will play and the mute button will appear in the top center bar.
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => setGlobalTtsEnabled(!globalTtsEnabled)}
+                      className={cn(
+                        "px-4 h-8 rounded-btn text-xs font-bold uppercase tracking-wider border transition-all",
+                        globalTtsEnabled
+                          ? "border-white/20 bg-white/10 text-text-primary font-bold"
+                          : "border-border text-text-tertiary hover:border-text-secondary"
+                      )}
+                    >
+                      {globalTtsEnabled ? 'Enabled' : 'Disabled'}
+                    </button>
+                  </div>
+
+                  {/* Enable/Disable Agent TTS */}
+                  <div className={cn("flex items-center justify-between p-4 rounded-btn border border-border bg-white/[0.01]", !globalTtsEnabled && "opacity-50")}>
+                    <div className="space-y-0.5">
+                      <label className="text-xs font-bold text-text-primary uppercase tracking-wider">Agent Voice Playback ({activeAgentId})</label>
                       <p className="text-xs text-text-tertiary leading-normal">
                         Only text wrapped in <code className="text-text-secondary">{"<speak>...</speak>"}</code> tags is spoken aloud. Internal thoughts stay silent.
                       </p>
                     </div>
                     <button
+                      disabled={!globalTtsEnabled}
                       onClick={() => setTtsEnabledForAgent(activeAgentId, !isAgentTtsEnabled)}
                       className={cn(
                         "px-4 h-8 rounded-btn text-xs font-bold uppercase tracking-wider border transition-all",
                         isAgentTtsEnabled
                           ? "border-white/20 bg-white/10 text-text-primary font-bold"
-                          : "border-border text-text-tertiary hover:border-text-secondary"
+                          : "border-border text-text-tertiary hover:border-text-secondary",
+                        !globalTtsEnabled && "cursor-not-allowed"
                       )}
                     >
                       {isAgentTtsEnabled ? 'Enabled' : 'Disabled'}
@@ -915,7 +1286,7 @@ export const AgentSettingsModal: React.FC = () => {
                     <Dropdown
                       value={selectedVoiceURI}
                       onChange={(val) => setVoiceForAgent(activeAgentId, val)}
-                      disabled={!isAgentTtsEnabled}
+                      disabled={!globalTtsEnabled || !isAgentTtsEnabled}
                       searchable
                       placeholder={`System Default (${defaultVoice?.name || 'Loading...'})`}
                       items={[
@@ -937,7 +1308,7 @@ export const AgentSettingsModal: React.FC = () => {
                   <div className="pt-2">
                     <Button
                       variant="secondary"
-                      disabled={!isAgentTtsEnabled}
+                      disabled={!globalTtsEnabled || !isAgentTtsEnabled}
                       onClick={async () => {
                         const voice = getSystemVoiceForAgent(activeAgentId);
                         const testText = "Hello! This is my synthesized voice. I am ready to think and learn in this simulation.";

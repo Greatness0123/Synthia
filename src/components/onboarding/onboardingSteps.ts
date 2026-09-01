@@ -4,7 +4,6 @@
  */
 
 import { useUIStore } from '../../store/uiStore';
-import { useWorldStore } from '../../store/worldStore';
 import { waitForElement } from './waitForElement';
 
 export interface OnboardingStep {

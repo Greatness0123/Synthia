@@ -23,8 +23,20 @@ export class MotorCodexService {
       let score = 0;
 
       // Exact title or ID match
-      if (query.toLowerCase().includes(entry.title.toLowerCase()) || query.toLowerCase().includes(entry.id.toLowerCase())) {
+      const titleLower = entry.title.toLowerCase();
+      const idLower = entry.id.toLowerCase();
+      if (query.toLowerCase().includes(titleLower) || query.toLowerCase().includes(idLower)) {
         score += 10;
+      }
+
+      // Title & ID individual token matches
+      for (const token of tokens) {
+        if (titleLower.includes(token)) {
+          score += 5;
+        }
+        if (idLower.includes(token)) {
+          score += 4;
+        }
       }
 
       // Tag matches

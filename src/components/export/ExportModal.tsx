@@ -226,12 +226,13 @@ export const ExportModal: React.FC = () => {
   if (!exportModalOpen) return null;
 
   const exportTypes: { id: ExportType; name: string; icon: React.ComponentType<{ size?: string | number }>; desc: string }[] = [
-    { id: 'dataset', name: 'Dataset', icon: Database, desc: 'ML training datasets (LeRobot, JSONL, CSV, Parquet)' },
+    { id: 'dataset', name: 'Dataset', icon: Database, desc: 'ML training datasets (HDF5, LeRobot, JSONL, CSV, Parquet)' },
     { id: 'thoughts_report', name: 'Thoughts Report', icon: Notebook, desc: STRINGS.EXPORT.EXPORT_TYPE_THOUGHTS_DESC },
     { id: 'session_full', name: 'Session Full', icon: Archive, desc: STRINGS.EXPORT.EXPORT_TYPE_SESSION_FULL_DESC },
   ];
 
   const formats: { id: ExportFormat; name: string; icon: React.ComponentType<{ size?: string | number }>; tag?: string }[] = [
+    { id: 'HDF5', name: 'HDF5 (.h5)', icon: Database, tag: 'RoboMimic' },
     { id: 'LeRobot', name: 'LeRobot', icon: Robot, tag: 'Hugging Face' },
     { id: 'JSONL', name: 'JSONL', icon: FileCode },
     { id: 'CSV', name: 'CSV', icon: FileCsv },

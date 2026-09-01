@@ -39,7 +39,7 @@ interface SpeechState {
 export const useSpeechStore = create<SpeechState>()(
   persist(
     (set) => ({
-      globalTtsEnabled: true,
+      globalTtsEnabled: false,
       nonActiveBehavior: 'mute',
       agentVoiceURIs: {},
       agentTtsEnabled: {},

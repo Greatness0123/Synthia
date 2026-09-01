@@ -15,7 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - `README.md` rewritten from the default template to a comprehensive project overview
-- `package.json` updated: version `1.5.1`, license `MIT`, engines `node >= 20`, repository metadata, keywords
+- `package.json` updated: version `1.5.1`, license `Apache-2.0`, engines `node >= 20`, repository metadata, keywords
 
 ---
 

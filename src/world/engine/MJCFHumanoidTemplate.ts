@@ -451,36 +451,6 @@ export function generateHumanoidMJCF(
     </body>`);
   }
 
-  // Generate 88 piano keys
-  const pianoGeoms: string[] = [];
-  const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
-  for (let i = 0; i < 88; i++) {
-    const isBlack = [1, 3, 6, 8, 10].includes((i + 9) % 12);
-    const width = isBlack ? 0.012 : 0.022;
-    const height = isBlack ? 0.022 : 0.015;
-    const depth = isBlack ? 0.08 : 0.12;
-
-    const xOffset = (i - 44) * 0.023;
-    const yOffset = isBlack ? 0.015 : 0;
-    const zOffset = isBlack ? -0.02 : 0;
-
-    const midiNote = 21 + i;
-    const octave = Math.floor(midiNote / 12) - 1;
-    const noteIndex = midiNote % 12;
-    const noteName = NOTE_NAMES[noteIndex] + octave;
-
-    // Map relative positions: x_mj = xOffset, y_mj = zOffset, z_mj = -yOffset
-    pianoGeoms.push(`      <geom name="piano_${noteName}" type="box" size="${width / 2} ${depth / 2} ${height / 2}" pos="${xOffset} ${zOffset} ${-yOffset}" contype="0" conaffinity="0"/>`);
-  }
-
-  const pianoBody = `
-    <body name="piano_body" pos="0 0 -30">
-      <freejoint name="piano_joint"/>
-      <inertial pos="0 0 0" mass="50" diaginertia="5.0 5.0 5.0"/>
-${pianoGeoms.join('\n')}
-    </body>
-  `;
-
   // Return the complete MJCF XML
   const xml = `
 <mujoco model="synthia_humanoid">
@@ -497,8 +467,6 @@ ${pianoGeoms.join('\n')}
     ${bodyXml}
 
     ${slotBodies.join('\n')}
-
-    ${pianoBody}
   </worldbody>
 
   <actuator>
@@ -551,36 +519,6 @@ export function generateCombinedMultiAgentMJCF(
     </body>`);
   }
 
-  // Generate 88 piano keys
-  const pianoGeoms: string[] = [];
-  const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
-  for (let i = 0; i < 88; i++) {
-    const isBlack = [1, 3, 6, 8, 10].includes((i + 9) % 12);
-    const width = isBlack ? 0.012 : 0.022;
-    const height = isBlack ? 0.022 : 0.015;
-    const depth = isBlack ? 0.08 : 0.12;
-
-    const xOffset = (i - 44) * 0.023;
-    const yOffset = isBlack ? 0.015 : 0;
-    const zOffset = isBlack ? -0.02 : 0;
-
-    const midiNote = 21 + i;
-    const octave = Math.floor(midiNote / 12) - 1;
-    const noteIndex = midiNote % 12;
-    const noteName = NOTE_NAMES[noteIndex] + octave;
-
-    // Map relative positions: x_mj = xOffset, y_mj = zOffset, z_mj = -yOffset
-    pianoGeoms.push(`      <geom name="piano_${noteName}" type="box" size="${width / 2} ${depth / 2} ${height / 2}" pos="${xOffset} ${zOffset} ${-yOffset}" contype="0" conaffinity="0"/>`);
-  }
-
-  const pianoBody = `
-    <body name="piano_body" pos="0 0 -30">
-      <freejoint name="piano_joint"/>
-      <inertial pos="0 0 0" mass="50" diaginertia="5.0 5.0 5.0"/>
-${pianoGeoms.join('\n')}
-    </body>
-  `;
-
   const xml = `
 <mujoco model="synthia_humanoid">
   <compiler angle="radian" coordinate="local" inertiafromgeom="false"/>
@@ -595,8 +533,6 @@ ${pianoGeoms.join('\n')}
     ${bodiesXmlList.join('\n\n')}
 
     ${slotBodies.join('\n')}
-
-    ${pianoBody}
   </worldbody>
 
   <actuator>

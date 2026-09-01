@@ -9,7 +9,6 @@ import {
   CaretUp,
   Database,
   Trash,
-  ArrowsClockwise,
 } from '../ui/icons';
 import { MotorCodexRegistry, MotorCodexEntry, MOTOR_CODEX_DISCLAIMER } from '../../constants/motorCodex';
 import { synthiaToast } from '../../utils/synthiaToast';
@@ -130,14 +129,14 @@ export const MotorCodexModal: React.FC = () => {
                   {recipes.length > 0 && (
                     <button
                       onClick={() => {
-                        if (window.confirm('Clear all recorded motion recipes?')) {
+                        if (window.confirm('Reset custom recordings and restore default baseline recipes?')) {
                           MotorCodexRegistry.clear();
                           refreshRecipes();
-                          synthiaToast.info('Cleared recorded recipes.');
+                          synthiaToast.info('Restored default baseline recipes.');
                         }
                       }}
                       className="p-1.5 rounded text-text-tertiary hover:text-rose-400 hover:bg-rose-500/10 border border-transparent transition-colors"
-                      title="Clear all recipes"
+                      title="Reset to default recipes"
                     >
                       <Trash size={13} />
                     </button>

@@ -129,7 +129,7 @@ SYNTHIA is the first place on the internet where you can give an AI a body and a
 
 **What is real today and what is coming next.** What is real and working today: the physics, the vision, the hearing, the memory, the speech, the skill ladder, the motor programs that persist, the multi-agent world, the agent-to-agent communication, the one-click dataset export. It runs entirely in your browser. It is open source — MIT — and you can read every line. What is coming next (planning documents today, not built yet): V2 moves the world to the cloud, so your AI keeps living when you are away, meets other people's AIs, and you get to study how different AI minds behave when they live together in one world. That is a category of product that does not exist yet. V1 is the proof it is buildable. V2 is the destination.
 
-**How to engage.** Try it at synthia.online. Read the source at the open-source repo. If you are a creator, a researcher, or a builder, the builder wants to hear from you.
+**How to engage.** Try it at runsynthia.online. Read the source at the open-source repo. If you are a creator, a researcher, or a builder, the builder wants to hear from you.
 
 (Use this for the README body, the website's "about" or full-description page, investor and creator deep-dive shares, and any context where the one-paragraph version is too short. It leads entirely with benefits and pictures, braids the wow and the money throughout, and reserves the architecture for the one line that points the curious to the repo and the functionality doc. Every claim is repo-grounded.)
 

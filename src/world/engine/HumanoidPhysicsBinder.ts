@@ -1101,15 +1101,11 @@ export class HumanoidPhysicsBinder {
               if (typeof startVal === 'number' && typeof endVal === 'number') {
                 interpolatedOverrides[key] = startVal + (endVal - startVal) * t_interp;
               } else if (Array.isArray(startVal) && Array.isArray(endVal) && startVal.length === 3 && endVal.length === 3) {
-                // Slerp: Convert Euler triples [pitch, yaw, roll] to quaternions, slerp, convert back
-                const qStart = new THREE.Quaternion().setFromEuler(new THREE.Euler(startVal[0], startVal[2], startVal[1], 'ZXY'));
-                const qEnd = new THREE.Quaternion().setFromEuler(new THREE.Euler(endVal[0], endVal[2], endVal[1], 'ZXY'));
-                const qInterp = qStart.clone().slerp(qEnd, t_interp);
-                const eulerInterp = new THREE.Euler().setFromQuaternion(qInterp, 'ZXY');
+                // Direct joint-space linear interpolation avoids Euler gimbal flips, ±PI branch cuts, and coordinate axis confusion
                 interpolatedOverrides[key] = [
-                  eulerInterp.x, // pitch
-                  eulerInterp.z, // yaw
-                  eulerInterp.y, // roll
+                  startVal[0] + (endVal[0] - startVal[0]) * t_interp,
+                  startVal[1] + (endVal[1] - startVal[1]) * t_interp,
+                  startVal[2] + (endVal[2] - startVal[2]) * t_interp,
                 ];
               } else {
                 interpolatedOverrides[key] = endVal;
@@ -1431,7 +1427,7 @@ export class HumanoidPhysicsBinder {
   /**
    * Build the mass-weighted body id list (and total mass) for the COM sum.
    * Skips world/floor/env bodies exactly like the useWorld diagnostics ring:
-   * names starting with env_slot_/piano_ plus floor/world. Also skips the
+   * names starting with env_slot_ plus floor/world. Also skips the
    * reaction_mass body (RMBS), which would otherwise corrupt the Road-4 COM
    * and capture math. Rebuilt lazily (and whenever the model is recompiled —
    * the cache is cleared on enable).
@@ -1448,7 +1444,7 @@ export class HumanoidPhysicsBinder {
       const m = model.body_mass[bi];
       if (m <= 0) continue;
       const name = module.mj_id2name(model, module.mjtObj.mjOBJ_BODY.value, bi) ?? '';
-      if (name.startsWith('env_slot_') || name.startsWith('piano_') || name === 'floor' || name === 'world') continue;
+      if (name.startsWith('env_slot_') || name === 'floor' || name === 'world') continue;
       if (name.includes('reaction_mass')) continue;
       ids.push(bi);
       totalMass += m;
@@ -2346,7 +2342,7 @@ export class HumanoidPhysicsBinder {
 
     // Total COM (incl. RM) from MuJoCo's built-in subtree quantities (MuJoCo frame).
     // IMPORTANT: subtree_com[capId] is the CAPSULE's subtree (humanoid + RM only);
-    // subtree_com[0] is the world subtree and would pull in env/piano/floor masses.
+    // subtree_com[0] is the world subtree and would pull in env/floor masses.
     const cTotalWorld = {
       x: data.subtree_com[capId * 3] - capXpos.x,
       y: data.subtree_com[capId * 3 + 1] - capXpos.y,
@@ -2374,7 +2370,7 @@ export class HumanoidPhysicsBinder {
 
     // Total agent mass (humanoid + RM only): prefix-filtered body_mass sum —
     // the same scan refreshReflexBodyCache already proves reliable. Excludes
-    // env_slot_/piano_/floor/world and any OTHER agent's bodies.
+    // env_slot_/floor/world and any OTHER agent's bodies.
     const mTotal = this.reactionMassTotalM(model, module);
     if (mTotal <= 0) return false;
 
@@ -2539,7 +2535,7 @@ export class HumanoidPhysicsBinder {
 
   /**
    * Total agent mass (humanoid + RM only) — prefix-filtered body_mass sum.
-   * Excludes env_slot_/piano_/floor/world and every OTHER agent's bodies, so the
+   * Excludes env_slot_/floor/world and every OTHER agent's bodies, so the
    * RMBS total is correct in multi-agent worlds. Same scan refreshReflexBodyCache
    * proves reliable.
    */
@@ -2550,7 +2546,7 @@ export class HumanoidPhysicsBinder {
       const m = model.body_mass[bi];
       if (m <= 0) continue;
       const name = module.mj_id2name(model, module.mjtObj.mjOBJ_BODY.value, bi) ?? '';
-      if (name.startsWith('env_slot_') || name.startsWith('piano_') || name === 'floor' || name === 'world') continue;
+      if (name.startsWith('env_slot_') || name === 'floor' || name === 'world') continue;
       if (this.prefix && !name.startsWith(this.prefix)) continue;
       total += m;
     }

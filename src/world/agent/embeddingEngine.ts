@@ -53,14 +53,14 @@ class LRUCache<V> {
 export class EmbeddingEngine {
   private static instance: EmbeddingEngine;
   private worker: Worker | null = null;
-  private workerReady = false;
+  private _workerReady = false;
   private initFailed = false;
   private pending = new Map<number, { resolve: (v: Float32Array) => void; reject: (e: Error) => void; timer: ReturnType<typeof setTimeout> }>();
   private nextId = 0;
   private cache = new LRUCache<Float32Array>();
   private _loading = false;
   private _loaded = false;
-  private loadPromise: Promise<void> | null = null;
+  private _loadPromise: Promise<void> | null = null;
 
   /** Whether the real model is currently loading (for UI status). */
   get loading(): boolean { return this._loading; }

@@ -128,7 +128,6 @@ function getJsHeapLimit(): number | null {
 
 function getThreeStats(): { threeGeometries: number; threeTextures: number; threePrograms: number } {
   try {
-    const mod = _wasmModuleRef;
     // Access renderer.info via the global world engine reference
     const worldEngine = (window as any)._synthia_world_engine;
     if (!worldEngine) return { threeGeometries: 0, threeTextures: 0, threePrograms: 0 };

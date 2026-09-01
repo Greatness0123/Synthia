@@ -1,7 +1,7 @@
 // Export schema types. The coordinator-era mirror in coordinator/src/types was removed in Phase 12.
 
 export type ExportType = 'dataset' | 'frames_zip' | 'thoughts_report' | 'session_full';
-export type ExportFormat = 'LeRobot' | 'JSONL' | 'CSV' | 'Parquet';
+export type ExportFormat = 'LeRobot' | 'JSONL' | 'CSV' | 'Parquet' | 'HDF5';
 export type ExportScope = 'all' | 'date_range' | 'session' | 'heartbeat_range';
 
 export interface ExportConfig {

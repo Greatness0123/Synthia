@@ -2,7 +2,6 @@ import * as THREE from 'three';
 import { ObjectPreset, OBJECT_PRESETS } from '../../constants/objectPresets';
 import { PhysicsEngine } from './PhysicsEngine';
 import { CollisionAdapter, ContactPair } from './CollisionAdapter';
-import { AudioEngine } from './AudioEngine';
 import { StateRehydrator } from './StateRehydrator';
 import { NUM_ENV_SLOTS, injectAssetsAndBodies } from './MJCFHumanoidTemplate';
 import { logger as Logger } from '../../utils/logger';
@@ -26,7 +25,6 @@ export class ObjectManager {
   private physicsEngine: PhysicsEngine;
   private scene: THREE.Scene;
   private objects: Map<string, WorldObject> = new Map();
-  private audioEngine: AudioEngine;
 
   // Track dragging state
   private draggingObjectId: string | null = null;
@@ -84,10 +82,9 @@ export class ObjectManager {
     };
   }> = [];
 
-  constructor(physicsEngine: PhysicsEngine, scene: THREE.Scene, audioEngine: AudioEngine) {
+  constructor(physicsEngine: PhysicsEngine, scene: THREE.Scene) {
     this.physicsEngine = physicsEngine;
     this.scene = scene;
-    this.audioEngine = audioEngine;
   }
 
   /**
@@ -655,100 +652,6 @@ export class ObjectManager {
     return worldObject;
   }
 
-  public spawnPiano(id: string, preset: ObjectPreset, position: THREE.Vector3): WorldObject {
-    const group = new THREE.Group();
-    group.position.copy(position);
-    group.name = preset.name;
-    group.userData.isSynthiaPrimitive = true;
-    group.userData.objectId = id;
-    this.scene.add(group);
-
-    // Build Three.js visual key blocks matching the pre-allocated boxes
-    for (let i = 0; i < 88; i++) {
-      const isBlack = [1, 3, 6, 8, 10].includes((i + 9) % 12);
-      const width = isBlack ? 0.012 : 0.022;
-      const height = isBlack ? 0.022 : 0.015;
-      const depth = isBlack ? 0.08 : 0.12;
-      const color = isBlack ? 0x1a1a1a : 0xe8e8e8;
-
-      const geo = new THREE.BoxGeometry(width, height, depth);
-      const mat = new THREE.MeshStandardMaterial({ color });
-      const mesh = new THREE.Mesh(geo, mat);
-
-      const xOffset = (i - 44) * 0.023;
-      const yOffset = isBlack ? 0.015 : 0;
-      const zOffset = isBlack ? -0.02 : 0;
-
-      mesh.position.set(xOffset, yOffset, zOffset);
-      group.add(mesh);
-    }
-
-    // Activate pre-allocated piano body
-    const world = this.physicsEngine.getWorld();
-    const model = world.model;
-    const data = world.data;
-    const module = PhysicsEngine.getModule();
-
-    let pianoBodyId = -1;
-    const colliders: number[] = [];
-
-    if (module) {
-      pianoBodyId = module.mj_name2id(model, module.mjtObj.mjOBJ_BODY.value, 'piano_body');
-      if (pianoBodyId >= 0) {
-        // Move piano body to spawn point
-        const qposAdr = model.jnt_qposadr[model.body_jntadr[pianoBodyId]];
-        const posMj = PhysicsEngine.worldToMuJoCo(position);
-        data.qpos[qposAdr] = posMj[0];
-        data.qpos[qposAdr + 1] = posMj[1];
-        data.qpos[qposAdr + 2] = posMj[2];
-        data.qpos[qposAdr + 3] = 1;
-        data.qpos[qposAdr + 4] = 0;
-        data.qpos[qposAdr + 5] = 0;
-        data.qpos[qposAdr + 6] = 0;
-
-        const dofAdr = model.body_dofadr[pianoBodyId];
-        if (dofAdr >= 0) {
-          data.qvel[dofAdr] = 0;
-          data.qvel[dofAdr + 1] = 0;
-          data.qvel[dofAdr + 2] = 0;
-          data.qvel[dofAdr + 3] = 0;
-          data.qvel[dofAdr + 4] = 0;
-          data.qvel[dofAdr + 5] = 0;
-        }
-
-        // Enable collision masks (contype/conaffinity) for all 88 keys
-        const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
-        for (let i = 0; i < 88; i++) {
-          const midiNote = 21 + i;
-          const octave = Math.floor(midiNote / 12) - 1;
-          const noteIndex = midiNote % 12;
-          const noteName = NOTE_NAMES[noteIndex] + octave;
-
-          const geomId = module.mj_name2id(model, module.mjtObj.mjOBJ_GEOM.value, `piano_${noteName}`);
-          if (geomId >= 0) {
-            colliders.push(geomId);
-            model.geom_contype[geomId] = 2;
-            model.geom_conaffinity[geomId] = 3;
-          }
-        }
-
-        this.physicsEngine.forward();
-      }
-    }
-
-    const worldObject: WorldObject = {
-      id,
-      name: preset.name,
-      preset,
-      mesh: group,
-      colliders,
-      bodyName: 'piano_body',
-      bodyId: pianoBodyId,
-    };
-
-    this.objects.set(id, worldObject);
-    return worldObject;
-  }
 
   public renameObject(id: string, newName: string): void {
     const obj = this.objects.get(id);
@@ -950,28 +853,8 @@ export class ObjectManager {
     const world = this.physicsEngine.getWorld();
     const pairs = CollisionAdapter.getCollisionPairs(module, world.model, world.data);
 
-    // Track triggered note events to prevent duplicate frame fires
-    const triggeredNotes = new Set<string>();
-
     pairs.forEach((pair) => {
-      // 1. Piano Notes Detection: Check if either geom matches piano_key sequence
-      const pianoKeyPrefix = 'piano_';
-      let keyGeomName: string | null = null;
-      if (pair.name1.startsWith(pianoKeyPrefix)) keyGeomName = pair.name1;
-      else if (pair.name2.startsWith(pianoKeyPrefix)) keyGeomName = pair.name2;
-
-      if (keyGeomName) {
-        const note = keyGeomName.substring(pianoKeyPrefix.length);
-        if (!triggeredNotes.has(note)) {
-          triggeredNotes.add(note);
-          if (this.eventCallback) {
-            this.eventCallback('piano_note', { note, agentId: extractAgentIdFromPair(pair) });
-            this.audioEngine.playNote(note);
-          }
-        }
-      }
-
-      // 2. Button Press Callback: check if either geom belongs to a claims slot of a button primitive
+      // Button Press Callback: check if either geom belongs to a claims slot of a button primitive
       this.objects.forEach((obj) => {
         if (obj.preset.id === 'button') {
           if (obj.colliders.includes(pair.geom1Id) || obj.colliders.includes(pair.geom2Id)) {
@@ -989,7 +872,7 @@ export class ObjectManager {
         }
       });
     });
-  };
+  }
 }
 
 /**

@@ -1,0 +1,18 @@
+services:
+  synthia-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: synthia-dev
+    restart: unless-stopped
+    ports:
+      - "5173:5173"
+    environment:
+      - NODE_ENV=development
+    volumes:
+      - ./src:/app/src
+      - ./public:/app/public
+      - ./index.html:/app/index.html
+      - ./vite.config.ts:/app/vite.config.ts
+      - ./tailwind.config.js:/app/tailwind.config.js
+      - /app/node_modules

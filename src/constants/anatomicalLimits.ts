@@ -42,9 +42,9 @@ export function getAnatomicalLimitForBone(boneName: string): AnatomicalLimit | n
     return { min: 0, max: 100 * DEG };
   }
 
-  // WRIST / hand: ±80° flexion, ±20° deviation — use primary flex axis limit
+  // WRIST / hand: full 3-DOF rotation (flexion/extension, pronation/supination, deviation) up to ±90°
   if (n.includes('wrist') || (n.includes('hand') && !n.includes('shoulder'))) {
-    return { min: -80 * DEG, max: 80 * DEG };
+    return { min: -90 * DEG, max: 90 * DEG };
   }
 
   // NECK / cervical

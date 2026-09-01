@@ -10,7 +10,6 @@ import { RefreshCw } from '../ui/icons';
 
 export const AgentBodyControls: React.FC = () => {
   const activeAgentId = useAgentStore((state) => state.activeAgentId);
-  const { setBodyMode } = useAgentStore();
 
   const handleResetPose = () => {
     window.dispatchEvent(new CustomEvent('synthia:resetPose', { detail: { agentId: activeAgentId } }));

@@ -12,7 +12,7 @@ import { useOnboarding } from './useOnboarding';
 import { synthiaToast } from '../../utils/synthiaToast';
 
 export function OnboardingProvider() {
-  const { shouldAutoStart, active, setActive, markComplete } = useOnboardingStore();
+  const { shouldAutoStart, active, markComplete } = useOnboardingStore();
   const [showWelcome, setShowWelcome] = useState(false);
   const onboarding = useOnboarding();
 

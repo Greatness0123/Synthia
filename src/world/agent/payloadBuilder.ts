@@ -74,7 +74,7 @@ export class PayloadBuilder {
 
   /**
    * Build a perception summary for spatial grounding when the visual field is uninformative.
-   * Converts joint state + world state to human-readable text.
+   * Converts joint state + world state to human-readable text with real-time vestibular & balance awareness.
    */
   private buildPerceptionSummary(payload: any): string {
     const joints = payload.joints || {};
@@ -92,22 +92,93 @@ export class PayloadBuilder {
     else if (Math.abs(yawDeg) <= 45) facing = 'forward';
 
     // Hip height → upright detection
-    const hips = joints['mixamorighips'] || {};
+    const hips = joints['mixamorighips'] || joints['capsule'] || joints['mixamorigspine'] || {};
     const hipPos = hips.position || [0, 1, 0];
     const bodyHeight = Array.isArray(hipPos) ? hipPos[1] : 1;
 
-    // Determine posture from hip height
+    // Extract root rotation from hips or capsule or spine
+    const hipRot = hips.rotation || [0, 0, 0, 1];
+    const qx = typeof hipRot === 'object' && Array.isArray(hipRot) ? (hipRot[0] || 0) : 0;
+    const qy = typeof hipRot === 'object' && Array.isArray(hipRot) ? (hipRot[1] || 0) : 0;
+    const qz = typeof hipRot === 'object' && Array.isArray(hipRot) ? (hipRot[2] || 0) : 0;
+    const qw = typeof hipRot === 'object' && Array.isArray(hipRot) ? (hipRot[3] !== undefined ? hipRot[3] : 1) : 1;
+
+    // Local UP vector transformed by root quaternion: u = q * (0,1,0) * q^-1
+    const upX = 2 * (qx * qy - qw * qz);
+    const upY = 1 - 2 * (qx * qx + qz * qz);
+    const upZ = 2 * (qy * qz + qw * qx);
+
+    // Total tilt angle from vertical (0° = perfectly upright, 90° = horizontal)
+    const clampedUpY = Math.max(-1, Math.min(1, upY));
+    const tiltDeg = Math.round(Math.acos(clampedUpY) * (180 / Math.PI) * 10) / 10;
+
+    // Pitch: positive is leaning forward, negative is leaning backward
+    const pitchDeg = Math.round(Math.atan2(upZ, Math.max(0.001, Math.abs(upY))) * (180 / Math.PI) * 10) / 10;
+    // Roll: positive is leaning right, negative is leaning left
+    const rollDeg = Math.round(Math.atan2(upX, Math.max(0.001, Math.abs(upY))) * (180 / Math.PI) * 10) / 10;
+
+    // Directional classification and active maneuvering advice
+    let leanDirection = 'UPRIGHT (centered)';
+    let maneuverTip = 'Maintain balanced posture.';
+
+    if (tiltDeg >= 5) {
+      const isPitchFwd = pitchDeg > 3;
+      const isPitchBwd = pitchDeg < -3;
+      const isRollRight = rollDeg > 3;
+      const isRollLeft = rollDeg < -3;
+
+      if (isPitchFwd && isRollRight) {
+        leanDirection = 'FORWARD-RIGHT';
+        maneuverTip = 'Shift torso backward-left, or step forward-right with right leg to catch your balance.';
+      } else if (isPitchFwd && isRollLeft) {
+        leanDirection = 'FORWARD-LEFT';
+        maneuverTip = 'Shift torso backward-right, or step forward-left with left leg to catch your balance.';
+      } else if (isPitchBwd && isRollRight) {
+        leanDirection = 'BACKWARD-RIGHT';
+        maneuverTip = 'Lean torso forward and step backward-right to catch your balance.';
+      } else if (isPitchBwd && isRollLeft) {
+        leanDirection = 'BACKWARD-LEFT';
+        maneuverTip = 'Lean torso forward and step backward-left to catch your balance.';
+      } else if (isPitchFwd) {
+        leanDirection = 'FORWARD';
+        maneuverTip = 'Pull torso/spine backward or swing lead leg forward to plant foot and catch the forward fall.';
+      } else if (isPitchBwd) {
+        leanDirection = 'BACKWARD';
+        maneuverTip = 'Flex spine/hips forward or step backward to arrest the backward fall.';
+      } else if (isRollRight) {
+        leanDirection = 'RIGHT';
+        maneuverTip = 'Counter-lean left with spine or step right to widen base of support.';
+      } else if (isRollLeft) {
+        leanDirection = 'LEFT';
+        maneuverTip = 'Counter-lean right with spine or step left to widen base of support.';
+      }
+    }
+
+    // Determine posture and balance situation
     let postureLabel: string;
+    let balanceState: string;
     let situationBlock: string;
-    if (bodyHeight > 0.8) {
-      postureLabel = 'STANDING UPRIGHT';
-      situationBlock = `SITUATION: I am standing on the floor. My feet are on the ground. This is normal. Contact sensors indicate floor contact, NOT a ceiling. No emergency action needed.`;
-    } else if (bodyHeight > 0.3) {
-      postureLabel = 'FALLEN — HIP NEAR GROUND';
-      situationBlock = `SITUATION: I have FALLEN. My body is on the FLOOR (hip height ${bodyHeight.toFixed(2)}m). I am NOT trapped against a ceiling. Contact sensors detect the FLOOR beneath me. PRIORITY ACTION: execute 'get_up_from_front' or 'get_up_from_back' motor program to return upright.`;
+
+    if (bodyHeight <= 0.35 || tiltDeg >= 60) {
+      postureLabel = 'FALLEN / PRONE';
+      balanceState = `FALLEN (${tiltDeg}° off-vertical)`;
+      situationBlock = `SITUATION: You have FALLEN to the floor (hip height: ${bodyHeight.toFixed(2)}m, tilt: ${tiltDeg}°).
+PRIORITY ACTION: Execute 'get_up_from_front', 'get_up_from_back', or program_sequence: ["reset_pose"] to return upright.`;
+    } else if (tiltDeg >= 18 || bodyHeight < 0.7) {
+      postureLabel = `CRITICAL LEAN — IMMINENT FALL (${leanDirection})`;
+      balanceState = `CRITICAL TILT (${tiltDeg}° ${leanDirection})`;
+      situationBlock = `CRITICAL BALANCE WARNING: You are leaning ${leanDirection} by ${tiltDeg}° (pitch: ${pitchDeg}°, roll: ${rollDeg}°).
+Inability to rapidly correct this tilt will cause an IMMINENT FALL!
+MANEUVER TO CATCH BALANCE: ${maneuverTip}`;
+    } else if (tiltDeg >= 7) {
+      postureLabel = `SLIGHT LEAN (${leanDirection})`;
+      balanceState = `LEANING (${tiltDeg}° ${leanDirection})`;
+      situationBlock = `BALANCE NOTICE: Currently tilted ${leanDirection} by ${tiltDeg}° (pitch: ${pitchDeg}°, roll: ${rollDeg}°).
+ADVICE: ${maneuverTip}`;
     } else {
-      postureLabel = 'PRONE — LYING FLAT';
-      situationBlock = `SITUATION: I am lying flat on the FLOOR (hip height ${bodyHeight.toFixed(2)}m). I am NOT inverted or pressed against a ceiling. This is ground contact. PRIORITY ACTION: execute 'get_up_from_front' or 'get_up_from_back' to stand up.`;
+      postureLabel = 'STANDING UPRIGHT & BALANCED';
+      balanceState = `BALANCED (${tiltDeg}° tilt)`;
+      situationBlock = `SITUATION: Standing upright on the floor with stable balance (hip height: ${bodyHeight.toFixed(2)}m, tilt: ${tiltDeg}°). Both feet have ground support.`;
     }
 
     // Overheard speech context
@@ -164,6 +235,7 @@ export class PayloadBuilder {
     return `CURRENT BODY STATE:
 Head facing: ${facing} (yaw: ${yawDeg}°)
 Posture: ${postureLabel}
+Vestibular Balance: ${balanceState} [Pitch: ${pitchDeg > 0 ? '+' : ''}${pitchDeg}°, Roll: ${rollDeg > 0 ? '+' : ''}${rollDeg}°]
 Hip height: ${bodyHeight.toFixed(2)}m above floor
 Current heartbeat: ${payload.heartbeat}
 Time of day: ${payload.light_state}

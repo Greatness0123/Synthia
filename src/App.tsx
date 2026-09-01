@@ -25,7 +25,6 @@ import {
   Sun,
   Moon,
   SpeakerHigh,
-  SpeakerSlash,
   Gear,
 } from './components/ui/icons';
 import { ExportModal } from './components/export/ExportModal';
@@ -55,8 +54,6 @@ function App() {
     toggleTheme,
     settingsModalOpen,
     setSettingsModalOpen,
-    setExportModalOpen,
-    setObjectSpawnerOpen,
     spawning,
     setSpawning,
   } = useUIStore();
@@ -154,19 +151,17 @@ function App() {
           <Gear size={15} className="group-hover:rotate-45 transition-transform" />
         </button>
 
-        {/* Global TTS Speaker Toggle Button */}
-        <button
-          onClick={() => setGlobalTtsEnabled(!globalTtsEnabled)}
-          className="w-7 h-7 rounded-full flex items-center justify-center hover:bg-white/10 transition-all text-text-secondary group"
-          aria-label={globalTtsEnabled ? "Mute Global TTS Voice" : "Unmute Global TTS Voice"}
-          title={globalTtsEnabled ? "Mute Global TTS Voice" : "Unmute Global TTS Voice"}
-        >
-          {globalTtsEnabled ? (
+        {/* Global TTS Speaker Toggle Button (visible only when speech is enabled) */}
+        {globalTtsEnabled && (
+          <button
+            onClick={() => setGlobalTtsEnabled(false)}
+            className="w-7 h-7 rounded-full flex items-center justify-center hover:bg-white/10 transition-all text-text-secondary group"
+            aria-label="Mute Global TTS Voice"
+            title="Mute Global TTS Voice"
+          >
             <SpeakerHigh size={15} className="group-hover:text-text-primary transition-colors" />
-          ) : (
-            <SpeakerSlash size={15} className="text-text-tertiary group-hover:text-text-primary transition-colors" />
-          )}
-        </button>
+          </button>
+        )}
 
         {/* Theme Toggle Button */}
         <button

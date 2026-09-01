@@ -1,4 +1,4 @@
-# 06 — SEO Plan for synthia.online
+# 06 — SEO Plan for runsynthia.online
 
 > **Grounding note.** The keywords and content in this plan are built on what the `synthia1.5.1` repository actually is and does: a simulated humanoid with ~80 joints that runs in a browser, real physics, per-agent memory, vision, speech, a skill ladder, agent-to-agent communication, and one-click dataset export. V1 is client-side and personal (your AI lives in your browser and sleeps when you leave). V2 — a shared world on the cloud where your AI keeps living and you study how different models interact — is planning docs, not built yet. The plan never targets keywords for capabilities the repo does not have: no "hosted AI agent platform," no "multi-user playground," no "shared world" as a current feature. What it *does* do is target the words normal people actually search — "give my AI a body," "AI character that lives," "make money selling AI data" — because those are the words that bring the audience SYNTHIA is for.
 
@@ -119,7 +119,7 @@ The danger: someone puts a live 3D canvas on the landing page and tanks LCP and 
 
 ### 3.5 Indexation control
 
-- `noindex` the live app route (e.g., `/app` or `app.synthia.online`) — it is heavy, not crawl-relevant, and would waste crawl budget.
+- `noindex` the live app route (e.g., `/app` or `app.runsynthia.online`) — it is heavy, not crawl-relevant, and would waste crawl budget.
 - `noindex` any staging/preview deployments (Vercel preview URLs) via a robots header; only the production domain should be indexed.
 - `canonical` tags on every page to prevent duplicate-content issues between www/non-www and trailing-slash variants.
 - `robots.txt`: allow all on the marketing site, disallow `/app`, point to the sitemap.

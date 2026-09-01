@@ -9,11 +9,13 @@
 Give an AI a body, a world, a memory, a task to achieve or simulate freewill
 <br>the training data remains yours 
 
-[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
+[![Docker](https://img.shields.io/badge/docker-%230db7ed.svg?logo=docker&logoColor=white)](DOCKER.md)
 [![Platform](https://img.shields.io/badge/platform-browser-brightgreen.svg)](https://github.com/Greatness0123/synthia)
 [![Status](https://img.shields.io/badge/status-active-brightgreen.svg)](https://github.com/Greatness0123/synthia)
 [![TypeScript](https://img.shields.io/badge/TypeScript-6.0-blue.svg)](https://www.typescriptlang.org/)
 [![React](https://img.shields.io/badge/React-18.3-blue.svg)](https://react.dev/)
+[![Website]()](https://runrunsynthia.online)
 
 </div>
 
@@ -42,7 +44,8 @@ Give an AI a body, a world, a memory, a task to achieve or simulate freewill
 
 ## What is SYNTHIA?
 
-SYNTHIA is a browser-based **embodied AI** platform. It runs a continuous cognitive loop (perceive, think, act, remember) entirely client-side, driving an ~80-joint humanoid body inside a real physics simulation using MuJoCo compiled to WebAssembly.
+SYNTHIA is a browser-based **embodied AI** platform. It runs a continuous cognitive loop (perceive, think, act, remember) entirely client-side, driving an ~80-joint humanoid body inside a real physics simulation using MuJoCo compiled to WebAssembly. A high-fidelity 3D research platform for developing, visualizing, and training embodied AI agents. It bridges the gap between Large Language Models (LLMs) and physical action through a real-time client-side cognitive loop.
+
 
 Unlike a chatbot that only produces text, SYNTHIA gives an AI model a physical body, a 3D world to live in, and a persistent memory that spans sessions. The agent can:
 
@@ -199,12 +202,30 @@ The codebase is organized into several core layers:
 
 ### System Requirements
 
-- **Node.js** 20 or newer
 - A modern browser with **WebGL 2.0** support (Chrome, Edge, Firefox, Safari)
 - **4GB+ RAM** recommended
 - An AI provider (API key or endpoint): see [Inference Providers](#inference-providers)
+- **Docker** (recommended) or **Node.js 20+**
 
-### Quick Start
+### ⚡ Quick Start with Docker (Recommended)
+
+Run with zero setup:
+
+```bash
+# Clone the repository
+git clone https://github.com/Greatness0123/synthia.git
+cd synthia
+
+# Launch production container (http://localhost:3000)
+docker compose up -d
+
+# Or run live development mode with HMR (http://localhost:5173)
+docker compose -f docker-compose.dev.yml up
+```
+
+See [DOCKER.md](DOCKER.md) for advanced configurations and self-hosting.
+
+### Local Installation (Node.js)
 
 ```bash
 # Clone the repository
@@ -378,7 +399,7 @@ We welcome contributions. Whether it is fixing a bug, adding a new balance contr
 
 ## License
 
-This project is released under the **MIT License**. See [LICENSE](LICENSE) for details.
+This project is released under the **Apache License 2.0**. See [LICENSE](LICENSE) for details.
 
 > **Note on assets:** Some 3D models and motion-capture animations (for example Mixamo-authored humanoid rigs and gait data) are provided by third parties and may carry their own license terms. See the source files and docs for per-asset notes.
 

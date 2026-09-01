@@ -1,4 +1,4 @@
-# 05 — Website Design Plan (synthia.online)
+# 05 — Website Design Plan (runsynthia.online)
 
 > **Grounding note.** Every capability this site shows is real in the `synthia1.5.1` repository: a simulated humanoid with ~80 joints that runs in a browser, real physics, per-agent memory, vision, speech, a skill ladder, agent-to-agent communication, and one-click dataset export. V1 is client-side and personal — your AI lives in your browser and sleeps when you leave, waking when you return with everything saved. V2 — a shared world on the cloud where your AI keeps living and you study how different models interact with each other — is planning docs, not built yet. The site never claims a capability the repo does not have. What it *does* do is show those real capabilities through a simple, beautiful face that a normal person understands in five seconds — and let the engine stay hidden underneath, where it belongs.
 

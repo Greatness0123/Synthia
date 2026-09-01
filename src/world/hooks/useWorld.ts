@@ -149,8 +149,7 @@ export const useWorld = (containerRef: React.RefObject<HTMLDivElement>) => {
 
         const objectManager = new ObjectManager(
           physicsEngine,
-          worldEngine.getScene(),
-          audioEngine
+          worldEngine.getScene()
         );
         objectManagerRef.current = objectManager;
 
@@ -169,16 +168,7 @@ export const useWorld = (containerRef: React.RefObject<HTMLDivElement>) => {
         }
 
         objectManager.setEventCallback((type: string, data: any) => {
-          if (type === "piano_note") {
-            pendingOutcomesRef.current.push({
-              type: "outcome",
-              data: {
-                success: true,
-                reward: 1.0,
-                description: `Played piano note: ${data.note}`,
-              },
-            });
-          } else if (type === "button_press") {
+          if (type === "button_press") {
             pendingOutcomesRef.current.push({
               type: "outcome",
               data: {
@@ -488,7 +478,7 @@ export const useWorld = (containerRef: React.RefObject<HTMLDivElement>) => {
                   const geomCache = new Map<string, { geomId: number; bodyName: string; type: number }>();
                   for (let gi = 0; gi < mdl.ngeom; gi++) {
                     const geomName = mujocoModule.mj_id2name(mdl, 5, gi);
-                    if (!geomName || geomName.startsWith('env_slot_') || geomName.startsWith('piano_') || geomName === 'floor') continue;
+                    if (!geomName || geomName.startsWith('env_slot_') || geomName === 'floor') continue;
                     const bodyId = mdl.geom_bodyid[gi];
                     const bodyName = mujocoModule.mj_id2name(mdl, 1, bodyId) || '';
                     geomCache.set(geomName, { geomId: gi, bodyName, type: mdl.geom_type[gi] });
@@ -499,7 +489,7 @@ export const useWorld = (containerRef: React.RefObject<HTMLDivElement>) => {
                   const bodyCache = new Map<string, { bodyId: number; mass: number; parentBodyId: number; geomIds: number[] }>();
                   for (let bi = 0; bi < mdl.nbody; bi++) {
                     const bodyName = mujocoModule.mj_id2name(mdl, 1, bi);
-                    if (!bodyName || bodyName.startsWith('env_slot_') || bodyName.startsWith('piano_') || bodyName === 'floor' || bodyName === 'world') continue;
+                    if (!bodyName || bodyName.startsWith('env_slot_') || bodyName === 'floor' || bodyName === 'world') continue;
                     const geomIds: number[] = [];
                     const gadr = mdl.body_geomadr[bi];
                     const gnum = mdl.body_geomnum[bi];
@@ -520,7 +510,7 @@ export const useWorld = (containerRef: React.RefObject<HTMLDivElement>) => {
                 const m = mdl.body_mass[bi];
                 if (m <= 0) continue;
                 const bname = mujocoModule ? mujocoModule.mj_id2name(mdl, 1, bi) : '';
-                if (bname.startsWith('env_slot_') || bname.startsWith('piano_') || bname === 'floor' || bname === 'world') continue;
+                if (bname.startsWith('env_slot_') || bname === 'floor' || bname === 'world') continue;
                 comX += m * d.xpos[bi * 3];
                 comY += m * d.xpos[bi * 3 + 1];
                 comZ += m * d.xpos[bi * 3 + 2];
@@ -708,7 +698,7 @@ export const useWorld = (containerRef: React.RefObject<HTMLDivElement>) => {
                       const geomCache = new Map<string, { geomId: number; bodyName: string; type: number }>();
                       for (let gi = 0; gi < mdl.ngeom; gi++) {
                         const geomName = mujocoModule.mj_id2name(mdl, 5, gi);
-                        if (!geomName || geomName.startsWith('env_slot_') || geomName.startsWith('piano_') || geomName === 'floor') continue;
+                        if (!geomName || geomName.startsWith('env_slot_') || geomName === 'floor') continue;
                         const bodyId = mdl.geom_bodyid[gi];
                         const bodyName = mujocoModule.mj_id2name(mdl, 1, bodyId) || '';
                         geomCache.set(geomName, { geomId: gi, bodyName, type: mdl.geom_type[gi] });
@@ -721,7 +711,7 @@ export const useWorld = (containerRef: React.RefObject<HTMLDivElement>) => {
                       const bodyCache = new Map<string, { bodyId: number; mass: number; parentBodyId: number; geomIds: number[] }>();
                       for (let bi = 0; bi < mdl.nbody; bi++) {
                         const bodyName = mujocoModule.mj_id2name(mdl, 1, bi);
-                        if (!bodyName || bodyName.startsWith('env_slot_') || bodyName.startsWith('piano_') || bodyName === 'floor' || bodyName === 'world') continue;
+                        if (!bodyName || bodyName.startsWith('env_slot_') || bodyName === 'floor' || bodyName === 'world') continue;
                         const geomIds: number[] = [];
                         const gadr = mdl.body_geomadr[bi];
                         const gnum = mdl.body_geomnum[bi];
@@ -744,7 +734,7 @@ export const useWorld = (containerRef: React.RefObject<HTMLDivElement>) => {
                     const m = mdl.body_mass[bi];
                     if (m <= 0) continue;
                     const bname = mujocoModule ? mujocoModule.mj_id2name(mdl, 1, bi) : '';
-                    if (bname.startsWith('env_slot_') || bname.startsWith('piano_') || bname === 'floor' || bname === 'world') continue;
+                    if (bname.startsWith('env_slot_') || bname === 'floor' || bname === 'world') continue;
                     comX += m * d.xpos[bi * 3];
                     comY += m * d.xpos[bi * 3 + 1];
                     comZ += m * d.xpos[bi * 3 + 2];

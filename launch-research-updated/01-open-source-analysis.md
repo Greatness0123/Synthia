@@ -32,7 +32,7 @@ Here is the decision in one line: **Open-source the engine. Keep the cloud (V2),
 
 ### What it costs you
 
-**You give away the code, not the business.** The code is the engine. The business is the brand (SYNTHIA, synthia.online), the cloud world (V2), and the dataset marketplace. Open-sourcing the engine does not give away any of those. This is the same model that made Vercel, Supabase, and PostHog valuable: open core, closed cloud. The open part grows the brand and the community; the closed part collects the revenue.
+**You give away the code, not the business.** The code is the engine. The business is the brand (SYNTHIA, runsynthia.online), the cloud world (V2), and the dataset marketplace. Open-sourcing the engine does not give away any of those. This is the same model that made Vercel, Supabase, and PostHog valuable: open core, closed cloud. The open part grows the brand and the community; the closed part collects the revenue.
 
 **You accept that forks will exist.** Someone will copy the repo, rename it, and try to compete. This is inevitable and, honestly, fine. Forks almost never beat the original, because the original has the community, the brand, and the momentum. The only fork that beats you is one that out-builds you and out-cares-for-the-community you — and if someone does that, they earned it. The defense is not a license clause; it is *keep shipping and keep the community happy.*
 
@@ -40,7 +40,7 @@ Here is the decision in one line: **Open-source the engine. Keep the cloud (V2),
 
 ### My advice for Condition 1
 
-**Do it, but structure it as open-core, not open-everything.** Open-source the V1 engine under MIT (which the repo already uses — Copyright (c) 2026 Greatness Okorie). Keep V2 (the cloud persistent world) and the dataset marketplace as your closed products. Build synthia.online as the brand and the hosted destination. The open engine is your marketing and your moat; the closed cloud and marketplace are your revenue. This is the single best-known pattern for turning a first-of-its-kind open project into a durable company. Before you publish, do a quick cleanup pass — remove any personal tunnel config, replace any third-party assets you do not have the right to redistribute, and write a real README (not the default Vite template). None of this changes the strategy; it just makes the first impression clean.
+**Do it, but structure it as open-core, not open-everything.** Open-source the V1 engine under MIT (which the repo already uses — Copyright (c) 2026 Greatness Okorie). Keep V2 (the cloud persistent world) and the dataset marketplace as your closed products. Build runsynthia.online as the brand and the hosted destination. The open engine is your marketing and your moat; the closed cloud and marketplace are your revenue. This is the single best-known pattern for turning a first-of-its-kind open project into a durable company. Before you publish, do a quick cleanup pass — remove any personal tunnel config, replace any third-party assets you do not have the right to redistribute, and write a real README (not the default Vite template). None of this changes the strategy; it just makes the first impression clean.
 
 ---
 
@@ -92,7 +92,7 @@ This is the scenario most founders do not plan for, and it is the one where your
 
 **You cannot sell exclusivity.** Because the code is open, you cannot sell someone "the only copy." You are selling the brand, the community, the team, the cloud, and the future — not a monopoly on the code. For a first-of-its-kind category leader, this is almost always the better deal anyway. The acquirer who needs a code monopoly is not your buyer; the acquirer who needs a *category* is, and they pay more.
 
-**You must own the brand and the trademark cleanly.** This is the one thing to get right *before* any acquisition conversation: make sure "SYNTHIA," the synthia.online domain, and the brand are owned by you (or your company), not licensed out. Open-source the *code*; never open-source the *name*. The name is what the acquirer is buying along with the community. Protect it.
+**You must own the brand and the trademark cleanly.** This is the one thing to get right *before* any acquisition conversation: make sure "SYNTHIA," the runsynthia.online domain, and the brand are owned by you (or your company), not licensed out. Open-source the *code*; never open-source the *name*. The name is what the acquirer is buying along with the community. Protect it.
 
 ### My advice for Condition 3
 

@@ -92,7 +92,7 @@ export function SpotlightCard({
   onSkip,
 }: SpotlightCardProps) {
   const cardRef = useRef<HTMLDivElement>(null);
-  const [measured, setMeasured] = useState(false);
+  const [, setMeasured] = useState(false);
 
   // Compute position inline — always returns a value
   const pos = (() => {

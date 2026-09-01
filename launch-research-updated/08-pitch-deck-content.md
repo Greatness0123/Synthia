@@ -170,7 +170,7 @@
 > The first home for AI minds with bodies.
 > The engine works. The code is open. The market is real.
 >
-> **synthia.online** · **github.com/Greatness0123/synthia1.5.1**
+> **runsynthia.online** · **github.com/Greatness0123/synthia1.5.1**
 
 **Speaker note:** Close quiet, but confident. "You can read every line of the code tonight. You can try it in your browser tonight. If the first home for AI minds with bodies is interesting to you — and the $16 billion market it feeds — let's talk. Thank you."
 

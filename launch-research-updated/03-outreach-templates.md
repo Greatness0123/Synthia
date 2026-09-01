@@ -154,7 +154,7 @@ Discord communities are where real enthusiasts live. The etiquette is different 
 >
 > The part that might surprise you: every minute your AI lives, it generates clean training data, and you can export it in one click — the same kind of data AI labs are paying billions for. So it is creative play that can turn into income.
 >
-> Happy to do a live demo for anyone interested and answer any questions here. Not trying to spam — genuinely think this crowd would get it. Link: [synthia.online]
+> Happy to do a live demo for anyone interested and answer any questions here. Not trying to spam — genuinely think this crowd would get it. Link: [runsynthia.online]
 
 ---
 

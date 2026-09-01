@@ -23,7 +23,7 @@ interface OnboardingState {
   shouldAutoStart: () => boolean;
 }
 
-export const useOnboardingStore = create<OnboardingState>((set, get) => ({
+export const useOnboardingStore = create<OnboardingState>((set) => ({
   active: false,
   currentStep: 0,
   totalSteps: 6,
