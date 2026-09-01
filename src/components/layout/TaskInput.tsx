@@ -9,7 +9,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useAgentStore } from '../../store/agentStore';
 import { useAgentRuntimeStore } from '../../store/agentRuntimeStore';
 import { X, Check } from '../ui/icons';
-import { cn } from '../ui/Panel';
+import { cn } from '../../utils/cn';
 
 export const TaskInput: React.FC = () => {
   const { directiveMode, setDirectiveMode, currentGoal, setCurrentGoal } = useAgentStore();
@@ -20,6 +20,7 @@ export const TaskInput: React.FC = () => {
   const [showSuccess, setShowSuccess] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  /* eslint-disable react-hooks/set-state-in-effect -- sync local state from store on agent/goal switch */
   useEffect(() => {
     setLocalValue(currentGoal || '');
     if (currentGoal) {
@@ -28,6 +29,7 @@ export const TaskInput: React.FC = () => {
       setExpanded(false);
     }
   }, [activeAgentId, currentGoal]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const hasProvider = !!config?.endpoint;
   const isActive = directiveMode === 'training' && currentGoal;

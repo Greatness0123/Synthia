@@ -5,7 +5,7 @@
 export interface ObjectPreset {
   id: string;
   name: string;
-  category: 'Primitives';
+  category: 'Primitives' | 'Terrain';
   icon: string; // Phosphor icon name
   mass: number;
   friction: number;

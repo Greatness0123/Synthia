@@ -4,7 +4,6 @@ import { ObjectManager } from '../ObjectManager';
 import { PhysicsEngine } from '../PhysicsEngine';
 import { CollisionAdapter } from '../CollisionAdapter';
 import { generateHumanoidMJCF } from '../MJCFHumanoidTemplate';
-import { AudioEngine } from '../AudioEngine';
 import * as THREE from 'three';
 
 declare function describe(name: string, fn: () => void): void;
@@ -24,7 +23,6 @@ declare function expect(actual: unknown): {
 describe('ObjectManager', () => {
   let engine: PhysicsEngine;
   let scene: THREE.Scene;
-  let audioEngine: AudioEngine;
   let objectManager: ObjectManager;
 
   beforeEach(async () => {
@@ -41,8 +39,7 @@ describe('ObjectManager', () => {
     engine.setReady(true);
 
     scene = new THREE.Scene();
-    audioEngine = new AudioEngine();
-    objectManager = new ObjectManager(engine, scene, audioEngine);
+    objectManager = new ObjectManager(engine, scene);
   });
 
   afterEach(() => {

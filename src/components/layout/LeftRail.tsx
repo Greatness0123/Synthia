@@ -7,7 +7,7 @@ import { useUIStore } from '../../store/uiStore';
 import { useWorldStore } from '../../store/worldStore';
 import { GearSix, TreeStructure, Export, Cube } from '../ui/icons';
 import { Logo } from '../ui/Logo';
-import { cn } from '../ui/Panel';
+import { cn } from '../../utils/cn';
 
 export const LeftRail: React.FC = () => {
   const {

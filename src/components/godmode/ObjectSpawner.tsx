@@ -17,7 +17,8 @@ import {
   type StoredUploadedModel,
 } from '../../utils/uploadedModelsStore';
 import { decomposeMesh } from '../../utils/vhacdDecomposer';
-import { X, FileCloud, UploadSimple, Spinner, PRESET_ICONS, Cube } from '../ui/icons';
+import { X, FileCloud, UploadSimple, Spinner, Cube } from '../ui/icons';
+import { PRESET_ICONS } from '../ui/presetIcons';
 
 type Preset = typeof OBJECT_PRESETS[0];
 
@@ -167,7 +168,7 @@ export const ObjectSpawner: React.FC = () => {
             e.target.value = '';
             return;
           }
-        } catch (err) {
+        } catch {
           synthiaToast.error('Invalid .gltf format');
           e.target.value = '';
           return;

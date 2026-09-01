@@ -2,7 +2,7 @@ import { useAgentStore } from '../../store/agentStore';
 import { useAgentRuntimeStore } from '../../store/agentRuntimeStore';
 import { Badge } from '../ui/Badge';
 import { Brain } from '../ui/icons';
-import { cn } from '../ui/Panel';
+import { cn } from '../../utils/cn';
 
 export const AgentStatus: React.FC = () => {
   const activeAgentId = useAgentStore((state) => state.activeAgentId);

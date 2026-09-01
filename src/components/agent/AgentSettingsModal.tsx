@@ -9,7 +9,8 @@ import { useUIStore } from '../../store/uiStore';
 import { useAgentStore } from '../../store/agentStore';
 import { useAgentRuntimeStore, type AgentRuntimeConfig } from '../../store/agentRuntimeStore';
 import { type ProviderType } from '../../store/connectionStore';
-import { Panel, cn } from '../ui/Panel';
+import { Panel } from '../ui/Panel';
+import { cn } from '../../utils/cn';
 import { Button } from '../ui/Button';
 import { Badge } from '../ui/Badge';
 import { Dropdown } from '../ui/Dropdown';
@@ -466,13 +467,18 @@ export const AgentSettingsModal: React.FC = () => {
   const { activeAgentId, agents } = useAgentStore();
   const { aiVisionFov, aiVisionSize, setAiVisionFov, setAiVisionSize } = useWorldStore();
   const identity = useIdentityStore((state) => state.identities[activeAgentId]);
-  const [editName, setEditName] = useState(identity?.name || '');
-  const [editBeliefs, setEditBeliefs] = useState(JSON.stringify(identity?.beliefs || [], null, 2));
-  const [editTraits, setEditTraits] = useState(JSON.stringify(identity?.traits || {}, null, 2));
+  // Reset edit fields when identity changes (keyed by activeAgentId)
+  const identityName = identity?.name || '';
+  const identityBeliefsStr = JSON.stringify(identity?.beliefs || [], null, 2);
+  const identityTraitsStr = JSON.stringify(identity?.traits || {}, null, 2);
+  const [editName, setEditName] = useState(identityName);
+  const [editBeliefs, setEditBeliefs] = useState(identityBeliefsStr);
+  const [editTraits, setEditTraits] = useState(identityTraitsStr);
   const [editReason, setEditReason] = useState('');
   const [identitySaving, setIdentitySaving] = useState(false);
   const [identityMsg, setIdentityMsg] = useState<string | null>(null);
 
+  /* eslint-disable react-hooks/set-state-in-effect -- sync local edit state from store on agent switch */
   useEffect(() => {
     if (identity) {
       setEditName(identity.name || '');
@@ -480,6 +486,7 @@ export const AgentSettingsModal: React.FC = () => {
       setEditTraits(JSON.stringify(identity.traits || {}, null, 2));
     }
   }, [activeAgentId, identity]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   // Use current agent state specifically, to ensure reactive updates if agent selection switches
   const currentAgent = agents[activeAgentId] || {

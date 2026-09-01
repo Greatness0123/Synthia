@@ -416,7 +416,8 @@ export class PhysicsDiagnostic {
         if (cache.rollQpos >= 0) currRoll = qpos[cache.rollQpos];
         if (cache.yawQpos >= 0) currYaw = qpos[cache.yawQpos];
 
-        let tPitch = 0, tRoll = 0, tYaw = 0;
+        let tRoll = 0, tYaw = 0;
+        let tPitch: number;
         if (target.isScalar) {
           tPitch = target.scalar;
         } else {

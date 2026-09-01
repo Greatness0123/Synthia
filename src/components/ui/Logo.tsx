@@ -1,5 +1,5 @@
 import { useUIStore } from '../../store/uiStore';
-import { cn } from './Panel';
+import { cn } from '../../utils/cn';
 
 interface LogoProps {
   size?: number;

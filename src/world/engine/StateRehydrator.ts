@@ -30,21 +30,19 @@ export function clearStateRehydratorCaches(): void {
 
 function getJointId(model: any, module: any, name: string): number {
   if (!_jointNameCache) _jointNameCache = new Map();
-  let id = _jointNameCache.get(name);
-  if (id === undefined) {
-    id = module.mj_name2id(model, module.mjtObj.mjOBJ_JOINT.value, name);
-    _jointNameCache.set(name, id);
-  }
+  const cached = _jointNameCache.get(name);
+  if (cached !== undefined) return cached;
+  const id: number = module.mj_name2id(model, module.mjtObj.mjOBJ_JOINT.value, name) ?? -1;
+  _jointNameCache.set(name, id);
   return id;
 }
 
 function getActuatorId(model: any, module: any, name: string): number {
   if (!_actuatorNameCache) _actuatorNameCache = new Map();
-  let id = _actuatorNameCache.get(name);
-  if (id === undefined) {
-    id = module.mj_name2id(model, module.mjtObj.mjOBJ_ACTUATOR.value, name);
-    _actuatorNameCache.set(name, id);
-  }
+  const cached = _actuatorNameCache.get(name);
+  if (cached !== undefined) return cached;
+  const id: number = module.mj_name2id(model, module.mjtObj.mjOBJ_ACTUATOR.value, name) ?? -1;
+  _actuatorNameCache.set(name, id);
   return id;
 }
 

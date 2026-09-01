@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useUIStore } from '../../store/uiStore';
-import { Panel, cn } from '../ui/Panel';
+import { Panel } from '../ui/Panel';
+import { cn } from '../../utils/cn';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   X,
@@ -15,20 +16,22 @@ import { synthiaToast } from '../../utils/synthiaToast';
 
 export const MotorCodexModal: React.FC = () => {
   const { motorCodexModalOpen, setMotorCodexModalOpen } = useUIStore();
-  const [recipes, setRecipes] = useState<MotorCodexEntry[]>([]);
+  const [recipes, setRecipes] = useState<MotorCodexEntry[]>(() => MotorCodexRegistry.getAll());
   const [category, setCategory] = useState<string>('all');
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
-  // Sync recipes from dynamic registry
+  // Subscribe to registry changes when modal is open
+  useEffect(() => {
+    if (!motorCodexModalOpen) return;
+    const unsubscribe = MotorCodexRegistry.subscribe(() => {
+      setRecipes(MotorCodexRegistry.getAll());
+    });
+    return () => unsubscribe();
+  }, [motorCodexModalOpen]);
+
   const refreshRecipes = () => {
     setRecipes(MotorCodexRegistry.getAll());
   };
-
-  useEffect(() => {
-    refreshRecipes();
-    const unsubscribe = MotorCodexRegistry.subscribe(refreshRecipes);
-    return () => unsubscribe();
-  }, [motorCodexModalOpen]);
 
   if (!motorCodexModalOpen) return null;
 
@@ -51,7 +54,7 @@ export const MotorCodexModal: React.FC = () => {
           synthiaToast.error('Invalid recipe JSON format.');
         }
         refreshRecipes();
-      } catch (err) {
+      } catch {
         synthiaToast.error('Failed to parse JSON file.');
       }
     };

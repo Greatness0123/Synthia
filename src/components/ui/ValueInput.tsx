@@ -4,7 +4,7 @@
  */
 
 import { useState, useCallback, useEffect } from 'react';
-import { cn } from './Panel';
+import { cn } from '../../utils/cn';
 
 interface ValueInputProps {
   label: string;
@@ -32,11 +32,13 @@ export const ValueInput: React.FC<ValueInputProps> = ({
   const [inputValue, setInputValue] = useState(String(value));
   const [isFocused, setIsFocused] = useState(false);
 
+  /* eslint-disable react-hooks/set-state-in-effect -- sync display value when external value changes and input is not focused */
   useEffect(() => {
     if (!isFocused) {
       setInputValue(String(value));
     }
   }, [value, isFocused]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const clamp = useCallback((v: number) => Math.min(max, Math.max(min, v)), [min, max]);
 

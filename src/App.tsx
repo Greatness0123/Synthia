@@ -34,7 +34,7 @@ import { LogViewer } from './components/agent/LogViewer';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useEffect } from 'react';
 import * as Tone from 'tone';
-import { cn } from './components/ui/Panel';
+import { cn } from './utils/cn';
 import { TaskInput } from './components/layout/TaskInput';
 import { LeftRail } from './components/layout/LeftRail';
 import { OnboardingProvider } from './components/onboarding/OnboardingProvider';

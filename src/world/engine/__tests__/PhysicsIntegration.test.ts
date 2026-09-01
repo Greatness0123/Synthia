@@ -7,7 +7,6 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { PhysicsEngine } from '../PhysicsEngine';
 import { HumanoidPhysicsBinder } from '../HumanoidPhysicsBinder';
 import { ObjectManager } from '../ObjectManager';
-import { AudioEngine } from '../AudioEngine';
 
 declare function describe(name: string, fn: () => void): void;
 declare function beforeEach(fn: () => void): void;
@@ -68,8 +67,7 @@ describe('MuJoCo Physics and Humanoid Integration', () => {
     scene = new THREE.Scene();
     binder = new HumanoidPhysicsBinder(engine, scene);
 
-    const mockAudioEngine = {} as AudioEngine;
-    objManager = new ObjectManager(engine, scene, mockAudioEngine);
+    objManager = new ObjectManager(engine, scene);
   });
 
   afterEach(() => {

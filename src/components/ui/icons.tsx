@@ -3,7 +3,6 @@
  * All icons are tree-shaken at build time via Vite optimizeDeps.
  * Usage: import { Brain, Trash, Eye } from '../ui/icons';
  */
-import type { ComponentType } from 'react';
 import type { IconProps as MaterialIconProps } from '@material-symbols-svg/react';
 
 export type IconProps = MaterialIconProps;
@@ -107,20 +106,3 @@ export {
   Save,
 
 } from '@material-symbols-svg/react';
-
-// PRESET_ICONS registry for ObjectSpawner dynamic lookup
-import {
-  DeployedCode,
-  Circle as CircleIcon,
-  ChangeHistory as TriangleIcon,
-  DataObject as CylinderIcon,
-} from '@material-symbols-svg/react';
-
-export type IconComponent = ComponentType<{ size?: number | string; className?: string }>;
-
-export const PRESET_ICONS: Record<string, IconComponent> = {
-  Cube: DeployedCode,
-  Circle: CircleIcon,
-  Cylinder: CylinderIcon,
-  Triangle: TriangleIcon,
-};

@@ -88,16 +88,19 @@ export const ExportModal: React.FC = () => {
   // Fetch sessions directly from Supabase if configured
   useEffect(() => {
     if (!exportModalOpen || !supabaseUrl || !supabaseKey) return;
-    setSessionsLoading(true);
-    setSessionsError(null);
 
     const supabase = getSupabaseClient(supabaseUrl, supabaseKey);
-    if (!supabase) { setSessionsLoading(false); setSessionsError('Supabase not configured'); return; }
+    if (!supabase) {
+      (async () => { setSessionsLoading(false); setSessionsError('Supabase not configured'); })();
+      return;
+    }
     const targetAgentIds = exportScope === 'single'
       ? [activeAgentId]
       : Object.keys(useAgentStore.getState().agents);
 
     (async () => {
+      setSessionsLoading(true);
+      setSessionsError(null);
       try {
         const { data, error } = await supabase.from('sessions')
           .select('*')

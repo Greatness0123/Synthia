@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { cn } from './Panel';
+import { cn } from '../../utils/cn';
 
 export interface DropdownItem {
   value: string;

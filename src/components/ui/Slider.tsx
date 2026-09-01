@@ -1,4 +1,4 @@
-import { cn } from './Panel';
+import { cn } from '../../utils/cn';
 
 interface SliderProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label?: string;

@@ -127,7 +127,7 @@ describe('Empirical Tuning and Diagnostic Calibration', () => {
 
     let maxOmegaIdle = 0;
     let maxOscIdle = 0;
-    Object.entries(idleReport.bones).forEach(([_, summary]: [string, any]) => {
+    Object.entries(idleReport.bones).forEach(([, summary]: [string, any]) => {
       if (summary.maxAngularSpeed > maxOmegaIdle) maxOmegaIdle = summary.maxAngularSpeed;
       if (summary.oscillationsPerSec > maxOscIdle) maxOscIdle = summary.oscillationsPerSec;
     });
@@ -145,7 +145,7 @@ describe('Empirical Tuning and Diagnostic Calibration', () => {
 
     let maxOmegaBalance = 0;
     let maxOscBalance = 0;
-    Object.entries(balanceReport.bones).forEach(([_, summary]: [string, any]) => {
+    Object.entries(balanceReport.bones).forEach(([, summary]: [string, any]) => {
       if (summary.maxAngularSpeed > maxOmegaBalance) maxOmegaBalance = summary.maxAngularSpeed;
       if (summary.oscillationsPerSec > maxOscBalance) maxOscBalance = summary.oscillationsPerSec;
     });
@@ -164,7 +164,7 @@ describe('Empirical Tuning and Diagnostic Calibration', () => {
 
     let maxOmegaPush = 0;
     let maxOscPush = 0;
-    Object.entries(pushReport.bones).forEach(([_, summary]: [string, any]) => {
+    Object.entries(pushReport.bones).forEach(([, summary]: [string, any]) => {
       if (summary.maxAngularSpeed > maxOmegaPush) maxOmegaPush = summary.maxAngularSpeed;
       if (summary.oscillationsPerSec > maxOscPush) maxOscPush = summary.oscillationsPerSec;
     });

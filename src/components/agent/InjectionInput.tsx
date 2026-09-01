@@ -8,7 +8,7 @@ import { useAgentStore } from '../../store/agentStore';
 import { STRINGS } from '../../constants/strings';
 import { Syringe, ArrowRight, Microphone, StopSquare } from '../ui/icons';
 import { synthiaToast } from '../../utils/synthiaToast';
-import { cn } from '../ui/Panel';
+import { cn } from '../../utils/cn';
 
 const SpeechRecognitionAPI =
   typeof window !== 'undefined'
@@ -62,7 +62,7 @@ export const InjectionInput: React.FC = () => {
             try {
               resultIndexRef.current = 0;
               rec.start();
-            } catch {}
+            } catch { /* speech API may throw if already started */ }
           }, 300);
         }
         return;
@@ -78,7 +78,7 @@ export const InjectionInput: React.FC = () => {
           try {
             resultIndexRef.current = 0;
             rec.start();
-          } catch {}
+          } catch { /* speech API may throw if already started */ }
         }, 300);
       } else {
         setIsListening(false);
@@ -92,7 +92,7 @@ export const InjectionInput: React.FC = () => {
     recognitionRef.current = createRecognition();
     return () => {
       if (recognitionRef.current) {
-        try { recognitionRef.current.stop(); } catch {}
+        try { recognitionRef.current.stop(); } catch { /* cleanup may throw */ }
       }
     };
   }, [createRecognition]);
@@ -103,12 +103,12 @@ export const InjectionInput: React.FC = () => {
 
     if (isListening) {
       userStoppedRef.current = true;
-      try { rec.stop(); } catch {}
+      try { rec.stop(); } catch { /* speech API may throw if already stopped */ }
       setIsListening(false);
     } else {
       userStoppedRef.current = false;
       resultIndexRef.current = 0;
-      try { rec.start(); } catch {}
+      try { rec.start(); } catch { /* speech API may throw if already started */ }
     }
   };
 

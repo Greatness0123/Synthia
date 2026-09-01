@@ -1,5 +1,4 @@
 import { cn } from '../../utils/cn';
-export { cn } from '../../utils/cn';
 
 interface PanelProps extends React.HTMLAttributes<HTMLDivElement> {
   children: React.ReactNode;

@@ -2,7 +2,7 @@ import { useConnectionStore } from '../../store/connectionStore';
 import { useAgentStore } from '../../store/agentStore';
 import { useAgentRuntimeStore } from '../../store/agentRuntimeStore';
 import { useMemoryStore } from '../../store/memoryStore';
-import { cn } from '../ui/Panel';
+import { cn } from '../../utils/cn';
 
 const Metric = ({ label, value, colorClass = "text-text-secondary" }: { label: string, value: string | number, colorClass?: string }) => (
   <div className="flex items-center gap-1.5 px-2.5 h-full border-r border-white/10 last:border-r-0">

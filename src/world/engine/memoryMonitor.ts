@@ -21,7 +21,6 @@ let _lastWarningLevel: 'normal' | 'warn' | 'critical' = 'normal';
 
 let _intervalId: ReturnType<typeof setInterval> | null = null;
 let _listeners: ((snapshot: MemorySnapshot) => void)[] = [];
-let _wasmModuleRef: any = null;
 let _physicsEngineRef: any = null;
 let _objectManagerRef: any = null;
 
@@ -32,7 +31,6 @@ export function initMemoryMonitor(config: {
   intervalMs?: number;
   onSnapshot?: (snapshot: MemorySnapshot) => void;
 }): void {
-  _wasmModuleRef = config.wasmModule ?? null;
   _physicsEngineRef = config.physicsEngine ?? null;
   _objectManagerRef = config.objectManager ?? null;
 
@@ -64,7 +62,6 @@ export function stopMemoryMonitor(): void {
     _intervalId = null;
   }
   _listeners = [];
-  _wasmModuleRef = null;
   _physicsEngineRef = null;
   _objectManagerRef = null;
 }

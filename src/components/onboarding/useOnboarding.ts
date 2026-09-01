@@ -12,7 +12,10 @@ export function useOnboarding() {
   const { active, currentStep, setCurrentStep, totalSteps, setTotalSteps, markComplete, setActive } =
     useOnboardingStore();
   const stepRef = useRef(currentStep);
-  stepRef.current = currentStep;
+
+  useEffect(() => {
+    stepRef.current = currentStep;
+  }, [currentStep]);
 
   useEffect(() => {
     setTotalSteps(onboardingSteps.length);

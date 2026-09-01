@@ -6,15 +6,13 @@ import * as THREE from 'three';
 
 export const StructureViewer: React.FC = () => {
   const { selectedEntityId } = useUIStore();
-  const [entityData, setEntityData] = useState<any>(null);
+  const [localEntityData, setLocalEntityData] = useState<any>(null);
+  const entityData = selectedEntityId ? localEntityData : null;
   // Track whether the user is actively typing in the name input
   const isRenamingRef = useRef(false);
 
   useEffect(() => {
-    if (!selectedEntityId) {
-      setEntityData(null);
-      return;
-    }
+    if (!selectedEntityId) return;
 
     const interval = setInterval(() => {
       const worldEngine = (window as any)._synthia_world_engine;
@@ -70,7 +68,7 @@ export const StructureViewer: React.FC = () => {
         }
 
         // Merge: preserve the user's in-progress name if they are typing
-        setEntityData((prev: any) => ({
+        setLocalEntityData((prev: any) => ({
           ...data,
           name: isRenamingRef.current && prev ? prev.name : data.name,
         }));
@@ -100,7 +98,7 @@ export const StructureViewer: React.FC = () => {
             type="text"
             className="text-xs font-bold bg-transparent border-b border-transparent focus:border-white/20 outline-none uppercase tracking-tight flex-1"
             value={entityData.name ?? ''}
-            onChange={(e) => setEntityData({ ...entityData, name: e.target.value })}
+            onChange={(e) => setLocalEntityData({ ...entityData, name: e.target.value })}
             onFocus={() => { isRenamingRef.current = true; }}
             onBlur={(e) => {
               isRenamingRef.current = false;
@@ -176,7 +174,7 @@ export const StructureViewer: React.FC = () => {
                       onChange={(e) => {
                         const num = parseFloat(e.target.value);
                         if (!isNaN(num)) {
-                          setEntityData((prev: any) => ({
+                          setLocalEntityData((prev: any) => ({
                             ...prev,
                             physics: { ...prev.physics, [key]: num }
                           }));

@@ -88,7 +88,7 @@ function thriftListHeader(buf: number[], size: number, elemType: number) {
 // ---------------------------------------------------------------------------
 const PT_BOOLEAN = 0;
 const PT_INT32 = 1;
-const PT_INT64 = 2;
+const PT_INT64 = 2; // eslint-disable-line @typescript-eslint/no-unused-vars -- used in ColPhysicalType
 const PT_DOUBLE = 5;
 const PT_BYTE_ARRAY = 6;
 
@@ -274,7 +274,7 @@ function buildDataPageHeader(
   thriftI32(buf, 3 - prevField, encodedSize); prevField = 3;
 
   // field 5: data_page_header (struct)
-  thriftField(buf, 5 - prevField, 12); prevField = 5; // type = 12 (struct)
+  thriftField(buf, 5 - prevField, 12); // type = 12 (struct)
   {
     let f = 0;
     // field 1: num_values (i32)
@@ -284,7 +284,7 @@ function buildDataPageHeader(
     // field 3: definition_level_encoding (i32)
     thriftI32(buf, 3 - f, defLevelEncoding); f = 3;
     // field 4: repetition_level_encoding (i32)
-    thriftI32(buf, 4 - f, repLevelEncoding); f = 4;
+    thriftI32(buf, 4 - f, repLevelEncoding);
     thriftStop(buf);
   }
 
@@ -330,7 +330,7 @@ function buildFileMetadata(
     // field 3: name
     thriftField(buf, 3 - sf, 8); sf = 3; thriftString(buf, 'schema');
     // field 4: num_children
-    thriftI32(buf, 4 - sf, schema.length); sf = 4;
+    thriftI32(buf, 4 - sf, schema.length);
     thriftStop(buf);
   }
 
@@ -342,7 +342,7 @@ function buildFileMetadata(
     // field 3: repetition_type
     thriftI32(buf, 3 - sf, col.optional ? OPTIONAL : REQUIRED); sf = 3;
     // field 4: name (string)
-    thriftField(buf, 4 - sf, 8); sf = 4; thriftString(buf, col.name);
+    thriftField(buf, 4 - sf, 8); thriftString(buf, col.name);
     thriftStop(buf);
   }
 
@@ -361,9 +361,9 @@ function buildFileMetadata(
     thriftListHeader(buf, chunks.length, 12);
 
     for (const chunk of chunks) {
-      let cc = 0;
+      const cc = 0;
       // field 2: meta_data (ColumnMetaData struct)
-      thriftField(buf, 2 - cc, 12); cc = 2;
+      thriftField(buf, 2 - cc, 12);
       {
         let cm = 0;
         // field 1: type
@@ -385,7 +385,7 @@ function buildFileMetadata(
         // field 7: total_compressed_size (i64)
         thriftI64(buf, 7 - cm, chunk.totalCompressedSize); cm = 7;
         // field 9: data_page_offset (i64)
-        thriftI64(buf, 9 - cm, chunk.dataPageOffset); cm = 9;
+        thriftI64(buf, 9 - cm, chunk.dataPageOffset);
         thriftStop(buf);
       }
       thriftStop(buf); // ColumnChunk
@@ -395,12 +395,12 @@ function buildFileMetadata(
     const totalBytes = chunks.reduce((s, c) => s + c.totalCompressedSize, 0);
     thriftI64(buf, 2 - rg, totalBytes); rg = 2;
     // field 3: num_rows (i64)
-    thriftI64(buf, 3 - rg, numRows); rg = 3;
+    thriftI64(buf, 3 - rg, numRows);
     thriftStop(buf); // RowGroup
   }
 
   // field 6: created_by (string)
-  thriftField(buf, 6 - f, 8); f = 6;
+  thriftField(buf, 6 - f, 8);
   thriftString(buf, 'synthia-parquet-writer v1.0');
 
   thriftStop(buf);

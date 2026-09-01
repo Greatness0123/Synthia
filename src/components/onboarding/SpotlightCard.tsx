@@ -92,29 +92,32 @@ export function SpotlightCard({
   onSkip,
 }: SpotlightCardProps) {
   const cardRef = useRef<HTMLDivElement>(null);
-  const [, setMeasured] = useState(false);
+  const [measuredSize, setMeasuredSize] = useState<{ w: number; h: number } | null>(null);
 
-  // Compute position inline — always returns a value
+  // Compute position — use measured size if available, otherwise estimate
+  const CARD_W = 340;
+  const CARD_H = 220;
   const pos = (() => {
     if (!targetRect) return null;
-    const CARD_W = 340;
-    const CARD_H = 220;
-    // On first render before measurement, use estimated card size
-    const w = cardRef.current ? cardRef.current.offsetWidth : CARD_W;
-    const h = cardRef.current ? cardRef.current.offsetHeight : CARD_H;
+    const w = measuredSize?.w ?? CARD_W;
+    const h = measuredSize?.h ?? CARD_H;
     return computePosition(targetRect, step.side, w, h);
   })();
 
   // After mount, measure actual card size and recalculate
   useEffect(() => {
     if (!targetRect || !cardRef.current) return;
-    setMeasured(true);
+    setMeasuredSize({ w: cardRef.current.offsetWidth, h: cardRef.current.offsetHeight });
   }, [targetRect, step.id]);
 
   // Recalculate on resize
   useEffect(() => {
     if (!targetRect || !cardRef.current) return;
-    const handler = () => setMeasured((m) => !m);
+    const handler = () => {
+      if (cardRef.current) {
+        setMeasuredSize({ w: cardRef.current.offsetWidth, h: cardRef.current.offsetHeight });
+      }
+    };
     window.addEventListener('resize', handler);
     return () => window.removeEventListener('resize', handler);
   }, [targetRect, step.side]);
