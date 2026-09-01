@@ -60,7 +60,7 @@ export const blogPosts: BlogPost[] = [
     content: [
       'Chatbots give you text. Simulation tools give specialists a GPU farm and months of setup. Robot videos let you watch, not try.',
       'The gap: no one let a normal person place an AI in a body and a world, in a browser, for free. The technology (browser physics, vision-language models, structured memory) only matured in the last two years.',
-      'SYNTHIA is the first thing that is real enough to act on its own and simple enough for anyone. Open source. MIT. You can read every line.',
+      'SYNTHIA is the first thing that is real enough to act on its own and simple enough for anyone. Open source. Apache-2.0. You can read every line.',
       'The AI does not know you exist. What you have is a steering surface: build the world, set goals, inject thoughts. That honesty is what makes it credible.',
     ],
   },

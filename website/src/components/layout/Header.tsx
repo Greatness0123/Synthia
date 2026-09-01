@@ -8,7 +8,7 @@ import { SocialLinks } from '@/components/layout/SocialLinks'
 import { cn } from '@/lib/utils'
 
 const navLinks = [
-  { label: 'How it works', href: '/how-it-works' },
+  { label: 'For researchers', href: '/researchers', tooltip: 'TL;DR' },
   { label: 'Data', href: '/data' },
   { label: 'Guides', href: '/guides/kaggle' },
   { label: 'Blog', href: '/blog' },
@@ -61,10 +61,6 @@ export function Header() {
     window.addEventListener('scroll', onScroll, { passive: true })
     return () => window.removeEventListener('scroll', onScroll)
   }, [])
-
-  useEffect(() => {
-    setMenuOpen(false)
-  }, [location.pathname, navVisible, scrolled])
 
   return (
     <header

@@ -51,6 +51,12 @@ export function Footer({ dark }: FooterProps) {
             </p>
             <ul className="space-y-2 text-sm">
               <li>
+                <Link to="/researchers" title="TL;DR" className="transition-colors hover:text-amber-soft">
+                  For researchers
+                </Link>
+              </li>
+
+              <li>
                 <Link to="/how-it-works" className="transition-colors hover:text-amber-soft">
                   How it works
                 </Link>
@@ -68,6 +74,11 @@ export function Footer({ dark }: FooterProps) {
               <li>
                 <Link to="/blog" className="transition-colors hover:text-amber-soft">
                   Blog
+                </Link>
+              </li>
+              <li>
+                <Link to="/benchmarks" className="transition-colors hover:text-amber-soft">
+                  Benchmarks
                 </Link>
               </li>
             </ul>

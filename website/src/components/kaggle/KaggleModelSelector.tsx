@@ -52,6 +52,19 @@ const KAGGLE_MODELS: KaggleModel[] = [
     instructionAdherence: '97.8%',
   },
   {
+    id: 'qwen25-vl-72b',
+    name: 'Qwen2.5-VL-72B-Instruct',
+    params: '72B',
+    huggingFaceId: 'Qwen/Qwen2.5-VL-72B-Instruct',
+    kaggleDataset: null,
+    description: 'Premier open-source vision-language model. Supreme spatial perception, sub-degree joint angle precision, and zero drift.',
+    vram: '~42GB (4-bit, A100 / dual GPU)',
+    speed: 'Medium',
+    jointRating: '5.0 / 5',
+    instructionAdherence: '98.4%',
+  },
+
+  {
     id: 'llama32-11b-vision',
     name: 'Llama-3.2-11B-Vision-Instruct',
     params: '11B',
@@ -77,9 +90,9 @@ const KAGGLE_MODELS: KaggleModel[] = [
   },
   {
     id: 'mistral-small-24b',
-    name: 'Mistral-Small-3.1-24B-Instruct',
+    name: 'Mistral-Small-24B-Instruct',
     params: '24B',
-    huggingFaceId: 'mistralai/Mistral-Small-3.1-24B-Instruct-2503',
+    huggingFaceId: 'mistralai/Mistral-Small-24B-Instruct-2501',
     kaggleDataset: null,
     description: 'Efficient 24B open model with very low latency. High instruction adherence and clean JSON joint output. Runs well on T4 x2 at 4-bit.',
     vram: '~20GB (4-bit)',

@@ -89,7 +89,7 @@ export function Hero() {
           >
             Greatness Okorie
           </a>{' '}
-          · MIT Licensed · Open Source.{' '}
+          · Apache-2.0 Licensed · Open Source.{' '}
           <Link to="/how-it-works" className="text-ink-muted underline-offset-4 hover:underline">
             Read architecture
           </Link>

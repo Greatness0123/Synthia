@@ -28,7 +28,7 @@ const REASONS = [
   },
   {
     n: '06',
-    title: 'Open source, MIT licensed, transparent.',
+    title: 'Open source, Apache-2.0 licensed, transparent.',
     body: 'No black boxes or hidden APIs. Created by Greatness Okorie as an open engine for embodied AI research.',
   },
 ]

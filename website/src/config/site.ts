@@ -1,13 +1,13 @@
 export const siteConfig = {
   name: 'SYNTHIA',
   tagline: 'The first browser-based embodiment application for artificial intelligence.',
-  url: 'https://synthia.online',
+  url: 'https://www.runsynthia.online',
   repoUrl: 'https://github.com/Greatness0123/synthia1.5.1',
   appUrl: import.meta.env.VITE_APP_URL ?? 'http://localhost:5173',
   demoVideoUrl: import.meta.env.VITE_DEMO_VIDEO_URL ?? '',
   builderName: 'Greatness Okorie',
   builderPortfolioUrl: 'https://greatnessokorie.vercel.app',
-  license: 'MIT',
+  license: 'Apache-2.0',
   calcomUrl: 'https://cal.com/greatnessokorie/15min',
   githubOwner: 'Greatness0123',
   githubRepo: 'synthia1.5.1',
@@ -49,10 +49,13 @@ export const heroCopy = {
 
 export const siteRoutes = [
   { path: '/', label: 'Home' },
+   { path: '/researchers', label: 'For researchers' },
   { path: '/how-it-works', label: 'How it works' },
   { path: '/memory', label: 'Memory' },
   { path: '/data', label: 'Data export' },
+  { path: '/benchmarks', label: 'Benchmarks' },
   { path: '/guides/kaggle', label: 'Free inference guide' },
   { path: '/roadmap', label: 'Roadmap' },
   { path: '/blog', label: 'Blog' },
+  { path: '/sitemap', label: 'Sitemap' },
 ] as const

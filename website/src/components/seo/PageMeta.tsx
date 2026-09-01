@@ -31,11 +31,11 @@ function upsertLink(rel: string, href: string) {
   el.href = href
 }
 
-const DEFAULT_OG_IMAGE = 'https://synthia.online/media/og-image.jpg'
+const DEFAULT_OG_IMAGE = 'https://www.runsynthia.online/media/og-image.jpg'
 
 export function PageMeta({ title, description, path = '', ogImage, ogType = 'website', keywords, jsonLd }: PageMetaProps) {
   const fullTitle = title.includes('SYNTHIA') ? title : `${title} | SYNTHIA`
-  const url = `https://synthia.online${path}`
+  const url = `https://www.runsynthia.online${path}`
   const image = ogImage || DEFAULT_OG_IMAGE
 
   useEffect(() => {

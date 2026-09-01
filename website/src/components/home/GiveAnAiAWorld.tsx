@@ -2,19 +2,19 @@ const STEPS = [
   {
     n: '01',
     title: 'You give an AI a world.',
-    body: 'Drop in boxes, stairs, slopes, a piano, a ball pit. The AI wakes up inside whatever you build. The world is yours.',
+    body: 'Drop in primitive shapes (cubes, spheres, ramps) or upload your own custom 3D models (.glb/.gltf). The AI wakes up inside your spatial setup with full physics.',
     accent: 'from-amber-glow/40 to-transparent',
   },
   {
     n: '02',
     title: 'It learns the place.',
-    body: 'What is heavy. What rolls. What makes a noise when it falls. Over time it adapts to this environment in ways you can watch.',
+    body: 'What has mass. What rolls. What offers resistance when pushed. Through visual perception, proprioception, and collision physics, it tests boundaries and adapts to what you built.',
     accent: 'from-teal-soft/30 to-transparent',
   },
   {
     n: '03',
     title: 'It grows.',
-    body: 'Skills stack. The obstacle it could not navigate yesterday, it navigates today. You watch its inner thought monologue evolve and its physical balance steady.',
+    body: 'Compound capabilities emerge. From maintaining balance and navigating obstacles to interacting with target objects, you watch its real-time reasoning loop evolve with every attempt.',
     accent: 'from-amber-soft/30 to-transparent',
   },
   {

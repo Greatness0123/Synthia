@@ -26,10 +26,32 @@ export function CloudflareTunnelPage() {
   return (
     <PageLayout>
       <PageMeta
-        title="Connect SYNTHIA with Cloudflare Tunnel — free inference proxy"
-        description="Expose your Kaggle free GPU inference server to SYNTHIA using Cloudflare quick tunnels or named tunnels. Free tier, step-by-step setup for browser-based AI simulation with no install."
+        title="Free AI tunnel — expose Kaggle GPU to browser with Cloudflare"
+        description="Free AI inference proxy: expose your Kaggle free GPU to SYNTHIA using Cloudflare quick tunnels. No credit card, no server bill. Get a public URL for your free AI model in minutes."
         path="/guides/cloudflare-tunnel"
-        keywords="Cloudflare tunnel AI, Kaggle tunnel setup, expose AI server, Cloudflare quick tunnel, named tunnel AI, free AI tunnel, Kaggle inference proxy, AI server public URL, Cloudflare free tier tunnel, tunnel for AI inference, SYNTHIA Cloudflare setup, browser AI tunnel, AI inference exposure, free tunnel for notebook, Kaggle notebook tunnel, Cloudflare zero trust tunnel, AI server tunnel guide, how to expose AI server, Kaggle GPU tunnel, free AI proxy, AI server public access, Cloudflare tunnel tutorial, tunnel Kaggle to browser, AI inference tunnel setup, Cloudflare Workers AI, free AI exposure, notebook tunnel guide, Kaggle Cloudflare setup, AI server URL tunnel, public AI inference, browser AI connection, SYNTHIA inference connection, AI server proxy free, tunnel guide step by step, Cloudflare tunnel free AI, expose Kaggle server, AI inference access guide, Cloudflare quick tunnel guide, named tunnel tutorial, AI server public URL free, Kaggle GPU public, free AI server tunnel, browser based AI tunnel, AI inference proxy guide, connect AI to browser, SYNTHIA Cloudflare guide, tunnel for free GPU, Cloudflare tunnel notebook, AI server tunnel free, Kaggle inference access"
+        keywords="free AI, free AI inference, free AI GPU, free AI server, free AI proxy, free AI tunnel, free AI model, free AI compute, free AI hosting, free AI online, run AI for free, free AI no credit card, free AI no install, free AI browser, free GPU AI, free cloud AI, free AI inference server, free AI public URL, free AI server tunnel, Cloudflare free AI, Kaggle free AI, free AI tool, free AI platform, free AI simulation, free AI sandbox, free AI agent, free AI with body, free embodied AI, free physics AI, free AI that learns, free AI open source, free MIT AI, free AI 2026, no cost AI, zero cost AI, free AI model hosting, free GPU inference, free GPU server, free GPU tunnel, free cloud GPU, free AI compute tier, free AI without GPU, no GPU bill AI, free AI inference guide, free AI setup guide, free AI step by step, how to run AI for free, free AI tutorial, free AI for developers, free AI for researchers, free AI for students, free AI experimentation, free AI prototyping, Cloudflare tunnel AI, Kaggle tunnel setup, expose AI server, Cloudflare quick tunnel, named tunnel AI, Kaggle inference proxy, AI server public URL, Cloudflare free tier tunnel, tunnel for AI inference, SYNTHIA Cloudflare setup, browser AI tunnel, AI inference exposure, free tunnel for notebook, Kaggle notebook tunnel, Cloudflare zero trust tunnel, AI server tunnel guide, how to expose AI server, Kaggle GPU tunnel, AI server public access, Cloudflare tunnel tutorial, tunnel Kaggle to browser, AI inference tunnel setup, free AI exposure, notebook tunnel guide, Kaggle Cloudflare setup, AI server URL tunnel, public AI inference, browser AI connection, SYNTHIA inference connection, AI server proxy free, tunnel guide step by step, expose Kaggle server, AI inference access guide, Kaggle GPU public, browser based AI tunnel, AI inference proxy guide, connect AI to browser, SYNTHIA Cloudflare guide, tunnel for free GPU, Cloudflare tunnel notebook, Kaggle inference access"
+        jsonLd={{
+          '@context': 'https://schema.org',
+          '@type': 'HowTo',
+          name: 'Set up free AI inference with Cloudflare Tunnel',
+          description: 'Step-by-step guide to expose a free Kaggle GPU inference server to SYNTHIA using Cloudflare quick tunnels or named tunnels at zero cost.',
+          step: [
+            { '@type': 'HowToStep', position: 1, name: 'Create free Kaggle account', text: 'Sign up at kaggle.com with Google, email, or GitHub. Verify your phone to unlock free GPU access.' },
+            { '@type': 'HowToStep', position: 2, name: 'Create Kaggle notebook', text: 'Start a new notebook, select GPU T4 x2 or P100 under Session Options. No credit card required.' },
+            { '@type': 'HowToStep', position: 3, name: 'Paste and run kaggle_new.py', text: 'Copy the inference script into your notebook. It installs dependencies, loads the vision model, and starts a Cloudflare quick tunnel automatically.' },
+            { '@type': 'HowToStep', position: 4, name: 'Copy the tunnel URL', text: 'After ~8 seconds, the notebook prints a trycloudflare.com URL ending in /infer.' },
+            { '@type': 'HowToStep', position: 5, name: 'Paste URL into SYNTHIA', text: 'Open SYNTHIA, go to God Mode, and paste the tunnel URL into the Inference URL field.' },
+          ],
+          totalTime: 'PT10M',
+          supply: [
+            { '@type': 'HowToSupply', name: 'Kaggle account (free)' },
+            { '@type': 'HowToSupply', name: 'SYNTHIA browser app' },
+          ],
+          tool: [
+            { '@type': 'HowToTool', name: 'Cloudflare quick tunnel (free)' },
+            { '@type': 'HowToTool', name: 'Kaggle free GPU' },
+          ],
+        }}
       />
 
       <Section className="pt-32">

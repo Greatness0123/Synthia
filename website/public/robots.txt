@@ -2,4 +2,4 @@ User-agent: *
 Allow: /
 Disallow: /app
 
-Sitemap: https://synthia.online/sitemap.xml
+Sitemap: https://www.runsynthia.online/sitemap.xml
