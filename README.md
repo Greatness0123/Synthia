@@ -4,9 +4,9 @@
 
 # SYNTHIA
 
-**A browser-native embodied AI platform for giving an AI a body, a world, and a memory.**
+**A browser-native embodied AI research platform.**
 
-Build a character, place it in a 3D world, let it act, remember, and learn, and export what it does as structured data.
+Real-time perception, reasoning, and action in a physics-simulated 3D world, no GPU required.
 
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 [![Docker](https://img.shields.io/badge/docker-%230db7ed.svg?logo=docker&logoColor=white)](DOCKER.md)
