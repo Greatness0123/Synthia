@@ -4,10 +4,9 @@
 
 # SYNTHIA
 
-**A browser-based embodied AI platform.**
+**A browser-native embodied AI platform for giving an AI a body, a world, and a memory.**
 
-Give an AI a body, a world, a memory, a task to achieve or simulate freewill
-<br>the training data remains yours 
+Build a character, place it in a 3D world, let it act, remember, and learn, and export what it does as structured data.
 
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 [![Docker](https://img.shields.io/badge/docker-%230db7ed.svg?logo=docker&logoColor=white)](DOCKER.md)
@@ -15,7 +14,7 @@ Give an AI a body, a world, a memory, a task to achieve or simulate freewill
 [![Status](https://img.shields.io/badge/status-active-brightgreen.svg)](https://github.com/Greatness0123/synthia)
 [![TypeScript](https://img.shields.io/badge/TypeScript-6.0-blue.svg)](https://www.typescriptlang.org/)
 [![React](https://img.shields.io/badge/React-18.3-blue.svg)](https://react.dev/)
-[![Website]()](https://runrunsynthia.online)
+[![Website](https://img.shields.io/badge/visit-Website-blue.svg)](https://runsynthia.online)
 
 </div>
 
@@ -49,15 +48,17 @@ SYNTHIA is a browser-based **embodied AI** platform. It runs a continuous cognit
 
 Unlike a chatbot that only produces text, SYNTHIA gives an AI model a physical body, a 3D world to live in, and a persistent memory that spans sessions. The agent can:
 
-- **See**: captures frames from the same 3D render the user sees
-- **Hear**: classifies audio in its environment
-- **Move**: controls an ~80-joint humanoid in real physics
-- **Think**: runs a `setInterval`-driven cognitive loop
-- **Remember**: persists memories, skills, and identity across sessions
-- **Speak**: uses browser-native TTS with per-agent voices
-- **Interact**: with other agents, objects, and terrain
+- **See**: observe the world through in-scene camera frames
+- **Hear**: process environment audio and speech context
+- **Move**: actuate an ~80-joint humanoid in a real physics simulation
+- **Think**: run a continuous agent loop that perceives, reasons, and acts
+- **Remember**: persist memories, skills, and identity across sessions
+- **Speak**: use browser-side TTS and per-agent voice settings
+- **Interact**: with other agents, objects, and shared world state
 
-Everything runs in the browser. There is no separate coordinator server. The only server-side pieces are an optional inference proxy and a user-hosted GPU endpoint.
+The app runs in the browser by default. The project also includes optional proxy and server-side inference routes for API-key-hosted models, but the main interactive experience is designed to be usable without a specialist setup.
+
+> Current status: the browser-based embodied agent experience and data-export workflow are present in the repo; the larger hosted multi-agent / persistent cloud world described as V2 is planned, not shipped.
 
 ---
 
@@ -74,7 +75,7 @@ Most AI systems exist only as text. SYNTHIA closes the gap between **thinking** 
 | **Memory** | 3-tier persistent memory (working, episodic, long-term) | Chat history buffer |
 | **Skill growth** | Progressive physical milestones, persisted | Custom RL setup |
 | **Voice and speech** | Per-agent TTS + STT with spatial acoustics | TTS only |
-| **Data export** | One-click JSONL, CSV, Parquet, LeRobot | Text transcript, or custom exporter |
+| **Data export** | One-click JSONL, CSV, Parquet, HDF5, LeRobot | Text transcript, or custom exporter |
 | **Setup** | Free in browser, zero GPU required | Requires GPU, CUDA, or weeks of learning |
 
 ---
@@ -192,7 +193,8 @@ The codebase is organized into several core layers:
 | `src/world/engine/ComReflexController.ts` | COM lean reflex plus capture step logic |
 | `src/world/engine/WorldEngine.ts` | Full MuJoCo simulation loop (500Hz fixed-step) |
 | `src/world/hooks/useWorld.ts` | Root orchestration: loop wiring, spawn, diagnostics |
-| `src/utils/clientDatasetExporter.ts` | JSONL / CSV / Parquet / LeRobot export |
+| `src/utils/clientDatasetExporter.ts` | JSONL / CSV / Parquet / HDF5 / LeRobot export |
+| `src/utils/hdf5Writer.ts` | Pure-browser HDF5 trajectory writer for embodied AI datasets |
 | `api/infer/gemini.ts` | Vercel Edge proxy for Gemini |
 | `api/infer/openai-compat.ts` | Vercel Edge proxy for OpenAI-compatible providers |
 
@@ -262,13 +264,20 @@ The application is fully client-side and configurable at runtime. There are no r
 
 | Variable | Description |
 |---|---|
-| `SYNTHIA_SHARED_SECRET` | Shared secret checked on incoming proxy requests |
+| `SYNTHIA_SHARED_SECRET` | Shared secret checked against incoming proxy requests |
 | `GEMINI_API_KEY` | Google Gemini API key |
 | `GROQ_API_KEY` | Groq API key |
 | `OPENROUTER_API_KEY` | OpenRouter API key |
 | `NVIDIA_NIM_API_KEY` | NVIDIA NIM API key |
+| `OPENAI_API_KEY` | OpenAI-compatible API key |
+| `DASHSCOPE_API_KEY` | Qwen / DashScope API key |
+| `ANTHROPIC_API_KEY` | Anthropic API key |
+| `DEEPSEEK_API_KEY` | DeepSeek API key |
+| `TOGETHER_API_KEY` | Together API key |
+| `FIREWORKS_API_KEY` | Fireworks API key |
+| `HF_API_KEY` | Hugging Face API key |
 
-See [`.env.example`](.env.example) for a template.
+See [`.env.example`](.env.example) for the up-to-date template.
 
 ---
 
@@ -347,10 +356,11 @@ Every agent session generates clean, structured records. One click exports them 
 | **JSONL** | Line-delimited JSON, easy to parse and stream |
 | **CSV** | Spreadsheet / pandas compatible |
 | **Parquet** | Columnar, compressed, research-grade |
+| **HDF5 (.h5)** | Robotics / embodied AI datasets with episode and timestep structure |
 | **LeRobot** | Hugging Face dataset format for robotics |
 | **ZIP (multi-agent)** | Per-agent folder isolation for multi-agent sessions |
 
-Built entirely client-side. See `src/utils/clientDatasetExporter.ts` and `src/utils/parquetWriter.ts` (a hand-rolled pure-browser Apache Parquet v1 writer).
+Built entirely client-side. See `src/utils/clientDatasetExporter.ts`, `src/utils/hdf5Writer.ts`, and `src/utils/parquetWriter.ts`.
 
 ---
 
