@@ -15,6 +15,7 @@ Real-time perception, reasoning, and action in a physics-simulated 3D world, no 
 [![TypeScript](https://img.shields.io/badge/TypeScript-6.0-blue.svg)](https://www.typescriptlang.org/)
 [![React](https://img.shields.io/badge/React-18.3-blue.svg)](https://react.dev/)
 [![Website](https://img.shields.io/badge/visit-Website-blue.svg)](https://runsynthia.online)
+[![DOI](https://zenodo.org/badge/1317830548.svg)](https://doi.org/10.5281/zenodo.22260795)
 
 </div>
 
