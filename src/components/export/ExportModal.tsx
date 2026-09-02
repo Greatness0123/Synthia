@@ -168,7 +168,7 @@ export const ExportModal: React.FC = () => {
       filtered = filtered.filter((memory) => selectedSessions.includes(memory.sessionId || ''));
     }
     return filtered.length;
-  }, [targetedMemories, includeTiers, excludeInjected, successfulOnly, selectedTasks, scope, hbFrom, hbTo, selectedSessions]);
+  }, [targetedMemories, includeTiers, excludeInjected, successfulOnly, selectedTasks, scope, hbFrom, effectiveHbTo, selectedSessions]);
 
   const estimatedSize = useMemo(() => {
     const bytesPerRow = 2 * 1024;

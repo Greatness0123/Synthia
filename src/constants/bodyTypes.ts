@@ -102,51 +102,10 @@ export const BODY_TYPE_CONFIGS: Record<string, BodyTypeConfig> = {
     name: 'Humanoid (Standard)',
     joints: humanoidJoints,
   },
-  quadruped: {
-    id: 'quadruped',
-    name: 'Quadruped (A1)',
-    joints: [
-      createJoint('root', undefined, [0, 0, 0], 0),
-      createJoint('pelvis', 'root', [0, 0.4, 0], 3, [], [0,0,0], 200, 20),
-      createJoint('spine_front', 'pelvis', [0, 0, 0.5], 3, [], [0,0,0], 200, 20),
-
-      // Front left
-      createJoint('front_left_hip', 'spine_front', [-0.15, 0, 0.05], 3, [], [0,0,0], 200, 20),
-      createJoint('front_left_knee', 'front_left_hip', [0, -0.2, 0], 1, [[0, Math.PI * 0.9]], [0.4], 200, 20),
-      createJoint('front_left_ankle', 'front_left_knee', [0, -0.2, 0], 2, [], [0,0], 100, 10),
-
-      // Front right
-      createJoint('front_right_hip', 'spine_front', [0.15, 0, 0.05], 3, [], [0,0,0], 200, 20),
-      createJoint('front_right_knee', 'front_right_hip', [0, -0.2, 0], 1, [[0, Math.PI * 0.9]], [0.4], 200, 20),
-      createJoint('front_right_ankle', 'front_right_knee', [0, -0.2, 0], 2, [], [0,0], 100, 10),
-
-      // Back left
-      createJoint('back_left_hip', 'pelvis', [-0.15, 0, -0.05], 3, [], [0,0,0], 200, 20),
-      createJoint('back_left_knee', 'back_left_hip', [0, -0.2, 0], 1, [[0, Math.PI * 0.9]], [0.4], 200, 20),
-      createJoint('back_left_ankle', 'back_left_knee', [0, -0.2, 0], 2, [], [0,0], 100, 10),
-
-      // Back right
-      createJoint('back_right_hip', 'pelvis', [0.15, 0, -0.05], 3, [], [0,0,0], 200, 20),
-      createJoint('back_right_knee', 'back_right_hip', [0, -0.2, 0], 1, [[0, Math.PI * 0.9]], [0.4], 200, 20),
-      createJoint('back_right_ankle', 'back_right_knee', [0, -0.2, 0], 2, [], [0,0], 100, 10),
-    ]
-  },
-  robotic_arm: {
-    id: 'robotic_arm',
-    name: 'Robotic Arm (6-DOF)',
-    joints: [
-      createJoint('root', undefined, [0, 0, 0], 0),
-      createJoint('base', 'root', [0, 0.1, 0], 1, [], [0], 300, 30),
-      createJoint('shoulder', 'base', [0, 0.2, 0], 3, [], [0,0,0], 300, 30),
-      createJoint('elbow', 'shoulder', [0, 0.3, 0], 2, [], [0,0], 200, 20),
-      createJoint('wrist_1', 'elbow', [0, 0.3, 0], 2, [], [0,0], 100, 10),
-      createJoint('wrist_2', 'wrist_1', [0, 0.1, 0], 2, [], [0,0], 100, 10),
-      createJoint('hand', 'wrist_2', [0, 0.05, 0], 0),
-    ]
-  },
   custom: {
     id: 'custom',
-    name: 'Custom Configuration',
-    joints: []
-  }
+    name: 'Custom Model',
+    // Populated at runtime from KinematicChainMapper output — never statically defined here.
+    joints: [],
+  },
 };

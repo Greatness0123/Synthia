@@ -8,7 +8,7 @@ export interface Vector3 {
   z: number;
 }
 
-export type BodyType = 'humanoid' | 'quadruped' | 'robotic_arm' | 'custom';
+export type BodyType = 'humanoid' | 'custom';
 export type BodyMode = 'rigid' | 'ragdoll';
 
 export interface WorldObject {

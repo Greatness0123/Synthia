@@ -7,14 +7,13 @@ import { getSupabaseClient } from '../../utils/supabaseClient';
  * Custom hook to run client-side Supabase keepalive pings.
  * Querying Supabase every 24 hours prevents Free-tier projects from pausing (7-day pause threshold).
  */
+/** 24-hour interval — prevents Supabase Free-tier project from pausing. */
+const PING_INTERVAL_MS = 24 * 60 * 60 * 1000;
+
 export function useSupabaseKeepalive() {
   const connStore = useConnectionStore();
   const rtStore = useAgentRuntimeStore();
   const lastPingTimes = useRef<Map<string, number>>(new Map());
-
-  // 24 hours interval
-  const PING_INTERVAL_MS = 24 * 60 * 60 * 1000;
-
   useEffect(() => {
     // Collect all unique supabase configs
     const configs: { url: string; key: string }[] = [];

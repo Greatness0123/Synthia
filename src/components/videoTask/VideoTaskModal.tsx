@@ -53,12 +53,14 @@ export const VideoTaskModal: React.FC = () => {
   const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
-    if (activeTask) {
-      setActiveTab('inspect');
-      setGoalPrompt(activeTask.taskGoalPrompt || `Imitate demonstration: ${activeTask.name}`);
-    } else {
-      setActiveTab('upload');
-    }
+    queueMicrotask(() => {
+      if (activeTask) {
+        setActiveTab('inspect');
+        setGoalPrompt(activeTask.taskGoalPrompt || `Imitate demonstration: ${activeTask.name}`);
+      } else {
+        setActiveTab('upload');
+      }
+    });
   }, [activeTask]);
 
   if (!modalOpen) return null;
