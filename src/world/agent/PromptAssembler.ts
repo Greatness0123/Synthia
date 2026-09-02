@@ -55,7 +55,9 @@ export class PromptAssembler {
       // ─── DYNAMIC SUFFIX (Changes Per Cycle) ────────────────────────────
       PromptAssembler.buildP08CurrentIdentity(payload),
       PromptAssembler.buildP09EnvironmentState(payload),
-      payload.directive_mode === 'training'
+      payload.video_task?.active
+        ? PromptAssembler.buildP13VideoDemonstrationDirective(payload)
+        : payload.directive_mode === 'training'
         ? PromptAssembler.buildP13TrainingDirective(payload)
         : PromptAssembler.buildP12FreeWillDirective(),
       PromptAssembler.buildP11MotorCodex(payload),
@@ -507,6 +509,35 @@ Your trainer has set this goal deliberately. Persist in solving it.`;
     return {
       id: 'P13',
       name: 'Training Directive',
+      content,
+      order: 130,
+      stability: 'dynamic',
+      tokenEstimate: estimateTokens(content),
+      cacheable: false,
+      prerequisiteMet: true,
+    };
+  }
+
+  private static buildP13VideoDemonstrationDirective(payload: any): PromptSegment {
+    const vt = payload.video_task;
+    const goal = payload.current_goal || `Imitate demonstration: ${vt.name}`;
+    const mode = vt.ingestion_mode || 'watch_and_imitate';
+    const milestoneInfo = `Milestone ${vt.milestone_index} of ${vt.total_milestones} (${vt.label || ''})`;
+
+    const content = `== DIRECTIVE: VIDEO DEMONSTRATION TASK ==
+Demonstration: ${vt.name}
+Current Target: ${milestoneInfo}
+Goal: ${goal}
+Ingestion Mode: ${mode === 'watch_and_imitate' ? 'Watch & Imitate (Visual Servoing)' : 'Video Milestone Execution'}
+
+You have been provided with a visual demonstration target frame alongside your current first-person view.
+1. VISUAL COMPARISON: Compare your current first-person view against the demonstration target frame. Notice your distance, relative position to objects, body posture, and heading.
+2. MOTOR ALIGNMENT: Propose joint angle overrides and motor programs to minimize the discrepancy between your current state and the demonstration target.
+3. PERSISTENCE: If your position deviates or you lose balance, stabilize using capsule balance or "reset_pose", then re-align with the demonstration milestone.`;
+
+    return {
+      id: 'P13',
+      name: 'Video Demonstration Directive',
       content,
       order: 130,
       stability: 'dynamic',

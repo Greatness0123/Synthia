@@ -69,6 +69,23 @@ export class InferenceClient {
     const systemText = assembled.systemPrompt;
 
     const userParts: any[] = [];
+
+    // 1. If Video Task is active, attach demonstration target frame first with clear labeling
+    if (payload.video_task?.target_frame) {
+      const targetUrl = payload.video_task.target_frame.startsWith('data:')
+        ? payload.video_task.target_frame
+        : `data:image/webp;base64,${payload.video_task.target_frame}`;
+      userParts.push({
+        type: 'text',
+        text: `[REFERENCE DEMONSTRATION FRAME - Milestone ${payload.video_task.milestone_index} of ${payload.video_task.total_milestones}: ${payload.video_task.label}]`
+      });
+      userParts.push({ type: 'image_url', image_url: { url: targetUrl } });
+      userParts.push({
+        type: 'text',
+        text: `[YOUR CURRENT FIRST-PERSON LIVE VIEW]`
+      });
+    }
+
     if (payload.frame) {
       const imageUrl = payload.frame.startsWith('data:')
         ? payload.frame

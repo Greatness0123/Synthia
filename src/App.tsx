@@ -36,6 +36,8 @@ import { useEffect } from 'react';
 import * as Tone from 'tone';
 import { cn } from './utils/cn';
 import { TaskInput } from './components/layout/TaskInput';
+import { VideoTaskModal } from './components/videoTask/VideoTaskModal';
+import { VideoTaskPip } from './components/videoTask/VideoTaskPip';
 import { LeftRail } from './components/layout/LeftRail';
 import { OnboardingProvider } from './components/onboarding/OnboardingProvider';
 import { CrashOverlay } from './components/ui/CrashOverlay';
@@ -286,6 +288,10 @@ function App() {
       <AgentSettingsModal />
       <MotorCodexModal />
       <RehydrationModal />
+      <VideoTaskModal />
+
+      {/* Video Demonstration Floating PiP HUD */}
+      <VideoTaskPip />
 
       {/* Onboarding */}
       <OnboardingProvider />

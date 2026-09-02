@@ -6,6 +6,7 @@
 import { MemoryManager } from './memoryManager';
 import { embeddingEngine } from './embeddingEngine';
 import { MotorCodexService } from './motorCodexService';
+import { useVideoTaskStore } from '../../store/videoTaskStore';
 
 function degradeSpeech(text: string, lossPercentage: number): string {
   const words = text.split(' ');
@@ -352,6 +353,29 @@ but this is a subtle eye movement within the head, not turning your head.`;
       if (relevantRecipes.length > 0) {
         payload.motor_codex_hints = MotorCodexService.formatForPrompt(relevantRecipes);
       }
+    }
+
+    const videoTaskStore = useVideoTaskStore.getState();
+    if (videoTaskStore.hasActiveTask() && payload.directive_mode === 'training') {
+      const currentMilestone = videoTaskStore.getCurrentMilestoneFrame();
+      const activeTask = videoTaskStore.activeTask!;
+      let rawTargetFrame: string | null = null;
+      if (currentMilestone?.dataUrl) {
+        rawTargetFrame = currentMilestone.dataUrl.includes(',')
+          ? currentMilestone.dataUrl.split(',')[1]
+          : currentMilestone.dataUrl;
+      }
+
+      payload.video_task = {
+        active: true,
+        name: activeTask.name,
+        ingestion_mode: videoTaskStore.ingestionMode,
+        milestone_index: videoTaskStore.currentMilestoneIndex + 1,
+        total_milestones: activeTask.keyframeIndices.length,
+        timestamp: currentMilestone?.timestamp ?? 0,
+        label: currentMilestone?.label ?? `Milestone ${videoTaskStore.currentMilestoneIndex + 1}`,
+        target_frame: rawTargetFrame,
+      };
     }
 
     return payload;
