@@ -259,6 +259,14 @@ export class AgentLoop {
       }
 
       console.log(`[AgentLoop (${this.config.agentId})] Inference completed. Parsing action JSON.`);
+      if (result.thoughtTokens && result.thoughtTokens.trim() && store.addThoughtForAgent) {
+        store.addThoughtForAgent(this.config.agentId, {
+          id: `thought_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+          text: result.thoughtTokens.trim(),
+          timestamp: Date.now(),
+          isInjected: !!worldState.injected_thought,
+        });
+      }
       const actionData = this.parseAndValidateAction(result.actionJson);
       if (actionData) {
         // Dispatch parsed action custom event which useWorld's handleAction will receive

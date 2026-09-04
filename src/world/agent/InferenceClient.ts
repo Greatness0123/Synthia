@@ -35,13 +35,13 @@ export class InferenceClient {
   }
 
   public setProvider(type: string, endpoint: string, apiKey?: string, model?: string) {
-    this.providerType = type;
-    this.endpoint = endpoint;
-    this.apiKey = apiKey;
-    this.model = model || '';
+    this.providerType = (type || '').trim();
+    this.endpoint = (endpoint || '').trim();
+    this.apiKey = apiKey ? apiKey.trim() : undefined;
+    this.model = model ? model.trim() : '';
     this.backoffUntil = 0;
     this.backoffMs = 5000;
-    console.log(`[InferenceClient] Set provider client-side: type=${type}, endpoint=${endpoint}, model=${model}`);
+    console.log(`[InferenceClient] Set provider client-side: type=${this.providerType}, endpoint=${this.endpoint}, model=${this.model}`);
   }
 
   public hasEndpoint(): boolean {
@@ -61,7 +61,7 @@ export class InferenceClient {
 
   /** Build the direct API URL for any provider. */
   private getDirectUrl(): string {
-    const clean = this.endpoint.replace(/\/$/, '');
+    const clean = this.endpoint.trim().replace(/\/+$/, '');
     if (this.providerType === 'kaggle') {
       if (clean.endsWith('/infer') || clean.endsWith('/chat/completions')) {
         return clean;
@@ -157,7 +157,7 @@ export class InferenceClient {
     const startTime = Date.now();
 
     if (this.providerType === 'kaggle') {
-      const clean = this.endpoint.replace(/\/$/, '').replace(/\/infer$/, '').replace(/\/chat\/completions$/, '');
+      const clean = this.endpoint.trim().replace(/\/+$/, '').replace(/\/infer$/, '').replace(/\/chat\/completions$/, '');
       const healthUrl = `${clean}/health`;
       try {
         const response = await fetch(healthUrl, {
@@ -401,7 +401,7 @@ export class InferenceClient {
       if (lineBuffer.trim()) {
         const trimmed = lineBuffer.trim();
         if (trimmed && trimmed !== '[DONE]' && trimmed !== 'data: [DONE]') {
-          let payloadStr = trimmed.startsWith('data: ') ? trimmed.slice(6).trim() : trimmed;
+          const payloadStr = trimmed.startsWith('data: ') ? trimmed.slice(6).trim() : trimmed;
           try {
             const parsed = JSON.parse(payloadStr);
             const delta = parsed.choices?.[0]?.delta?.content || '';

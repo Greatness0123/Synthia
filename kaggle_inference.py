@@ -18,13 +18,42 @@ gc.collect()
 
 # === APP SETUP & CORS ===
 app = FastAPI(title="SYNTHIA Inference Server")
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
+
+@app.middleware("http")
+async def add_cors_headers_middleware(request: Request, call_next):
+    if request.method == "OPTIONS":
+        response = JSONResponse(content="OK")
+    else:
+        try:
+            response = await call_next(request)
+        except Exception as e:
+            traceback.print_exc()
+            response = JSONResponse(content={"error": str(e)}, status_code=500)
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    response.headers["Access-Control-Allow-Methods"] = "*"
+    response.headers["Access-Control-Allow-Headers"] = "*"
+    response.headers["Access-Control-Expose-Headers"] = "*"
+    return response
+
+@app.options("/{rest_of_path:path}")
+async def preflight_handler(rest_of_path: str):
+    return JSONResponse(
+        content="OK",
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "*",
+            "Access-Control-Allow-Headers": "*",
+        }
+    )
 
 MOCK_MODE = os.getenv("MOCK_MODE", "false").lower() == "true"
 
@@ -763,94 +792,152 @@ def generate_openai_sse_stream(req: ChatCompletionRequest):
 # === API ROUTES ===
 last_payload = {}
 
+@app.post("/infer")
 @app.post("/chat/completions")
 @app.post("/infer/chat/completions")
-async def chat_completions(req: ChatCompletionRequest):
+@app.post("/")
+async def unified_inference(request: Request):
     """
-    OpenAI-compatible chat completions endpoint.
-    Handles non-streaming connection tests and streaming inference requests.
+    Universal inference endpoint. Automatically routes:
+    1. OpenAI Chat format ({ messages, stream }) -> SSE or non-streaming completion
+    2. SYNTHIA InferPayload ({ frame, joints }) -> plain text streaming
+    3. Test / Ping requests -> instant 200 OK
     """
-    if not req.stream:
-        is_test = any(
-            isinstance(m.content, str) and ("test" in m.content.lower() or "ok" in m.content.lower() or "ping" in m.content.lower())
-            for m in req.messages
+    global last_payload
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+
+    # Case 1: OpenAI chat completion format (has 'messages')
+    if "messages" in body and isinstance(body["messages"], list):
+        is_stream = bool(body.get("stream", False))
+        req = ChatCompletionRequest(
+            model=body.get("model", "default"),
+            messages=[
+                ChatMessage(role=m.get("role", "user"), content=m.get("content", ""))
+                if isinstance(m, dict) else ChatMessage(role="user", content=str(m))
+                for m in body.get("messages", [])
+            ],
+            stream=is_stream,
+            max_tokens=body.get("max_tokens", 512),
+            temperature=body.get("temperature", 0.7),
+            top_p=body.get("top_p", 0.9)
         )
-        if is_test or MOCK_MODE or model is None:
-            return {
+
+        if not is_stream:
+            is_test = any(
+                isinstance(m.content, str) and ("test" in m.content.lower() or "ok" in m.content.lower() or "ping" in m.content.lower())
+                for m in req.messages
+            )
+            if is_test or MOCK_MODE or model is None or processor is None:
+                return JSONResponse({
+                    "id": f"chatcmpl-{int(time.time()*1000)}",
+                    "object": "chat.completion",
+                    "created": int(time.time()),
+                    "model": req.model or "Qwen2.5-VL-3B-Instruct",
+                    "choices": [{
+                        "index": 0,
+                        "message": {"role": "assistant", "content": "OK"},
+                        "finish_reason": "stop"
+                    }]
+                })
+
+            parsed_messages, images = parse_openai_messages(req.messages)
+            text = processor.apply_chat_template(parsed_messages, tokenize=False, add_generation_prompt=True)
+            vision_out = process_vision_info(parsed_messages)
+            if len(vision_out) == 3:
+                image_inputs, video_inputs, video_kwargs = vision_out
+            else:
+                image_inputs, video_inputs = vision_out
+                video_kwargs = {}
+
+            if image_inputs:
+                inputs = processor(text=[text], images=image_inputs, videos=video_inputs, padding=True, truncation=False, return_tensors="pt", **video_kwargs)
+            else:
+                inputs = processor(text=[text], padding=True, truncation=False, return_tensors="pt")
+
+            if torch.cuda.is_available():
+                inputs = inputs.to("cuda")
+
+            with generation_lock:
+                with torch.no_grad():
+                    generated_ids = model.generate(**inputs, max_new_tokens=req.max_tokens or 256)
+                    generated_ids_trimmed = [
+                        out_ids[len(in_ids):] for in_ids, out_ids in zip(inputs.input_ids, generated_ids)
+                    ]
+                    output_text = processor.batch_decode(
+                        generated_ids_trimmed, skip_special_tokens=True, clean_up_tokenization_spaces=False
+                    )[0]
+
+            return JSONResponse({
                 "id": f"chatcmpl-{int(time.time()*1000)}",
                 "object": "chat.completion",
                 "created": int(time.time()),
                 "model": req.model or "Qwen2.5-VL-3B-Instruct",
                 "choices": [{
                     "index": 0,
-                    "message": {"role": "assistant", "content": "OK"},
+                    "message": {"role": "assistant", "content": output_text},
                     "finish_reason": "stop"
                 }]
+            })
+
+        # Streaming mode (SSE)
+        return StreamingResponse(
+            generate_openai_sse_stream(req),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+                "X-Inference-Start": str(time.time()),
             }
+        )
 
-        parsed_messages, images = parse_openai_messages(req.messages)
-        text = processor.apply_chat_template(parsed_messages, tokenize=False, add_generation_prompt=True)
-        vision_out = process_vision_info(parsed_messages)
-        if len(vision_out) == 3:
-            image_inputs, video_inputs, video_kwargs = vision_out
-        else:
-            image_inputs, video_inputs = vision_out
-            video_kwargs = {}
+    # Case 2: SYNTHIA native InferPayload (has 'frame' or 'joints')
+    if "frame" in body or "joints" in body:
+        try:
+            payload = InferPayload(**body)
+        except Exception:
+            payload = InferPayload(
+                frame=body.get("frame", ""),
+                joints=body.get("joints", {}),
+                audio_pcm=body.get("audio_pcm"),
+                valid_joints=body.get("valid_joints", []),
+                upright_preset=body.get("upright_preset", {}),
+                heartbeat=body.get("heartbeat", 0),
+                light_state=body.get("light_state", "day"),
+                session_id=body.get("session_id", "default"),
+                body_type=body.get("body_type", "humanoid"),
+                current_goal=body.get("current_goal"),
+                current_rung=body.get("current_rung", 0),
+                objects_in_world=body.get("objects_in_world", []),
+                known_skills=body.get("known_skills", []),
+                pending_injection=body.get("pending_injection"),
+                motor_program_library=body.get("motor_program_library", []),
+                directive_mode=body.get("directive_mode", "free_will"),
+                agent_id=body.get("agent_id", "agent_a"),
+                contact_forces=body.get("contact_forces"),
+                tactile_context=body.get("tactile_context"),
+                perception_summary=body.get("perception_summary"),
+                gaze_context=body.get("gaze_context"),
+                physical_feedback=body.get("physical_feedback")
+            )
+        last_payload = payload.model_dump()
+        return StreamingResponse(
+            generate_legacy_stream(payload), 
+            media_type="text/plain", 
+            headers={"X-Inference-Start": str(time.time())}
+        )
 
-        if image_inputs:
-            inputs = processor(text=[text], images=image_inputs, videos=video_inputs, padding=True, truncation=False, return_tensors="pt", **video_kwargs)
-        else:
-            inputs = processor(text=[text], padding=True, truncation=False, return_tensors="pt")
-
-        if torch.cuda.is_available():
-            inputs = inputs.to("cuda")
-
-        with generation_lock:
-            with torch.no_grad():
-                generated_ids = model.generate(**inputs, max_new_tokens=req.max_tokens or 256)
-                generated_ids_trimmed = [
-                    out_ids[len(in_ids):] for in_ids, out_ids in zip(inputs.input_ids, generated_ids)
-                ]
-                output_text = processor.batch_decode(
-                    generated_ids_trimmed, skip_special_tokens=True, clean_up_tokenization_spaces=False
-                )[0]
-
-        return {
-            "id": f"chatcmpl-{int(time.time()*1000)}",
-            "object": "chat.completion",
-            "created": int(time.time()),
-            "model": req.model or "Qwen2.5-VL-3B-Instruct",
-            "choices": [{
-                "index": 0,
-                "message": {"role": "assistant", "content": output_text},
-                "finish_reason": "stop"
-            }]
-        }
-
-    # Streaming mode (SSE)
-    return StreamingResponse(
-        generate_openai_sse_stream(req),
-        media_type="text/event-stream",
-        headers={
-            "Cache-Control": "no-cache",
-            "Connection": "keep-alive",
-            "X-Inference-Start": str(time.time()),
-        }
-    )
-
-@app.post("/infer")
-@app.post("/")
-async def infer(payload: InferPayload):
-    """
-    Legacy direct inference endpoint with plain text streaming.
-    """
-    global last_payload
-    last_payload = payload.model_dump()
-    return StreamingResponse(
-        generate_legacy_stream(payload), 
-        media_type="text/plain", 
-        headers={"X-Inference-Start": str(time.time())}
-    )
+    # Case 3: Empty body or ping test
+    return JSONResponse({
+        "status": "ok", 
+        "model": "mock" if MOCK_MODE else "Qwen2.5-VL", 
+        "message": "OK",
+        "mock_mode": MOCK_MODE,
+        "model_loaded": model is not None,
+        "timestamp": datetime.now().isoformat()
+    })
 
 @app.get("/health")
 @app.get("/")
@@ -882,7 +969,7 @@ def setup_tunnel():
             if match:
                 print("\n" + "="*70)
                 print("✅ TUNNEL READY! Paste this into your SYNTHIA Agent Settings:")
-                print(f"👉 {match.group(0)} 👈")
+                print(f"👉 {match.group(0)}/infer 👈")
                 print("="*70 + "\n")
     except Exception as e:
         print(f"Tunnel setup failed: {e}")

@@ -582,11 +582,15 @@ export const AgentSettingsModal: React.FC = () => {
   };
 
   const handleConnect = async () => {
-    if (!config.endpoint && config.provider !== 'custom') {
+    const trimmedEndpoint = (config.endpoint || '').trim();
+    const trimmedApiKey = config.apiKey ? config.apiKey.trim() : undefined;
+    const trimmedModel = config.model ? config.model.trim() : undefined;
+
+    if (!trimmedEndpoint && config.provider !== 'custom') {
       synthiaToast.error('Please enter an inference endpoint URL.');
       return;
     }
-    if (PROVIDER_INFO[config.provider].needsKey && !config.apiKey) {
+    if (PROVIDER_INFO[config.provider].needsKey && !trimmedApiKey) {
       synthiaToast.error(`API key required for ${PROVIDER_INFO[config.provider].label}.`);
       return;
     }
@@ -595,7 +599,7 @@ export const AgentSettingsModal: React.FC = () => {
     setSentOk(false);
 
     const client = new InferenceClient();
-    client.setProvider(config.provider, config.endpoint, config.apiKey, config.model);
+    client.setProvider(config.provider, trimmedEndpoint, trimmedApiKey, trimmedModel);
     const result = await client.testConnection();
 
     setIsSending(false);
@@ -607,19 +611,19 @@ export const AgentSettingsModal: React.FC = () => {
       // Update per-agent runtime store
       runtimeStore.setConfig(activeAgentId, {
         provider: config.provider,
-        endpoint: config.endpoint,
-        apiKey: config.apiKey,
-        model: config.model,
+        endpoint: trimmedEndpoint,
+        apiKey: trimmedApiKey,
+        model: trimmedModel,
       });
 
       // Update global connection store defaults
-      useConnectionStore.getState().setInferenceEndpoint(config.endpoint);
+      useConnectionStore.getState().setInferenceEndpoint(trimmedEndpoint);
       useConnectionStore.getState().setProvider(config.provider);
-      if (config.model) {
-        useConnectionStore.getState().setProviderModel(config.model);
+      if (trimmedModel) {
+        useConnectionStore.getState().setProviderModel(trimmedModel);
       }
-      if (config.apiKey) {
-        useConnectionStore.getState().setProviderApiKey(config.apiKey);
+      if (trimmedApiKey) {
+        useConnectionStore.getState().setProviderApiKey(trimmedApiKey);
       }
 
       // Immediately sync to the running loop

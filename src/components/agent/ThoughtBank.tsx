@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Scrolling stream of agent thoughts.
  */
 
@@ -16,8 +16,6 @@ function isNearBottom(el: HTMLElement, threshold = 80): boolean {
 export const ThoughtBank: React.FC = () => {
   const { thoughts, currentThought } = useAgentStore();
   const scrollRef = useRef<HTMLDivElement>(null);
-  const displayedLengthRef = useRef(0);
-  const [displayedText, setDisplayedText] = useState('');
   const pinnedRef = useRef(true);
   const [showJump, setShowJump] = useState(false);
 
@@ -36,28 +34,9 @@ export const ThoughtBank: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if (currentThought.length <= displayedLengthRef.current) {
-      displayedLengthRef.current = 0;
-      setDisplayedText('');
-    }
-
-    const target = currentThought;
-    const interval = setInterval(() => {
-      if (displayedLengthRef.current < target.length) {
-        displayedLengthRef.current++;
-        setDisplayedText(target.slice(0, displayedLengthRef.current));
-      } else {
-        clearInterval(interval);
-      }
-    }, 15);
-
-    return () => clearInterval(interval);
-  }, [currentThought]);
-
-  useEffect(() => {
     if (!scrollRef.current || !pinnedRef.current) return;
     scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-  }, [thoughts, displayedText]);
+  }, [thoughts, currentThought]);
 
   return (
     <div className="relative flex-1 flex flex-col min-h-0">
@@ -67,7 +46,7 @@ export const ThoughtBank: React.FC = () => {
         className="flex-1 overflow-y-auto p-4 space-y-4"
       >
         <AnimatePresence initial={false}>
-          {displayedText && (
+          {currentThought && (
             <div className="group mb-4">
               <div className="flex items-center gap-2 mb-1">
                 <span className="text-xs font-mono text-text-tertiary">
@@ -75,7 +54,7 @@ export const ThoughtBank: React.FC = () => {
                 </span>
               </div>
               <p className="text-[13px] font-serif leading-relaxed text-text-primary">
-                {displayedText}
+                {currentThought}
                 <motion.span
                   animate={{ opacity: [0, 1, 0] }}
                   transition={{ duration: 0.8, repeat: Infinity }}
@@ -117,7 +96,7 @@ export const ThoughtBank: React.FC = () => {
           ))}
         </AnimatePresence>
 
-        {thoughts.length === 0 && !displayedText && (
+        {thoughts.length === 0 && !currentThought && (
           <div className="h-full flex flex-col items-center justify-center text-center opacity-20">
             <p className="text-xs font-serif italic text-text-tertiary">{STRINGS.AGENT.VOID_SILENT}</p>
             <p className="text-xs text-text-tertiary mt-2">Configure a provider in Settings to begin cognition.</p>
