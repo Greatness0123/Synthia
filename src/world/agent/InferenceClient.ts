@@ -260,6 +260,9 @@ export class InferenceClient {
       throw new Error('Response body has no reader (streaming unsupported by browser)');
     }
 
+    const contentType = response.headers.get('content-type') || '';
+    const isSSE = contentType.includes('text/event-stream');
+
     const decoder = new TextDecoder('utf-8');
     let lineBuffer = '';
     let buffer = '';
@@ -268,6 +271,33 @@ export class InferenceClient {
     let isAction = false;
     const separator = '---ACTION---';
 
+    const processDelta = (delta: string) => {
+      if (!delta) return;
+
+      if (!isAction) {
+        buffer += delta;
+        const idx = buffer.indexOf(separator);
+        if (idx !== -1) {
+          const thoughtPart = buffer.substring(0, idx);
+          const newThought = thoughtPart.substring(thoughtTokens.length);
+          if (newThought) onToken(newThought);
+          thoughtTokens = thoughtPart;
+          isAction = true;
+          actionJson = buffer.substring(idx + separator.length);
+        } else {
+          // Stream thought tokens safely before separator
+          const safeLen = buffer.length - separator.length + 1;
+          if (safeLen > thoughtTokens.length) {
+            const newThought = buffer.substring(thoughtTokens.length, safeLen);
+            onToken(newThought);
+            thoughtTokens = buffer.substring(0, safeLen);
+          }
+        }
+      } else {
+        actionJson += delta;
+      }
+    };
+
     try {
       while (true) {
         const { done, value } = await reader.read();
@@ -275,69 +305,65 @@ export class InferenceClient {
 
         if (firstTokenTime === 0) firstTokenTime = Date.now();
 
-        lineBuffer += decoder.decode(value, { stream: true });
+        const chunkText = decoder.decode(value, { stream: true });
+
+        // If server returns raw text (non-SSE), stream chunk directly
+        if (!isSSE && !chunkText.includes('data: ')) {
+          processDelta(chunkText);
+          continue;
+        }
+
+        // SSE line processing
+        lineBuffer += chunkText;
         const lines = lineBuffer.split('\n');
-        lineBuffer = lines.pop() || ''; // Keep trailing incomplete line in buffer
+        lineBuffer = lines.pop() || ''; // Keep trailing partial line in buffer
 
         for (const line of lines) {
-          let data = '';
-          if (line.startsWith('data: ')) {
-            data = line.slice(6).trim();
-          } else if (line.trim().startsWith('{')) {
-            data = line.trim();
+          const trimmed = line.trim();
+          if (!trimmed || trimmed === 'data: [DONE]' || trimmed === '[DONE]') continue;
+
+          let payloadStr = '';
+          if (trimmed.startsWith('data: ')) {
+            payloadStr = trimmed.slice(6).trim();
+          } else if (trimmed.startsWith('{')) {
+            payloadStr = trimmed;
           } else {
+            // Raw text line fallback
+            processDelta(line + '\n');
             continue;
           }
 
-          if (data === '[DONE]' || !data) continue;
+          if (payloadStr === '[DONE]' || !payloadStr) continue;
 
           try {
-            const parsed = JSON.parse(data);
-            // OpenAI-compatible format (used by all providers)
-            const delta = parsed.choices?.[0]?.delta?.content || '';
-
-            if (!delta) continue;
-
-            if (!isAction) {
-              buffer += delta;
-              const idx = buffer.indexOf(separator);
-              if (idx !== -1) {
-                const thoughtPart = buffer.substring(0, idx);
-                const newThought = thoughtPart.substring(thoughtTokens.length);
-                if (newThought) onToken(newThought);
-                thoughtTokens = thoughtPart;
-                isAction = true;
-                actionJson = buffer.substring(idx + separator.length);
-              } else {
-                const safeLen = buffer.length - separator.length + 1;
-                if (safeLen > thoughtTokens.length) {
-                  const newThought = buffer.substring(thoughtTokens.length, safeLen);
-                  onToken(newThought);
-                  thoughtTokens = buffer.substring(0, safeLen);
-                }
-              }
-            } else {
-              actionJson += delta;
+            const parsed = JSON.parse(payloadStr);
+            const delta = parsed.choices?.[0]?.delta?.content 
+                       ?? parsed.choices?.[0]?.message?.content
+                       ?? parsed.text
+                       ?? parsed.response
+                       ?? '';
+            if (delta) {
+              processDelta(delta);
             }
           } catch {
-            // Unparsed or incomplete SSE lines
+            // Non-JSON SSE string fallback
+            processDelta(payloadStr);
           }
         }
       }
 
-      // Process any trailing line in lineBuffer
+      // Process any leftover line in lineBuffer
       if (lineBuffer.trim()) {
-        let data = lineBuffer.trim();
-        if (data.startsWith('data: ')) data = data.slice(6).trim();
-        if (data && data !== '[DONE]') {
+        const trimmed = lineBuffer.trim();
+        if (trimmed && trimmed !== '[DONE]' && trimmed !== 'data: [DONE]') {
+          let payloadStr = trimmed.startsWith('data: ') ? trimmed.slice(6).trim() : trimmed;
           try {
-            const parsed = JSON.parse(data);
+            const parsed = JSON.parse(payloadStr);
             const delta = parsed.choices?.[0]?.delta?.content || '';
-            if (delta) {
-              if (isAction) actionJson += delta;
-              else buffer += delta;
-            }
-          } catch {}
+            if (delta) processDelta(delta);
+          } catch {
+            processDelta(payloadStr);
+          }
         }
       }
     } finally {
@@ -352,6 +378,8 @@ export class InferenceClient {
       } else {
         thoughtTokens = buffer;
       }
+      const remainingThought = thoughtTokens.substring(thoughtTokens.length);
+      if (remainingThought) onToken(remainingThought);
     }
 
     const endTime = Date.now();
