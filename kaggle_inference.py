@@ -533,11 +533,11 @@ def generate_legacy_stream(payload: InferPayload):
     if torch.cuda.is_available():
         inputs = inputs.to("cuda")
 
-    streamer = TextIteratorStreamer(processor.tokenizer, skip_prompt=True, skip_special_tokens=True)
+    streamer = TextIteratorStreamer(processor.tokenizer, skip_prompt=True, skip_special_tokens=True, timeout=45.0)
     generation_kwargs = dict(
         **inputs, 
         streamer=streamer, 
-        max_new_tokens=768, 
+        max_new_tokens=512, 
         do_sample=True, 
         temperature=0.7, 
         top_p=0.9
@@ -551,6 +551,11 @@ def generate_legacy_stream(payload: InferPayload):
         except Exception as e:
             print(f"❌ Generation crashed: {e}")
             traceback.print_exc()
+        finally:
+            try:
+                streamer.end()
+            except Exception:
+                pass
 
     thread = threading.Thread(target=generate_worker)
     thread.start()
@@ -646,11 +651,11 @@ def generate_openai_sse_stream(req: ChatCompletionRequest):
     if torch.cuda.is_available():
         inputs = inputs.to("cuda")
 
-    streamer = TextIteratorStreamer(processor.tokenizer, skip_prompt=True, skip_special_tokens=True)
+    streamer = TextIteratorStreamer(processor.tokenizer, skip_prompt=True, skip_special_tokens=True, timeout=45.0)
     generation_kwargs = dict(
         **inputs,
         streamer=streamer,
-        max_new_tokens=req.max_tokens or 768,
+        max_new_tokens=req.max_tokens or 512,
         do_sample=True if (req.temperature or 0.7) > 0 else False,
         temperature=req.temperature if (req.temperature or 0.7) > 0 else None,
         top_p=req.top_p if (req.temperature or 0.7) > 0 else None,
@@ -665,6 +670,11 @@ def generate_openai_sse_stream(req: ChatCompletionRequest):
         except Exception as e:
             print(f"❌ Generation crashed: {e}")
             traceback.print_exc()
+        finally:
+            try:
+                streamer.end()
+            except Exception:
+                pass
 
     thread = threading.Thread(target=generate_worker)
     thread.start()

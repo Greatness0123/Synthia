@@ -246,16 +246,18 @@ export class InferenceClient {
       method: 'POST',
       headers,
       body: JSON.stringify(body),
+      signal: AbortSignal.timeout(60000),
     }).catch((err: any) => {
       // Connection error (ERR_CONNECTION_REFUSED, NetworkError, etc.) — trigger backoff
       const isConnectionError = err?.message?.includes('Failed to fetch') ||
                                 err?.message?.includes('NetworkError') ||
                                 err?.message?.includes('ERR_CONNECTION_REFUSED') ||
-                                err?.name === 'TypeError';
+                                err?.name === 'TypeError' ||
+                                err?.name === 'TimeoutError';
       if (isConnectionError) {
         this.backoffUntil = Date.now() + this.backoffMs;
         this.backoffMs = Math.min(this.backoffMs * 2, 60000);
-        console.warn(`[InferenceClient] Connection failed, backing off ${this.backoffMs}ms`);
+        console.warn(`[InferenceClient] Connection failed or timed out, backing off ${this.backoffMs}ms`);
       }
       throw err;
     });
@@ -264,6 +266,8 @@ export class InferenceClient {
       const errText = await response.text();
       throw new Error(`Inference HTTP error ${response.status}: ${errText}`);
     }
+
+    console.log(`[InferenceClient] Connected to ${url} (status ${response.status}), reading stream...`);
 
     const reader = response.body?.getReader();
     if (!reader) {
