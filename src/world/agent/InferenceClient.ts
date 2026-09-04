@@ -61,6 +61,12 @@ export class InferenceClient {
 
   /** Build the direct API URL for any provider. */
   private getDirectUrl(): string {
+    // For kaggle provider, the user enters the full endpoint (e.g. /infer).
+    // Use it as-is — don't append /chat/completions, because the Kaggle
+    // server's /infer route streams plain-text directly (thought---ACTION---{json}).
+    if (this.providerType === 'kaggle') {
+      return this.endpoint.replace(/\/$/, '');
+    }
     return this.endpoint.endsWith('/chat/completions')
       ? this.endpoint
       : `${this.endpoint.replace(/\/$/, '')}/chat/completions`;
@@ -223,14 +229,18 @@ export class InferenceClient {
       headers['Authorization'] = `Bearer ${this.apiKey}`;
     }
 
-    const body = {
-      model: this.model || 'default',
-      messages: this.buildOpenAIMessages(payload),
-      stream: true,
-      max_tokens: 4096,
-      temperature: 0.7,
-      top_p: 0.9,
-    };
+    // For kaggle, POST the raw InferPayload to /infer (plain-text streaming).
+    // For all other providers, use OpenAI chat-completions format.
+    const body = this.providerType === 'kaggle'
+      ? payload
+      : {
+          model: this.model || 'default',
+          messages: this.buildOpenAIMessages(payload),
+          stream: true,
+          max_tokens: 4096,
+          temperature: 0.7,
+          top_p: 0.9,
+        };
 
     const response = await fetch(url, {
       method: 'POST',
@@ -298,6 +308,9 @@ export class InferenceClient {
       }
     };
 
+    // Check if the response body starts with or contains SSE data: markers or if content-type declares it
+    let detectedSSE = isSSE;
+
     try {
       while (true) {
         const { done, value } = await reader.read();
@@ -307,8 +320,12 @@ export class InferenceClient {
 
         const chunkText = decoder.decode(value, { stream: true });
 
+        if (!detectedSSE && chunkText.includes('data: ')) {
+          detectedSSE = true;
+        }
+
         // If server returns raw text (non-SSE), stream chunk directly
-        if (!isSSE && !chunkText.includes('data: ')) {
+        if (!detectedSSE) {
           processDelta(chunkText);
           continue;
         }
