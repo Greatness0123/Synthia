@@ -1542,6 +1542,13 @@ export const useWorld = (containerRef: React.RefObject<HTMLDivElement>) => {
       resumeAgent: resumeAgentClientLoop,
       sleepAllAgents,
       resumeAllAgents,
+      updateAgentProvider: (agentId: string, provider: string, endpoint: string, apiKey?: string, model?: string) => {
+        const loop = activeAgentLoopsRef.current.get(agentId);
+        if (loop) {
+          loop.setProvider(provider, endpoint, apiKey, model);
+          console.log(`[useWorld] Updated provider for ${agentId}: ${provider} -> ${endpoint}`);
+        }
+      },
       manualIdentityUpdate: async (agentId: string, update: any, reason: string) => {
         const loop = activeAgentLoopsRef.current.get(agentId);
         if (!loop) return { ok: false, error: 'Agent loop not found' };
@@ -1741,6 +1748,7 @@ export const useWorld = (containerRef: React.RefObject<HTMLDivElement>) => {
   // Per-agent runtime overrides (agentRuntimeStore) take precedence: loops with
   // an override for a given field keep their own value; everything else follows global.
   const connStore = useConnectionStore();
+  const agentRuntimeConfigs = useAgentRuntimeStore((s) => s.configs);
   useEffect(() => {
     activeAgentLoopsRef.current.forEach((loop, agentId) => {
       const rt = useAgentRuntimeStore.getState();
@@ -1761,6 +1769,7 @@ export const useWorld = (containerRef: React.RefObject<HTMLDivElement>) => {
       loop.setCycleMs(cycleMs || 2000);
     });
   }, [
+    agentRuntimeConfigs,
     connStore.provider,
     connStore.inferenceEndpoint,
     connStore.providerApiKey,
@@ -2057,6 +2066,7 @@ declare global {
       resumeAgent?: (agentId: string) => void;
       sleepAllAgents?: () => number;
       resumeAllAgents?: () => number;
+      updateAgentProvider?: (agentId: string, provider: string, endpoint: string, apiKey?: string, model?: string) => void;
       manualIdentityUpdate?: (agentId: string, update: any, reason: string) => Promise<{ ok: boolean; error?: string }>;
     };
   }

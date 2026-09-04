@@ -39,6 +39,8 @@ export class InferenceClient {
     this.endpoint = endpoint;
     this.apiKey = apiKey;
     this.model = model || '';
+    this.backoffUntil = 0;
+    this.backoffMs = 5000;
     console.log(`[InferenceClient] Set provider client-side: type=${type}, endpoint=${endpoint}, model=${model}`);
   }
 

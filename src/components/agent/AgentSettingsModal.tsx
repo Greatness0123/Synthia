@@ -8,7 +8,7 @@ import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useUIStore } from '../../store/uiStore';
 import { useAgentStore } from '../../store/agentStore';
 import { useAgentRuntimeStore, type AgentRuntimeConfig } from '../../store/agentRuntimeStore';
-import { type ProviderType } from '../../store/connectionStore';
+import { useConnectionStore, type ProviderType } from '../../store/connectionStore';
 import { Panel } from '../ui/Panel';
 import { cn } from '../../utils/cn';
 import { Button } from '../ui/Button';
@@ -603,6 +603,34 @@ export const AgentSettingsModal: React.FC = () => {
     if (result.ok) {
       setSentOk(true);
       setConnectionTest({ status: 'ok', latencyMs: result.latencyMs });
+      
+      // Update per-agent runtime store
+      runtimeStore.setConfig(activeAgentId, {
+        provider: config.provider,
+        endpoint: config.endpoint,
+        apiKey: config.apiKey,
+        model: config.model,
+      });
+
+      // Update global connection store defaults
+      useConnectionStore.getState().setInferenceEndpoint(config.endpoint);
+      useConnectionStore.getState().setProvider(config.provider);
+      if (config.model) {
+        useConnectionStore.getState().setProviderModel(config.model);
+      }
+      if (config.apiKey) {
+        useConnectionStore.getState().setProviderApiKey(config.apiKey);
+      }
+
+      // Immediately sync to the running loop
+      (window as any).__synthia?.updateAgentProvider?.(
+        activeAgentId,
+        config.provider,
+        config.endpoint,
+        config.apiKey,
+        config.model
+      );
+
       synthiaToast.success(`Config saved and verified for ${activeAgentId}`);
       setTimeout(() => setSentOk(false), 5000);
     } else {

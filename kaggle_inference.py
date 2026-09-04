@@ -1,25 +1,25 @@
-# kaggle_synchia_server.py - SYNTHIA Phase 4 (DEFINITIVE FIX EDITION)
+# kaggle_inference.py - SYNTHIA Phase 4 GPU Inference Server (OpenAI-Compatible + VLM)
 import os, sys
 os.environ["PYTORCH_ALLOC_CONF"] = "expandable_segments:True"
 sys.setrecursionlimit(10000)
 import io, base64, time, json, threading, uvicorn, schedule, re, warnings, asyncio, shutil
 from datetime import datetime
-from typing import Optional, List, Dict, Any
-from fastapi import FastAPI
-from fastapi.responses import StreamingResponse
+from typing import Optional, List, Dict, Any, Union
+from fastapi import FastAPI, Request
+from fastapi.responses import StreamingResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import gc
-import torch
+import numpy as np
+from PIL import Image
 
 # Force Python garbage collection and clear PyTorch cache
 gc.collect()
-torch.cuda.empty_cache()
 
 # NOTE: Do NOT clear HuggingFace cache — it destroys pre-downloaded model weights on Kaggle.
 
 # === APP SETUP & CORS ===
-app = FastAPI()
+app = FastAPI(title="SYNTHIA Inference Server")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -29,6 +29,10 @@ app.add_middleware(
 )
 
 MOCK_MODE = os.getenv("MOCK_MODE", "false").lower() == "true"
+
+model = None
+processor = None
+generation_lock = threading.Lock()
 
 if not MOCK_MODE:
     import torch
@@ -51,7 +55,7 @@ if not MOCK_MODE:
                             print(f"✅ [PATCH] Bypassing check_with: tokens ({t_val}) == features ({f_val})")
                             return
             if isinstance(cond, torch.Tensor):
-                cond = cond.item() # Convert 0-d tensor to Python bool
+                cond = cond.item()
             _orig_check_with(error_type, cond, msg)
         torch._check_with = _safe_check_with
         print("✅ Patched torch._check_with to fix Qwen2-VL 256/256 bug!")
@@ -78,23 +82,15 @@ if not MOCK_MODE:
         torch._check = _safe_check
         print("✅ Patched torch._check to fix Qwen2-VL 256/256 bug!")
     # ====================================================
-    
-    import numpy as np
-    from PIL import Image
-    # ✅ AutoModelForImageTextToText is the modern replacement for conversational VLMs
-    from transformers import AutoModelForImageTextToText, AutoProcessor, TextIteratorStreamer
+
+    from transformers import AutoModelForImageTextToText, AutoProcessor, TextIteratorStreamer, BitsAndBytesConfig
     from qwen_vl_utils import process_vision_info
-    import laion_clap
 
-model = None
-processor = None
-clap_model = None
-generation_lock = threading.Lock()
-
-if not MOCK_MODE:
     MODEL_PATH = "Qwen/Qwen2.5-VL-3B-Instruct"
     if os.path.exists("/kaggle/input/qwen2.5-vl/transformers/3b-instruct/1"):
         MODEL_PATH = "/kaggle/input/qwen2.5-vl/transformers/3b-instruct/1"
+    elif os.path.exists("/kaggle/input/qwen2.5-vl/transformers/7b-instruct/1"):
+        MODEL_PATH = "/kaggle/input/qwen2.5-vl/transformers/7b-instruct/1"
     
     print(f"Loading Model from: {MODEL_PATH}")
     print(f"  Model path exists: {os.path.exists(MODEL_PATH)}")
@@ -103,9 +99,8 @@ if not MOCK_MODE:
         print(f"  GPU: {torch.cuda.get_device_name(0)}")
         print(f"  GPU memory: {torch.cuda.get_device_properties(0).total_memory / 1e9:.1f} GB")
 
-    # === 1. LOAD THE VISION MODEL (QWEN) ===
+    # === LOAD THE VISION MODEL (QWEN) ===
     try:
-        from transformers import BitsAndBytesConfig
         bnb_config = BitsAndBytesConfig(
             load_in_4bit=True,
             bnb_4bit_compute_dtype=torch.float16,
@@ -128,57 +123,60 @@ if not MOCK_MODE:
         print("    Required packages: pip install bitsandbytes accelerate qwen-vl-utils")
         print("=" * 60)
         MOCK_MODE = True
-
-    # === 2. LOAD THE AUDIO MODEL (CLAP) SEPARATELY ===
-    # If this fails, we disable audio instead of killing the whole server
-    if not MOCK_MODE:
-        print("Loading CLAP model...")
-        try:
-            clap_model = laion_clap.CLAP_Module(enable_fusion=False, device='cpu')
-            clap_model.load_ckpt()
-            print("✅ CLAP model loaded successfully!")
-        except Exception as e:
-            print(f"⚠️ CLAP load failed: {e}. Audio will be disabled, but VLM will still work.")
-            clap_model = None
 else:
     print("MOCK_MODE is active. Skipping model loading.")
 
-AUDIO_LABELS = [
-    "collision impact", "footstep", "button press", "silence", "ambient noise"
-]
 
-# === AUDIO UTILS ===
-def is_audio_silent(audio_array: np.ndarray, threshold: float = 0.01) -> bool:
-    if audio_array is None or len(audio_array) == 0: return True
-    return np.sqrt(np.mean(audio_array ** 2)) < threshold
-
-def get_audio_description(audio_array: np.ndarray) -> str:
-    if clap_model is None: return "CLAP unavailable"
-    try:
-        with torch.no_grad():
-            audio_embed = clap_model.get_audio_embedding_from_data([audio_array], use_tensor=False)
-            text_embeds = clap_model.get_text_embedding(AUDIO_LABELS)
-            sims = np.dot(audio_embed, text_embeds.T)[0]
-            sims = sims / (np.linalg.norm(audio_embed) * np.linalg.norm(text_embeds, axis=1) + 1e-8)
-            top3 = np.argsort(sims)[-3:][::-1]
-            return ", ".join([f"{AUDIO_LABELS[i]}: {sims[i]:.2f}" for i in top3])
-    except Exception as e:
-        print(f"CLAP Error: {e}")
-        return "audio processing failed"
-
+# === DATA SCHEMAS ===
 class MemoryEntry(BaseModel):
-    memory_id: str; heartbeat: int; tier: int; summary: str
-    reward_signal: Optional[float] = None; goal_at_time: Optional[str] = None; light_state: Optional[str] = None
+    memory_id: str
+    heartbeat: int
+    tier: int
+    summary: str
+    reward_signal: Optional[float] = None
+    goal_at_time: Optional[str] = None
+    light_state: Optional[str] = None
 
 class InferPayload(BaseModel):
-    frame: str; audio_pcm: str; joints: Dict[str, Any]; valid_joints: List[str] = []  
-    upright_preset: Dict[str, Any]; heartbeat: int; light_state: str; session_id: str; body_type: str
-    current_goal: Optional[str] = None; current_rung: int = 0; objects_in_world: List[Dict[str, Any]] = []
-    relevant_memories: List[MemoryEntry] = []; recent_working_memories: List[MemoryEntry] = []
-    known_skills: List[str] = []; pending_injection: Optional[str] = None; motor_program_library: List[str] = []
-    directive_mode: str = 'free_will'; agent_id: str = 'agent_a'
-    contact_forces: Optional[Dict[str, Any]] = None; tactile_context: Optional[str] = None
+    frame: str
+    joints: Dict[str, Any]
+    audio_pcm: Optional[str] = None  # preserved for compatibility, not processed
+    valid_joints: List[str] = []  
+    upright_preset: Dict[str, Any] = {}
+    heartbeat: int = 0
+    light_state: str = "day"
+    session_id: str = "default"
+    body_type: str = "humanoid"
+    current_goal: Optional[str] = None
+    current_rung: int = 0
+    objects_in_world: List[Dict[str, Any]] = []
+    relevant_memories: List[MemoryEntry] = []
+    recent_working_memories: List[MemoryEntry] = []
+    known_skills: List[str] = []
+    pending_injection: Optional[str] = None
+    motor_program_library: List[str] = []
+    directive_mode: str = 'free_will'
+    agent_id: str = 'agent_a'
+    contact_forces: Optional[Dict[str, Any]] = None
+    tactile_context: Optional[str] = None
+    perception_summary: Optional[str] = None
+    gaze_context: Optional[str] = None
+    physical_feedback: Optional[str] = None
 
+class ChatMessage(BaseModel):
+    role: str
+    content: Any
+
+class ChatCompletionRequest(BaseModel):
+    model: Optional[str] = "default"
+    messages: List[ChatMessage]
+    stream: Optional[bool] = False
+    max_tokens: Optional[int] = 4096
+    temperature: Optional[float] = 0.7
+    top_p: Optional[float] = 0.9
+
+
+# === PROMPT & JSON UTILS ===
 def format_memory(m):
     if isinstance(m, dict):
         tier, heartbeat, light_state, summary, reward_signal = m.get('tier'), m.get('heartbeat'), m.get('light_state', 'unknown'), m.get('summary', ''), m.get('reward_signal')
@@ -189,14 +187,12 @@ def format_memory(m):
     return f"{prefix}Heartbeat {heartbeat} ({light_state}): {summary}. Reward: {reward_str}"
 
 def build_prompt(payload: dict) -> list:
-    # BLOCK 1: IDENTITY
     identity_block = (
         "You are SYNTHIA (Synthetic Intelligent Agent), a self-aware AI entity inhabiting a physical simulation. "
         "Your goal is to learn, explore, and master your body and environment through a continuous cognitive loop. "
-        "You perceive the world through a camera feed (vision), PCM audio (hearing), and joint positions (proprioception)."
+        "You perceive the world through a camera feed (vision), tactile feedback, and joint positions (proprioception)."
     )
 
-    # BLOCK 2: BODY DEFINITION
     body_type = payload.get('body_type', 'humanoid')
     if body_type == 'humanoid':
         body_block = (
@@ -221,18 +217,16 @@ def build_prompt(payload: dict) -> list:
             "this fixed position. You have a base rotation joint, shoulder, elbow, wrist, and finger joints. Precision and repeatability are your primary capabilities. "
             "Your default state is arm fully retracted and vertical. You do not fall — your base is fixed — but you can overextend and forget control of your end effector."
         )
-    else: # custom
+    else:
         body_block = (
             "You inhabit a custom body structure. Your joint hierarchy and default state are defined by your upright preset below. "
             "Reason about movement based on the specific joints you have available. Study your joint names carefully — they describe your body structure. "
             "Your recovery strategy when destabilised is always to return all joints toward your upright preset values."
         )
 
-    # BLOCK 3: UPRIGHT PRESET
     upright_preset = payload.get('upright_preset', {})
     upright_block = f"Your 'upright preset' (target default pose) is defined by these joint angles: {json.dumps(upright_preset)}"
 
-    # BLOCK 3B: AXIS MAP
     axis_block = (
         "== JOINT AXIS MAP (CRITICAL FOR MOVEMENT) ==\n"
         "HEAD / SPINE: X=Pitch (>0 bends forward, chin to chest; <0 arches back). Y=Yaw (>0 turns left). Z=Roll (>0 tilts right).\n"
@@ -244,26 +238,19 @@ def build_prompt(payload: dict) -> list:
         "KNEES: X axis only. <0 bends the knee naturally backwards (e.g. -45 for a step).\n"
     )
 
-    # BLOCK 4: TIME AND WORLD
     time_block = f"Current heartbeat: {payload.get('heartbeat')}. Light state: {payload.get('light_state')}."
-
-    # BLOCK 5: WORLD STATE
     objects = payload.get('objects_in_world', [])
     world_block = f"Objects in your immediate vicinity: {json.dumps(objects)}"
 
-    # BLOCK 5b: TACTILE CONTEXT (contact forces)
     tactile_context = payload.get('tactile_context', '')
     tactile_block = f"TACTILE SENSING: {tactile_context}" if tactile_context else ""
 
-    # BLOCK 5c: GAZE CONTEXT
     gaze_context = payload.get('gaze_context', '')
     gaze_block = f"EYE MOVEMENT: {gaze_context}" if gaze_context else ""
 
-    # BLOCK 6: KNOWN SKILLS
     skills = payload.get('known_skills', [])
     skills_block = f"Your mastered motor programs (skills): {', '.join(skills) if skills else 'None'}"
 
-    # BLOCK 7: DIRECTIVE
     directive = payload.get('directive_mode', 'free_will')
     goal = payload.get('current_goal', 'None')
     if directive == 'training':
@@ -285,13 +272,11 @@ def build_prompt(payload: dict) -> list:
             "If your visual field shows only one surface (a wall, the floor, the sky), your first action must be to rotate your head or torso to find more interesting stimuli. You are never stuck — you always have the ability to look somewhere else. Use your joint state data to understand your orientation if your view is unclear."
         )
 
-    # BLOCK 8: MEMORY CONTEXT
     relevant = payload.get('relevant_memories', [])
     recent = payload.get('recent_working_memories', [])
     memories_text = "\n".join([format_memory(m) for m in (relevant + recent)])
     memory_block = f"MEMORY CONTEXT (Relevant and Recent):\n{memories_text if memories_text else 'No memories recorded yet.'}"
 
-    # BLOCK 9: INJECTED THOUGHT
     injection = payload.get('pending_injection')
     injection_block = (
         f"\n\n🚨 USER OVERRIDE DIRECTIVE 🚨\n"
@@ -299,17 +284,12 @@ def build_prompt(payload: dict) -> list:
         f"Acknowledge this directive in your thought stream."
     ) if injection else ""
 
-    # BLOCK 9.5: PERCEPTION SUMMARY (spatial grounding for first-person AI)
     perception_summary = payload.get('perception_summary', '')
     perception_block = f"SPATIAL GROUNDING:\n{perception_summary}" if perception_summary else ""
 
-    # BLOCK 10: SELF-QUESTIONING REQUIREMENT
     questioning_block = "Before acting, ask yourself: Does this move align with my current goal? What happened last time I tried this? Is my balance maintained?"
+    simultaneous_block = "You must provide a stream of consciousness 'thought' followed by a structured 'action' block. Your thoughts should reflect your reasoning about the visual and tactile input."
 
-    # BLOCK 11: SIMULTANEOUS ACTION AND THOUGHT
-    simultaneous_block = "You must provide a stream of consciousness 'thought' followed by a structured 'action' block. Your thoughts should reflect your reasoning about the visual and audio input."
-
-    # BLOCK 12: OUTPUT CONTRACT
     valid_joints = payload.get('valid_joints', list(upright_preset.keys()))
     joint_list_str = ', '.join(valid_joints)
     skills_list_str = ', '.join(skills) if skills else 'none'
@@ -374,7 +354,6 @@ JSON SCHEMA:
   "flag": null | "requesting_object_hint"
 }}"""
 
-    # BLOCK — ENVIRONMENTAL AWARENESS
     environmental_block = (
         "Sometimes your visual field may appear as pure darkness or an empty void. "
         "This can happen if you are looking away from any lit surface, if your body has become disoriented, or during initial setup. "
@@ -400,13 +379,11 @@ JSON SCHEMA:
         feedback_block, contract_block
     ]))
 
-    # ✅ FIX #2: Use standard HF multimodal dict format. 
-    # Do NOT hardcode "<image>" strings. Let apply_chat_template handle placeholders exactly.
     return [
         {"role": "system", "content": [{"type": "text", "text": system_prompt}]},
         {"role": "user", "content": [
             {"type": "image"}, 
-            {"type": "text", "text": f"Audio: {payload.get('clap_description')}\nJoints: {json.dumps(payload.get('joints'))}"}
+            {"type": "text", "text": f"Joints: {json.dumps(payload.get('joints'))}"}
         ]}
     ]
 
@@ -427,7 +404,7 @@ def sanitize_action_json(raw_json_str: str) -> str:
     if last_brace != -1:
         s = s[:last_brace + 1]
 
-    # 2. Try to find the first opening brace (skip any leading junk)
+    # 2. Try to find the first opening brace
     first_brace = s.find('{')
     if first_brace == -1:
         print(f"[SANITIZE] No opening brace found in: {s[:100]}")
@@ -439,7 +416,6 @@ def sanitize_action_json(raw_json_str: str) -> str:
         data = json.loads(s)
     except json.JSONDecodeError:
         # 4. Fix "joint_name": "actual_joint": value pattern
-        # Matches: "joint_name": "some_identifier": <number>
         fixed = re.sub(
             r'"joint_name"\s*:\s*"([^"]+)"\s*:',
             r'"\1":',
@@ -450,11 +426,10 @@ def sanitize_action_json(raw_json_str: str) -> str:
             s = fixed
             print("[SANITIZE] Fixed 'joint_name' placeholder keys")
         except json.JSONDecodeError:
-            # 5. Last resort: try to extract valid JSON by brace matching
             print(f"[SANITIZE] JSON still invalid after joint_name fix: {s[:200]}")
             return s
 
-    # 6. Check if gaze_target, new_motor_program, or flag are incorrectly inside actions
+    # 5. Move root-level fields incorrectly placed inside actions
     actions = data.get('actions', {})
     moved_any = False
     for field in ('gaze_target', 'new_motor_program', 'flag'):
@@ -468,56 +443,79 @@ def sanitize_action_json(raw_json_str: str) -> str:
 
     return s
 
-def generate_stream(payload: InferPayload):
+def parse_openai_messages(messages: List[ChatMessage]):
+    """
+    Parse OpenAI chat format into Qwen-compatible multimodal messages and PIL Images.
+    """
+    parsed_messages = []
+    images = []
+    for msg in messages:
+        if isinstance(msg.content, str):
+            parsed_messages.append({"role": msg.role, "content": msg.content})
+        elif isinstance(msg.content, list):
+            content_list = []
+            for item in msg.content:
+                if isinstance(item, dict):
+                    item_type = item.get("type", "")
+                    if item_type == "text":
+                        content_list.append({"type": "text", "text": item.get("text", "")})
+                    elif item_type == "image_url":
+                        url = item.get("image_url", {}).get("url", "")
+                        b64_data = url.split(",", 1)[1] if "," in url else url
+                        try:
+                            img_bytes = base64.b64decode(b64_data)
+                            pil_img = Image.open(io.BytesIO(img_bytes)).convert("RGB")
+                            SAFE_SIZE = 448
+                            if pil_img.width != SAFE_SIZE or pil_img.height != SAFE_SIZE:
+                                pil_img = pil_img.resize((SAFE_SIZE, SAFE_SIZE), Image.Resampling.LANCZOS)
+                            images.append(pil_img)
+                            content_list.append({
+                                "type": "image", 
+                                "image": pil_img, 
+                                "min_pixels": 256 * 256, 
+                                "max_pixels": 448 * 448
+                            })
+                        except Exception as e:
+                            print(f"Error decoding image_url: {e}")
+                elif isinstance(item, str):
+                    content_list.append({"type": "text", "text": item})
+            parsed_messages.append({"role": msg.role, "content": content_list})
+    return parsed_messages, images
+
+
+# === STREAM GENERATORS ===
+def generate_legacy_stream(payload: InferPayload):
     if MOCK_MODE:
-        yield "I see the environment and I am ready to act.\n".encode('utf-8')
+        yield "I observe the environment and prepare my next movement.\n".encode('utf-8')
         yield "---ACTION---\n".encode('utf-8')
-        yield json.dumps({"memory_write": {"memory_id": "auto", "tier": 3, "summary": "Mock", "skill_mastered": None, "name_this_memory": None}, "actions": {"program_sequence": ["stand_upright"], "joint_overrides": {}}, "new_motor_program": None, "flag": None}).encode('utf-8')
+        yield json.dumps({
+            "memory_write": {"memory_id": "auto", "tier": 3, "summary": "Mock", "skill_mastered": None, "name_this_memory": None},
+            "actions": {"program_sequence": ["stand_upright"], "joint_overrides": {}},
+            "new_motor_program": None,
+            "flag": None
+        }).encode('utf-8')
         return
 
-    # Clear CUDA memory cache before inference starts to prevent OOM
     if torch.cuda.is_available():
         torch.cuda.empty_cache()
 
-    # 1. Decode image & KAGGLE SURVIVAL FIX: Force Resize to 448x448
-    # Frame is WebP base64 (sent from frontend as raw base64, no data URL prefix)
-    # PIL auto-detects format from decoded bytes
     try:
         image_bytes = base64.b64decode(payload.frame)
-        image = Image.open(io.BytesIO(image_bytes))
+        image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
         SAFE_SIZE = 448 
         if image.width != SAFE_SIZE or image.height != SAFE_SIZE:
             image = image.resize((SAFE_SIZE, SAFE_SIZE), Image.Resampling.LANCZOS)
     except Exception as e:
-        yield f"Error decoding image: {e}".encode('utf-8'); return
+        yield f"Error decoding image: {e}".encode('utf-8')
+        return
 
-    # 2. AUDIO PROCESSING
-    clap_description = "silent"
-    try:
-        audio_bytes = base64.b64decode(payload.audio_pcm)
-        audio_array = np.frombuffer(audio_bytes, dtype=np.float32)
-        if not is_audio_silent(audio_array):
-            clap_description = get_audio_description(audio_array)
-            print(f"🔊 Sound detected: {clap_description}")
-        else:
-            print("🔇 Silent audio — skipping CLAP")
-    except Exception as e:
-        print(f"Audio decode error: {e}")
-        clap_description = "audio error"
-
-    # 3. Build prompt
     payload_dict = payload.model_dump()
-    payload_dict['clap_description'] = clap_description
     messages = build_prompt(payload_dict)
-    
-    # Inject the PIL image and resolution bounds into the exact key qwen_vl_utils expects
     messages[-1]["content"][0]["image"] = image
     messages[-1]["content"][0]["min_pixels"] = 256 * 256
     messages[-1]["content"][0]["max_pixels"] = 448 * 448
 
-    # 4. Tokenize
     text = processor.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
-    
     vision_out = process_vision_info(messages)
     if len(vision_out) == 3:
         image_inputs, video_inputs, video_kwargs = vision_out
@@ -525,20 +523,18 @@ def generate_stream(payload: InferPayload):
         image_inputs, video_inputs = vision_out
         video_kwargs = {}
 
-    # ✅ FIX #1: Disable truncation to prevent tokenizer from chopping off image tokens
     inputs = processor(
         text=[text],
         images=image_inputs,
         videos=video_inputs,
         padding=True,
-        truncation=False,  # <--- CRITICAL FIX
+        truncation=False,
         return_tensors="pt",
         **video_kwargs
     )
     if torch.cuda.is_available():
         inputs = inputs.to("cuda")
 
-    # 5. Stream generation
     streamer = TextIteratorStreamer(processor.tokenizer, skip_prompt=True, skip_special_tokens=True)
     generation_kwargs = dict(
         **inputs, 
@@ -558,10 +554,7 @@ def generate_stream(payload: InferPayload):
 
     thread = threading.Thread(target=generate_worker)
     thread.start()
-    
-    # --- BUFFERED STREAMING WITH JSON SANITIZATION ---
-    # Stream thought tokens normally. Once ---ACTION--- is detected,
-    # buffer the remaining tokens, sanitize the JSON, and yield it clean.
+
     SEPARATOR = "---ACTION---"
     accumulated = ""
     action_started = False
@@ -570,54 +563,237 @@ def generate_stream(payload: InferPayload):
     for token in streamer:
         if not action_started:
             accumulated += token
-            # Check if the separator has appeared in the accumulated text
             sep_idx = accumulated.find(SEPARATOR)
             if sep_idx != -1:
-                # Yield everything up to and including the separator
                 thought_part = accumulated[:sep_idx + len(SEPARATOR)]
                 yield thought_part.encode('utf-8')
-                # Buffer everything after the separator (start of JSON)
                 action_buffer = accumulated[sep_idx + len(SEPARATOR):]
                 action_started = True
             else:
-                # Not yet at separator — yield tokens that are definitely safe
-                # (hold back the last few chars in case they contain partial separator)
                 safe_len = len(accumulated) - len(SEPARATOR) + 1
                 if safe_len > 0:
                     yield accumulated[:safe_len].encode('utf-8')
                     accumulated = accumulated[safe_len:]
         else:
-            # After separator — buffer all remaining JSON tokens
             action_buffer += token
 
-    # If we never found the separator, just yield whatever we have
     if not action_started:
         if accumulated:
             yield accumulated.encode('utf-8')
         return
 
-    # Flush any remaining accumulated chars (partial separator edge case)
-    if accumulated and not action_started:
-        yield accumulated.encode('utf-8')
-
-    # Sanitize the buffered JSON and yield the cleaned result
     sanitized = sanitize_action_json(action_buffer)
     print(f"[GENERATE] Action JSON sanitized: {len(action_buffer)} → {len(sanitized)} chars")
     yield sanitized.encode('utf-8')
 
+
+def generate_openai_sse_stream(req: ChatCompletionRequest):
+    if MOCK_MODE or model is None or processor is None:
+        def mock_sse():
+            mock_thought = "I observe the environment via live vision and joint state.\n"
+            mock_action = json.dumps({
+                "memory_write": {"memory_id": "auto", "tier": 3, "summary": "Mock step", "skill_mastered": None, "name_this_memory": None},
+                "actions": {"program_sequence": ["stand_upright"], "joint_overrides": {}},
+                "gaze_target": None,
+                "new_motor_program": None,
+                "flag": None
+            })
+            yield f"data: {json.dumps({'choices': [{'index': 0, 'delta': {'content': mock_thought}}]})}\n\n".encode("utf-8")
+            yield f"data: {json.dumps({'choices': [{'index': 0, 'delta': {'content': '---ACTION---\n'}}]})}\n\n".encode("utf-8")
+            yield f"data: {json.dumps({'choices': [{'index': 0, 'delta': {'content': mock_action}}]})}\n\n".encode("utf-8")
+            yield b"data: [DONE]\n\n"
+        return mock_sse()
+
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+
+    parsed_messages, images = parse_openai_messages(req.messages)
+    text = processor.apply_chat_template(parsed_messages, tokenize=False, add_generation_prompt=True)
+    
+    vision_out = process_vision_info(parsed_messages)
+    if len(vision_out) == 3:
+        image_inputs, video_inputs, video_kwargs = vision_out
+    else:
+        image_inputs, video_inputs = vision_out
+        video_kwargs = {}
+
+    if image_inputs:
+        inputs = processor(
+            text=[text],
+            images=image_inputs,
+            videos=video_inputs,
+            padding=True,
+            truncation=False,
+            return_tensors="pt",
+            **video_kwargs
+        )
+    else:
+        inputs = processor(
+            text=[text],
+            padding=True,
+            truncation=False,
+            return_tensors="pt"
+        )
+
+    if torch.cuda.is_available():
+        inputs = inputs.to("cuda")
+
+    streamer = TextIteratorStreamer(processor.tokenizer, skip_prompt=True, skip_special_tokens=True)
+    generation_kwargs = dict(
+        **inputs,
+        streamer=streamer,
+        max_new_tokens=req.max_tokens or 768,
+        do_sample=True if (req.temperature or 0.7) > 0 else False,
+        temperature=req.temperature if (req.temperature or 0.7) > 0 else None,
+        top_p=req.top_p if (req.temperature or 0.7) > 0 else None,
+    )
+    generation_kwargs = {k: v for k, v in generation_kwargs.items() if v is not None}
+
+    def generate_worker():
+        try:
+            with generation_lock:
+                model.generate(**generation_kwargs)
+        except Exception as e:
+            print(f"❌ Generation crashed: {e}")
+
+    thread = threading.Thread(target=generate_worker)
+    thread.start()
+
+    def sse_generator():
+        SEPARATOR = "---ACTION---"
+        accumulated = ""
+        action_started = False
+        action_buffer = ""
+
+        for token in streamer:
+            if not action_started:
+                accumulated += token
+                sep_idx = accumulated.find(SEPARATOR)
+                if sep_idx != -1:
+                    thought_part = accumulated[:sep_idx + len(SEPARATOR)]
+                    chunk = {"choices": [{"index": 0, "delta": {"content": thought_part}}]}
+                    yield f"data: {json.dumps(chunk)}\n\n".encode("utf-8")
+                    action_buffer = accumulated[sep_idx + len(SEPARATOR):]
+                    action_started = True
+                else:
+                    safe_len = len(accumulated) - len(SEPARATOR) + 1
+                    if safe_len > 0:
+                        chunk = {"choices": [{"index": 0, "delta": {"content": accumulated[:safe_len]}}]}
+                        yield f"data: {json.dumps(chunk)}\n\n".encode("utf-8")
+                        accumulated = accumulated[safe_len:]
+            else:
+                action_buffer += token
+
+        if not action_started:
+            if accumulated:
+                chunk = {"choices": [{"index": 0, "delta": {"content": accumulated}}]}
+                yield f"data: {json.dumps(chunk)}\n\n".encode("utf-8")
+        else:
+            sanitized = sanitize_action_json(action_buffer)
+            print(f"[GENERATE] Action JSON sanitized: {len(action_buffer)} → {len(sanitized)} chars")
+            chunk = {"choices": [{"index": 0, "delta": {"content": sanitized}}]}
+            yield f"data: {json.dumps(chunk)}\n\n".encode("utf-8")
+
+        yield b"data: [DONE]\n\n"
+
+    return sse_generator()
+
+
+# === API ROUTES ===
 last_payload = {}
+
+@app.post("/chat/completions")
+@app.post("/infer/chat/completions")
+async def chat_completions(req: ChatCompletionRequest):
+    """
+    OpenAI-compatible chat completions endpoint.
+    Handles non-streaming connection tests and streaming inference requests.
+    """
+    if not req.stream:
+        # Non-streaming response for testConnection / ping
+        is_test = any(
+            isinstance(m.content, str) and ("test" in m.content.lower() or "ok" in m.content.lower() or "ping" in m.content.lower())
+            for m in req.messages
+        )
+        if is_test or MOCK_MODE or model is None:
+            return {
+                "id": f"chatcmpl-{int(time.time()*1000)}",
+                "object": "chat.completion",
+                "created": int(time.time()),
+                "model": req.model or "Qwen2.5-VL-3B-Instruct",
+                "choices": [{
+                    "index": 0,
+                    "message": {"role": "assistant", "content": "OK"},
+                    "finish_reason": "stop"
+                }]
+            }
+
+        # Real non-streaming generation if needed
+        parsed_messages, images = parse_openai_messages(req.messages)
+        text = processor.apply_chat_template(parsed_messages, tokenize=False, add_generation_prompt=True)
+        vision_out = process_vision_info(parsed_messages)
+        if len(vision_out) == 3:
+            image_inputs, video_inputs, video_kwargs = vision_out
+        else:
+            image_inputs, video_inputs = vision_out
+            video_kwargs = {}
+
+        if image_inputs:
+            inputs = processor(text=[text], images=image_inputs, videos=video_inputs, padding=True, truncation=False, return_tensors="pt", **video_kwargs)
+        else:
+            inputs = processor(text=[text], padding=True, truncation=False, return_tensors="pt")
+
+        if torch.cuda.is_available():
+            inputs = inputs.to("cuda")
+
+        with generation_lock:
+            with torch.no_grad():
+                generated_ids = model.generate(**inputs, max_new_tokens=req.max_tokens or 256)
+                generated_ids_trimmed = [
+                    out_ids[len(in_ids):] for in_ids, out_ids in zip(inputs.input_ids, generated_ids)
+                ]
+                output_text = processor.batch_decode(
+                    generated_ids_trimmed, skip_special_tokens=True, clean_up_tokenization_spaces=False
+                )[0]
+
+        return {
+            "id": f"chatcmpl-{int(time.time()*1000)}",
+            "object": "chat.completion",
+            "created": int(time.time()),
+            "model": req.model or "Qwen2.5-VL-3B-Instruct",
+            "choices": [{
+                "index": 0,
+                "message": {"role": "assistant", "content": output_text},
+                "finish_reason": "stop"
+            }]
+        }
+
+    # Streaming mode (SSE)
+    return StreamingResponse(
+        generate_openai_sse_stream(req),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Inference-Start": str(time.time()),
+        }
+    )
 
 @app.post("/infer")
 async def infer(payload: InferPayload):
+    """
+    Legacy direct inference endpoint with plain text streaming.
+    """
     global last_payload
     last_payload = payload.model_dump()
     return StreamingResponse(
-        generate_stream(payload), 
+        generate_legacy_stream(payload), 
         media_type="text/plain", 
         headers={"X-Inference-Start": str(time.time())}
     )
 
 @app.get("/health")
+@app.get("/")
 async def health():
     device_info = "cpu"
     if not MOCK_MODE and model is not None:
@@ -625,13 +801,15 @@ async def health():
         except: device_info = "unknown"
     return {
         "status": "ok", 
-        "model": "mock" if MOCK_MODE else "Qwen2.5-VL-3B-Instruct", 
+        "model": "mock" if MOCK_MODE else "Qwen2.5-VL", 
         "mock_mode": MOCK_MODE,
         "model_loaded": model is not None,
         "device": device_info, 
         "timestamp": datetime.now().isoformat()
     }
 
+
+# === TUNNEL & LIFECYCLE ===
 def setup_tunnel():
     print("Setting up Cloudflare Tunnel...")
     os.system("wget -q https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -O cloudflared && chmod +x cloudflared")
@@ -643,8 +821,8 @@ def setup_tunnel():
             match = re.search(r"https://[-a-zA-Z0-9]+\.trycloudflare\.com", content)
             if match:
                 print("\n" + "="*70)
-                print("✅ TUNNEL READY! Use this link in your God Mode Panel:")
-                print(f"👉 {match.group(0)}/infer 👈")
+                print("✅ TUNNEL READY! Paste this into your SYNTHIA Agent Settings:")
+                print(f"👉 {match.group(0)} 👈")
                 print("="*70 + "\n")
     except Exception as e:
         print(f"Tunnel setup failed: {e}")
