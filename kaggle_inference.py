@@ -839,6 +839,7 @@ async def chat_completions(req: ChatCompletionRequest):
     )
 
 @app.post("/infer")
+@app.post("/")
 async def infer(payload: InferPayload):
     """
     Legacy direct inference endpoint with plain text streaming.

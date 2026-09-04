@@ -61,15 +61,16 @@ export class InferenceClient {
 
   /** Build the direct API URL for any provider. */
   private getDirectUrl(): string {
-    // For kaggle provider, the user enters the full endpoint (e.g. /infer).
-    // Use it as-is — don't append /chat/completions, because the Kaggle
-    // server's /infer route streams plain-text directly (thought---ACTION---{json}).
+    const clean = this.endpoint.replace(/\/$/, '');
     if (this.providerType === 'kaggle') {
-      return this.endpoint.replace(/\/$/, '');
+      if (clean.endsWith('/infer') || clean.endsWith('/chat/completions')) {
+        return clean;
+      }
+      return `${clean}/infer`;
     }
-    return this.endpoint.endsWith('/chat/completions')
-      ? this.endpoint
-      : `${this.endpoint.replace(/\/$/, '')}/chat/completions`;
+    return clean.endsWith('/chat/completions')
+      ? clean
+      : `${clean}/chat/completions`;
   }
 
   private buildOpenAIMessages(payload: any): any[] {
@@ -155,6 +156,28 @@ export class InferenceClient {
   public async testConnection(): Promise<ConnectionTestResult> {
     const startTime = Date.now();
 
+    if (this.providerType === 'kaggle') {
+      const clean = this.endpoint.replace(/\/$/, '').replace(/\/infer$/, '').replace(/\/chat\/completions$/, '');
+      const healthUrl = `${clean}/health`;
+      try {
+        const response = await fetch(healthUrl, {
+          method: 'GET',
+          signal: AbortSignal.timeout(10000),
+        });
+        const latencyMs = Date.now() - startTime;
+        if (!response.ok) {
+          return { ok: false, latencyMs, error: `HTTP ${response.status}` };
+        }
+        return { ok: true, latencyMs };
+      } catch (err: any) {
+        return {
+          ok: false,
+          latencyMs: Date.now() - startTime,
+          error: err?.message || String(err),
+        };
+      }
+    }
+
     const url = this.getDirectUrl();
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
@@ -182,6 +205,7 @@ export class InferenceClient {
         method: 'POST',
         headers,
         body: JSON.stringify(body),
+        signal: AbortSignal.timeout(15000),
       });
 
       const latencyMs = Date.now() - startTime;
