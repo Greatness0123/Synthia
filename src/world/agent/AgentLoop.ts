@@ -418,6 +418,13 @@ export class AgentLoop {
 
   private parseAndValidateAction(jsonStr: string): any {
     try {
+      if (!jsonStr || !jsonStr.trim()) {
+        console.warn(`[AgentLoop (${this.config.agentId})] Action JSON is empty. Using default balance pose.`);
+        return {
+          memory_write: { memory_id: 'auto', tier: 3, summary: 'Stand upright and observe environment' },
+          actions: { program_sequence: ['stand_upright'], joint_overrides: {} },
+        };
+      }
       const cleanJson = jsonStr.replace(/```json/g, '').replace(/```/g, '').trim();
       const data = JSON.parse(cleanJson);
 

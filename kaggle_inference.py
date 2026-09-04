@@ -2,7 +2,7 @@
 import os, sys
 os.environ["PYTORCH_ALLOC_CONF"] = "expandable_segments:True"
 sys.setrecursionlimit(10000)
-import io, base64, time, json, threading, uvicorn, schedule, re, warnings, asyncio, shutil
+import io, base64, time, json, threading, uvicorn, schedule, re, warnings, asyncio, shutil, traceback
 from datetime import datetime
 from typing import Optional, List, Dict, Any, Union
 from fastapi import FastAPI, Request
@@ -15,8 +15,6 @@ from PIL import Image
 
 # Force Python garbage collection and clear PyTorch cache
 gc.collect()
-
-# NOTE: Do NOT clear HuggingFace cache — it destroys pre-downloaded model weights on Kaggle.
 
 # === APP SETUP & CORS ===
 app = FastAPI(title="SYNTHIA Inference Server")
@@ -140,7 +138,7 @@ class MemoryEntry(BaseModel):
 class InferPayload(BaseModel):
     frame: str
     joints: Dict[str, Any]
-    audio_pcm: Optional[str] = None  # preserved for compatibility, not processed
+    audio_pcm: Optional[str] = None
     valid_joints: List[str] = []  
     upright_preset: Dict[str, Any] = {}
     heartbeat: int = 0
@@ -390,55 +388,48 @@ JSON SCHEMA:
 def sanitize_action_json(raw_json_str: str) -> str:
     """
     Fix common Qwen2.5-VL JSON errors:
-    1. Trailing garbage (extra braces, text after JSON)
-    2. "joint_name": "actual_joint": value → "actual_joint": value
-    3. gaze_target/new_motor_program/flag nested inside actions → move to root
+    1. Strip code fences (```json ... ```)
+    2. Trailing garbage (extra braces, text after JSON)
+    3. "joint_name": "actual_joint": value → "actual_joint": value
+    4. gaze_target/new_motor_program/flag nested inside actions → move to root
     """
     if not raw_json_str or not raw_json_str.strip():
-        return raw_json_str
+        return ""
 
     s = raw_json_str.strip()
+    s = re.sub(r'```json\s*', '', s)
+    s = re.sub(r'```\s*', '', s)
+    s = s.strip()
 
-    # 1. Strip trailing whitespace / garbage — find last closing brace
-    last_brace = s.rfind('}')
-    if last_brace != -1:
-        s = s[:last_brace + 1]
-
-    # 2. Try to find the first opening brace
+    # Find the opening and closing braces
     first_brace = s.find('{')
-    if first_brace == -1:
-        print(f"[SANITIZE] No opening brace found in: {s[:100]}")
-        return s
-    s = s[first_brace:]
+    last_brace = s.rfind('}')
+    if first_brace == -1 or last_brace == -1 or last_brace <= first_brace:
+        print(f"[SANITIZE] No valid JSON block found in: {s[:100]}")
+        return ""
+    
+    s = s[first_brace:last_brace + 1]
 
-    # 3. Try parsing as-is first
     try:
         data = json.loads(s)
     except json.JSONDecodeError:
-        # 4. Fix "joint_name": "actual_joint": value pattern
-        fixed = re.sub(
-            r'"joint_name"\s*:\s*"([^"]+)"\s*:',
-            r'"\1":',
-            s
-        )
+        fixed = re.sub(r'"joint_name"\s*:\s*"([^"]+)"\s*:', r'"\1":', s)
         try:
             data = json.loads(fixed)
             s = fixed
             print("[SANITIZE] Fixed 'joint_name' placeholder keys")
         except json.JSONDecodeError:
-            print(f"[SANITIZE] JSON still invalid after joint_name fix: {s[:200]}")
-            return s
+            print(f"[SANITIZE] JSON parsing failed for: {s[:200]}")
+            return ""
 
-    # 5. Move root-level fields incorrectly placed inside actions
     actions = data.get('actions', {})
     moved_any = False
     for field in ('gaze_target', 'new_motor_program', 'flag'):
         if field in actions and field not in data:
             data[field] = actions.pop(field)
             moved_any = True
-            print(f"[SANITIZE] Moved '{field}' from actions to root level")
 
-    if moved_any:
+    if moved_any or True:
         s = json.dumps(data, separators=(',', ': '))
 
     return s
@@ -460,23 +451,30 @@ def parse_openai_messages(messages: List[ChatMessage]):
                     if item_type == "text":
                         content_list.append({"type": "text", "text": item.get("text", "")})
                     elif item_type == "image_url":
-                        url = item.get("image_url", {}).get("url", "")
+                        img_val = item.get("image_url")
+                        url = ""
+                        if isinstance(img_val, dict):
+                            url = img_val.get("url", "")
+                        elif isinstance(img_val, str):
+                            url = img_val
+                        
                         b64_data = url.split(",", 1)[1] if "," in url else url
-                        try:
-                            img_bytes = base64.b64decode(b64_data)
-                            pil_img = Image.open(io.BytesIO(img_bytes)).convert("RGB")
-                            SAFE_SIZE = 448
-                            if pil_img.width != SAFE_SIZE or pil_img.height != SAFE_SIZE:
-                                pil_img = pil_img.resize((SAFE_SIZE, SAFE_SIZE), Image.Resampling.LANCZOS)
-                            images.append(pil_img)
-                            content_list.append({
-                                "type": "image", 
-                                "image": pil_img, 
-                                "min_pixels": 256 * 256, 
-                                "max_pixels": 448 * 448
-                            })
-                        except Exception as e:
-                            print(f"Error decoding image_url: {e}")
+                        if b64_data:
+                            try:
+                                img_bytes = base64.b64decode(b64_data)
+                                pil_img = Image.open(io.BytesIO(img_bytes)).convert("RGB")
+                                SAFE_SIZE = 448
+                                if pil_img.width != SAFE_SIZE or pil_img.height != SAFE_SIZE:
+                                    pil_img = pil_img.resize((SAFE_SIZE, SAFE_SIZE), Image.Resampling.LANCZOS)
+                                images.append(pil_img)
+                                content_list.append({
+                                    "type": "image", 
+                                    "image": pil_img, 
+                                    "min_pixels": 256 * 256, 
+                                    "max_pixels": 448 * 448
+                                })
+                            except Exception as e:
+                                print(f"Error decoding image_url: {e}")
                 elif isinstance(item, str):
                     content_list.append({"type": "text", "text": item})
             parsed_messages.append({"role": msg.role, "content": content_list})
@@ -548,9 +546,11 @@ def generate_legacy_stream(payload: InferPayload):
     def generate_worker():
         try:
             with generation_lock:
-                model.generate(**generation_kwargs)
+                with torch.no_grad():
+                    model.generate(**generation_kwargs)
         except Exception as e:
             print(f"❌ Generation crashed: {e}")
+            traceback.print_exc()
 
     thread = threading.Thread(target=generate_worker)
     thread.start()
@@ -583,6 +583,14 @@ def generate_legacy_stream(payload: InferPayload):
         return
 
     sanitized = sanitize_action_json(action_buffer)
+    if not sanitized:
+        sanitized = json.dumps({
+            "memory_write": {"memory_id": "auto", "tier": 3, "summary": "Balance maintenance"},
+            "actions": {"program_sequence": ["stand_upright"], "joint_overrides": {}},
+            "gaze_target": None,
+            "new_motor_program": None,
+            "flag": None
+        })
     print(f"[GENERATE] Action JSON sanitized: {len(action_buffer)} → {len(sanitized)} chars")
     yield sanitized.encode('utf-8')
 
@@ -652,9 +660,11 @@ def generate_openai_sse_stream(req: ChatCompletionRequest):
     def generate_worker():
         try:
             with generation_lock:
-                model.generate(**generation_kwargs)
+                with torch.no_grad():
+                    model.generate(**generation_kwargs)
         except Exception as e:
             print(f"❌ Generation crashed: {e}")
+            traceback.print_exc()
 
     thread = threading.Thread(target=generate_worker)
     thread.start()
@@ -670,8 +680,8 @@ def generate_openai_sse_stream(req: ChatCompletionRequest):
                 accumulated += token
                 sep_idx = accumulated.find(SEPARATOR)
                 if sep_idx != -1:
-                    thought_part = accumulated[:sep_idx + len(SEPARATOR)]
-                    chunk = {"choices": [{"index": 0, "delta": {"content": thought_part}}]}
+                    thought_part = accumulated[:sep_idx]
+                    chunk = {"choices": [{"index": 0, "delta": {"content": thought_part + SEPARATOR + "\n"}}]}
                     yield f"data: {json.dumps(chunk)}\n\n".encode("utf-8")
                     action_buffer = accumulated[sep_idx + len(SEPARATOR):]
                     action_started = True
@@ -685,12 +695,53 @@ def generate_openai_sse_stream(req: ChatCompletionRequest):
                 action_buffer += token
 
         if not action_started:
-            if accumulated:
-                chunk = {"choices": [{"index": 0, "delta": {"content": accumulated}}]}
+            # If the model didn't emit ---ACTION---, locate first { or provide fallback action
+            json_start = accumulated.find('{')
+            if json_start != -1:
+                thought_part = accumulated[:json_start]
+                raw_json = accumulated[json_start:]
+                if thought_part:
+                    chunk = {"choices": [{"index": 0, "delta": {"content": thought_part}}]}
+                    yield f"data: {json.dumps(chunk)}\n\n".encode("utf-8")
+                chunk = {"choices": [{"index": 0, "delta": {"content": f"\n{SEPARATOR}\n"}}]}
+                yield f"data: {json.dumps(chunk)}\n\n".encode("utf-8")
+                sanitized = sanitize_action_json(raw_json)
+                if not sanitized:
+                    sanitized = json.dumps({
+                        "memory_write": {"memory_id": "auto", "tier": 3, "summary": "Observing environment"},
+                        "actions": {"program_sequence": ["stand_upright"], "joint_overrides": {}},
+                        "gaze_target": None,
+                        "new_motor_program": None,
+                        "flag": None
+                    })
+                chunk = {"choices": [{"index": 0, "delta": {"content": sanitized}}]}
+                yield f"data: {json.dumps(chunk)}\n\n".encode("utf-8")
+            else:
+                if accumulated:
+                    chunk = {"choices": [{"index": 0, "delta": {"content": accumulated}}]}
+                    yield f"data: {json.dumps(chunk)}\n\n".encode("utf-8")
+                chunk = {"choices": [{"index": 0, "delta": {"content": f"\n{SEPARATOR}\n"}}]}
+                yield f"data: {json.dumps(chunk)}\n\n".encode("utf-8")
+                fallback_action = json.dumps({
+                    "memory_write": {"memory_id": "auto", "tier": 3, "summary": "Stand upright"},
+                    "actions": {"program_sequence": ["stand_upright"], "joint_overrides": {}},
+                    "gaze_target": None,
+                    "new_motor_program": None,
+                    "flag": None
+                })
+                chunk = {"choices": [{"index": 0, "delta": {"content": fallback_action}}]}
                 yield f"data: {json.dumps(chunk)}\n\n".encode("utf-8")
         else:
             sanitized = sanitize_action_json(action_buffer)
-            print(f"[GENERATE] Action JSON sanitized: {len(action_buffer)} → {len(sanitized)} chars")
+            if not sanitized:
+                sanitized = json.dumps({
+                    "memory_write": {"memory_id": "auto", "tier": 3, "summary": "Standing and observing"},
+                    "actions": {"program_sequence": ["stand_upright"], "joint_overrides": {}},
+                    "gaze_target": None,
+                    "new_motor_program": None,
+                    "flag": None
+                })
+            print(f"[GENERATE] Action JSON: {len(action_buffer)} → {len(sanitized)} chars")
             chunk = {"choices": [{"index": 0, "delta": {"content": sanitized}}]}
             yield f"data: {json.dumps(chunk)}\n\n".encode("utf-8")
 
@@ -710,7 +761,6 @@ async def chat_completions(req: ChatCompletionRequest):
     Handles non-streaming connection tests and streaming inference requests.
     """
     if not req.stream:
-        # Non-streaming response for testConnection / ping
         is_test = any(
             isinstance(m.content, str) and ("test" in m.content.lower() or "ok" in m.content.lower() or "ping" in m.content.lower())
             for m in req.messages
@@ -728,7 +778,6 @@ async def chat_completions(req: ChatCompletionRequest):
                 }]
             }
 
-        # Real non-streaming generation if needed
         parsed_messages, images = parse_openai_messages(req.messages)
         text = processor.apply_chat_template(parsed_messages, tokenize=False, add_generation_prompt=True)
         vision_out = process_vision_info(parsed_messages)

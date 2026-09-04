@@ -261,6 +261,7 @@ export class InferenceClient {
     }
 
     const decoder = new TextDecoder('utf-8');
+    let lineBuffer = '';
     let buffer = '';
     let thoughtTokens = '';
     let actionJson = '';
@@ -274,10 +275,10 @@ export class InferenceClient {
 
         if (firstTokenTime === 0) firstTokenTime = Date.now();
 
-        const chunk = decoder.decode(value, { stream: true });
-        const text = chunk;
+        lineBuffer += decoder.decode(value, { stream: true });
+        const lines = lineBuffer.split('\n');
+        lineBuffer = lines.pop() || ''; // Keep trailing incomplete line in buffer
 
-        const lines = text.split('\n');
         for (const line of lines) {
           let data = '';
           if (line.startsWith('data: ')) {
@@ -319,8 +320,24 @@ export class InferenceClient {
               actionJson += delta;
             }
           } catch {
-            // Unparsed SSE lines are ignored
+            // Unparsed or incomplete SSE lines
           }
+        }
+      }
+
+      // Process any trailing line in lineBuffer
+      if (lineBuffer.trim()) {
+        let data = lineBuffer.trim();
+        if (data.startsWith('data: ')) data = data.slice(6).trim();
+        if (data && data !== '[DONE]') {
+          try {
+            const parsed = JSON.parse(data);
+            const delta = parsed.choices?.[0]?.delta?.content || '';
+            if (delta) {
+              if (isAction) actionJson += delta;
+              else buffer += delta;
+            }
+          } catch {}
         }
       }
     } finally {
